@@ -1,111 +1,62 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
-import Modal from '../molecules/Modal';
+import { Search, X, Loader } from 'lucide-react';
+import { searchClasses, requestJoinClass } from '../../services/api/studentService'; 
 import ClassCard from '../molecules/ClassCard';
 import ClassDetailView from '../molecules/ClassDetailView';
-
-// --- MOCK DATA FOR AVAILABLE CLASSES ---
-const MOCK_AVAILABLE_CLASSES = [
-  {
-    id: 101,
-    subject: 'Science Revision',
-    grade: 'Grade 8',
-    tutorName: 'Dr. Sarah Perera',
-    tutorId: 'TUT-001',
-    bio: 'PhD in Biology with 10 years of teaching experience. Expert in Science for middle school.',
-    fee: '2500',
-    dayOfWeek: 'Saturday',
-    startTime: '08:00 AM',
-    endTime: '10:00 AM',
-    classType: 'Class',
-    status: 'Active'
-  },
-  {
-    id: 102,
-    subject: 'Mathematics',
-    grade: 'Grade 8',
-    tutorName: 'Mr. Amal Silva',
-    tutorId: 'TUT-005',
-    bio: 'Engineering graduate making Math easy for everyone. Specialized in Geometry and Algebra.',
-    fee: '2000',
-    dayOfWeek: 'Sunday',
-    startTime: '02:00 PM',
-    endTime: '04:00 PM',
-    classType: 'Class',
-    status: 'Active'
-  },
-  {
-    id: 103,
-    subject: 'English Literature',
-    grade: 'Grade 8',
-    tutorName: 'Ms. Kanthi Dias',
-    tutorId: 'TUT-012',
-    bio: 'English teacher at a leading international school.',
-    fee: '1800',
-    dayOfWeek: 'Wednesday',
-    startTime: '04:00 PM',
-    endTime: '06:00 PM',
-    classType: 'Class',
-    status: 'Starting Soon'
-  },
-  {
-    id: 104,
-    subject: 'Science Paper Class',
-    grade: 'Grade 9',
-    tutorName: 'Dr. Sarah Perera',
-    tutorId: 'TUT-001',
-    bio: 'Targeting term tests.',
-    fee: '3000',
-    dayOfWeek: 'Friday',
-    startTime: '05:00 PM',
-    endTime: '07:00 PM',
-    classType: 'Seminar',
-    status: 'Active'
-  }
-];
 
 const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState(null);
-  const [filteredClasses, setFilteredClasses] = useState([]);
+  const [availableClasses, setAvailableClasses] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // Filter logic
+  // Fetch Data when Modal Opens or Search/Grade changes
   useEffect(() => {
     if (!isOpen) {
-        // Reset state when modal closes
         setSearchTerm('');
         setSelectedClass(null);
+        setAvailableClasses([]);
         return;
     }
 
-    // 1. Filter by Grade (Match user grade)
-    // 2. Filter by Search Query (Subject, Tutor Name, TUT ID)
-    const results = MOCK_AVAILABLE_CLASSES.filter(cls => {
-      const matchesGrade = userGrade ? cls.grade === userGrade : true; // Show all if userGrade undefined
-      
-      const query = searchTerm.toLowerCase();
-      const matchesSearch = 
-        cls.subject.toLowerCase().includes(query) ||
-        cls.tutorName.toLowerCase().includes(query) ||
-        cls.tutorId.toLowerCase().includes(query);
+    const fetchClasses = async () => {
+        try {
+            setLoading(true);
+            setError('');
+            // Call Backend
+            const data = await searchClasses(userGrade, searchTerm);
+            setAvailableClasses(data);
+        } catch (err) {
+            console.error("Search failed", err);
+            setError('Failed to load classes.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-      return matchesGrade && matchesSearch;
-    });
+    // Debounce search to prevent too many API calls while typing
+    const delayDebounceFn = setTimeout(() => {
+        fetchClasses();
+    }, 500);
 
-    setFilteredClasses(results);
+    return () => clearTimeout(delayDebounceFn);
+
   }, [searchTerm, isOpen, userGrade]);
 
-  const handleRequestJoin = (classId) => {
-    // API Call logic would go here
-    alert(`Request sent to join class ID: ${classId}`);
-    onClose();
+  const handleRequestJoin = async (classId) => {
+    try {
+        await requestJoinClass(classId);
+        alert("Request to join sent successfully! Please wait for tutor approval.");
+        onClose();
+    } catch (err) {
+        alert(err.message || "Failed to send request.");
+    }
   };
 
   if (!isOpen) return null;
 
   return (
-    // We use a custom wrapper instead of the standard Modal molecule 
-    // to have full control over the width and layout for this specific flow
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
         
@@ -127,7 +78,6 @@ const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar">
           
-          {/* VIEW 1: CLASS DETAIL */}
           {selectedClass ? (
             <ClassDetailView 
                 classData={selectedClass} 
@@ -135,8 +85,6 @@ const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
                 onRequestJoin={handleRequestJoin}
             />
           ) : (
-            
-            /* VIEW 2: SEARCH & LIST */
             <div className="space-y-6">
               {/* Search Bar */}
               <div className="relative">
@@ -153,35 +101,47 @@ const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
                 />
               </div>
 
-              {/* Results Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredClasses.length > 0 ? (
-                  filteredClasses.map((cls) => (
-                    <div 
-                        key={cls.id} 
-                        onClick={() => setSelectedClass(cls)}
-                        className="cursor-pointer transform hover:-translate-y-1 transition-transform duration-200"
-                    >
-                      <ClassCard
-                        subject={cls.subject}
-                        grade={cls.grade}
-                        className={cls.tutorName} // Displaying Tutor Name in the large text area of ClassCard
-                        time={`${cls.dayOfWeek} ${cls.startTime}`}
-                        students={0}
-                        status={cls.status}
-                        fee={cls.fee}
-                        classType={cls.classType}
-                      />
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-2 text-center py-12 text-gray-500">
-                    <Search size={48} className="mx-auto mb-3 text-gray-300" />
-                    <p className="font-medium">No classes found.</p>
-                    <p className="text-sm">Try adjusting your search terms.</p>
+              {/* Error State */}
+              {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+
+              {/* Loading State */}
+              {loading && (
+                  <div className="flex justify-center py-12">
+                      <Loader className="animate-spin text-blue-600" size={32} />
                   </div>
-                )}
-              </div>
+              )}
+
+              {/* Results Grid */}
+              {!loading && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {availableClasses.length > 0 ? (
+                      availableClasses.map((cls) => (
+                        <div 
+                            key={cls.id} 
+                            onClick={() => setSelectedClass(cls)}
+                            className="cursor-pointer transform hover:-translate-y-1 transition-transform duration-200"
+                        >
+                          <ClassCard
+                            subject={cls.subject}
+                            grade={cls.grade}
+                            className={cls.tutorName} 
+                            time={`${cls.dayOfWeek} ${cls.startTime}`}
+                            students={0}
+                            status={cls.status}
+                            fee={cls.fee}
+                            classType={cls.classType}
+                          />
+                        </div>
+                      ))
+                    ) : (
+                      <div className="col-span-2 text-center py-12 text-gray-500">
+                        <Search size={48} className="mx-auto mb-3 text-gray-300" />
+                        <p className="font-medium">No classes found.</p>
+                        <p className="text-sm">Try adjusting your search terms.</p>
+                      </div>
+                    )}
+                  </div>
+              )}
             </div>
           )}
         </div>
