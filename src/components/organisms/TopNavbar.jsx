@@ -1,8 +1,37 @@
-import React from 'react';
-import { Menu, Search, Bell } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Menu, Search, Bell, Download } from 'lucide-react'; // Added Download icon
 import IconButton from '../atoms/IconButton.jsx'; 
 
 const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
+  // PWA INSTALL LOGIC START
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      // Prevent the mini-infobar from appearing on mobile automatically
+      e.preventDefault();
+      // Stash the event so it can be triggered later by the user
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    // Show the install prompt
+    deferredPrompt.prompt();
+    // Wait for the user to respond to the prompt
+    const { outcome } = await deferredPrompt.userChoice;
+    // We no longer need the prompt. Clear it up.
+    setDeferredPrompt(null);
+  };
+  // PWA INSTALL LOGIC END
+
   return (
     <header 
       className={`
@@ -11,7 +40,7 @@ const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
       `}
       style={{ 
         left: 0, 
-        marginLeft: isCollapsed ? '5rem' : '16rem', // Desktop margins
+        marginLeft: isCollapsed ? '5rem' : '16rem', 
         width: 'auto'
       }}
     >
@@ -38,8 +67,21 @@ const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
 
       {/* Right Actions */}
       <div className="flex items-center gap-3 md:gap-4">
+        
+        {/* INSTALL APP BUTTON (Only visible if installable) */}
+        {deferredPrompt && (
+           <button
+             onClick={handleInstallClick}
+             className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm animate-pulse"
+           >
+             <Download size={16} />
+             <span className="hidden sm:inline">Install App</span>
+           </button>
+        )}
+        {/* ------------------------------------------------------ */}
+
         <div className="md:hidden">
-           <IconButton icon={Search} />
+            <IconButton icon={Search} />
         </div>
         <IconButton icon={Bell} hasBadge={true} />
         

@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search } from 'lucide-react';
 import ClassCard from '../../../components/molecules/ClassCard';
 import StudentStatsGrid from '../../../components/organisms/StudentStatsGrid';
 import StudentQuickActions from '../../../components/organisms/StudentQuickActions';
 import StudentUpcomingClasses from '../../../components/organisms/StudentUpcomingClasses';
 import { ENROLLED_CLASSES } from '../../../utils/studentMockData'; // Reusing mock data
+import ClassSearchModal from '../../../components/organisms/ClassSearchModal';
 
 const StudentDashboard = ({ user, setActivePage }) => {
-  
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const userGrade = user?.grade || 'Grade 8';
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -18,7 +20,10 @@ const StudentDashboard = ({ user, setActivePage }) => {
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">
+          <button 
+            onClick={() => setIsSearchModalOpen(true)}  
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+          >
             <Search size={18} />
             <span>Find New Class</span>
           </button>
@@ -85,6 +90,11 @@ const StudentDashboard = ({ user, setActivePage }) => {
         </div>
 
       </div>
+      <ClassSearchModal 
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        userGrade={userGrade}
+      />
     </div>
   );
 };
