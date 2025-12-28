@@ -10,6 +10,8 @@ import InstituteDashboard from './views/InstituteDashboard';
 // Import Pages for Navigation Switching
 import ClassesPage from './ClassesPage';
 import TutorProfile from './TutorProfile';
+import StudentProfile from './StudentProfile';
+
 
 const DashboardHome = ({ activePage, setActivePage }) => {
   const { user } = useAuth();
@@ -20,9 +22,16 @@ const DashboardHome = ({ activePage, setActivePage }) => {
      return <ClassesPage />;
   }
   if (activePage === 'profile') {
-     return <TutorProfile />;
+     switch (user?.role) {
+        case ROLES.STUDENT:
+           return <StudentProfile />;
+        case ROLES.TUTOR:
+           return <TutorProfile />;
+        // Add InstituteProfile later if needed
+        default:
+           return <TutorProfile />;
+     }
   }
-
   // --- ROLE BASED RENDERING ---
   switch (user?.role) {
     case ROLES.TUTOR:
