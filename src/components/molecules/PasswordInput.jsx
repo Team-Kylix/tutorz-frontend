@@ -9,7 +9,8 @@ const PasswordInput = ({ id, label, error, ...props }) => {
 
     return (
         <div>
-            <Label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
+            {/* Added dark:text-gray-300 to Label */}
+            <Label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 {label}
             </Label>
             <div className="relative">
@@ -17,13 +18,15 @@ const PasswordInput = ({ id, label, error, ...props }) => {
                     id={id}
                     name={id}
                     type={showPassword ? 'text' : 'password'}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow ${error ? 'border-red-500' : 'border-gray-300'}`}
+                    // Updated border logic for dark mode
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow ${error ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-700'}`}
                     {...props}
                 />
                 <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-gray-700"
+                    // Updated text colors for the eye icon button
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 >
                     <Icon provider={showPassword ? 'eye-off' : 'eye'} className="w-5 h-5" />
                 </button>
