@@ -6,16 +6,15 @@ import {
 import { useNavigate } from 'react-router-dom';
 import SidebarItem from '../molecules/SidebarItem';
 import ConfirmationModal from '../molecules/ConfirmationModal'; 
+import Logo from '../atoms/Logo'; // 1. Import Logo
 import { useAuth } from '../../hooks/useAuth';
 
 const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   
-  // State for logout confirmation
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // Safe check for user data
   const displayName = user?.FirstName || "User";
   const displayRole = user?.role || "Member";
   const displayId = user?.userId || ""; 
@@ -46,7 +45,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         ></div>
       )}
 
-      {/* --- REUSABLE CONFIRMATION MODAL --- */}
       <ConfirmationModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
@@ -56,7 +54,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         confirmLabel="Logout"
         variant="danger" 
       />
-      {/* ---------------------------------- */}
 
       <aside
         className={`
@@ -66,9 +63,28 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
       >
         {/* Header */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-2 font-bold text-xl text-blue-700 dark:text-blue-400">
-            <span>Tutorz</span>
+          
+          {/* 2. REPLACED HARDCODED TEXT WITH LOGO COMPONENT */}
+          <div className="flex items-center">
+             {/* If sidebar is collapsed (on desktop), we can just show the Icon if we wanted, 
+                 but typically we hide the whole text or keep it small. 
+                 The current Logo 'small' variant works for both. */}
+             {!isCollapsed ? (
+                <Logo size="small" />
+             ) : (
+                // Optional: Just show the text 'T' or icon if collapsed?
+                // For now, let's keep it simple or hide it if it overflows.
+                // Since the collapsed width is 5rem (w-20), the full logo might not fit well.
+                // We can force just the icon here manually or make Logo smarter.
+                // Let's stick to the full small logo and let CSS handle overflow or just hiding it.
+                <div className="hidden md:block">
+                   <Logo size="small" className="justify-center" /> 
+                </div>
+             )}
+             {/* Mobile specific logic handled by isCollapsed check above or CSS */}
+             {isCollapsed && <span className="md:hidden"><Logo size="small" /></span>}
           </div>
+
           <button onClick={toggleSidebar} className="hidden md:block p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300">
             {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
