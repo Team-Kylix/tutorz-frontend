@@ -23,10 +23,10 @@ const UpcomingClasses = ({ onNavigate }) => {
   
   const getTypeIcon = (type) => {
       switch(type) {
-          case 'Seminar': return <Presentation size={14} className="text-purple-500" />;
-          case 'Workshop': return <PenTool size={14} className="text-orange-500" />;
-          case 'Course': return <GraduationCap size={14} className="text-emerald-500" />;
-          default: return <BookOpen size={14} className="text-blue-500" />;
+          case 'Seminar': return <Presentation size={14} className="text-purple-500 dark:text-purple-400" />;
+          case 'Workshop': return <PenTool size={14} className="text-orange-500 dark:text-orange-400" />;
+          case 'Course': return <GraduationCap size={14} className="text-emerald-500 dark:text-emerald-400" />;
+          default: return <BookOpen size={14} className="text-blue-500 dark:text-blue-400" />;
       }
   };
 
@@ -73,39 +73,45 @@ const UpcomingClasses = ({ onNavigate }) => {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'in-progress':
-        return <div className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-600 rounded-full text-xs font-bold animate-pulse"><Radio size={12} /> Live</div>;
+        return <div className="flex items-center gap-1 px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full text-xs font-bold animate-pulse"><Radio size={12} /> Live</div>;
       case 'completed':
-        return <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-medium"><CheckCircle size={12} /> Done</div>;
+        return <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-full text-xs font-medium"><CheckCircle size={12} /> Done</div>;
       case 'next':
-        return <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-semibold"><Clock size={12} /> Next</div>;
+        return <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded-full text-xs font-semibold"><Clock size={12} /> Next</div>;
       default: return null;
     }
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm h-full flex flex-col">
-      <div className="p-5 border-b border-gray-100 flex justify-between items-center">
-        <h3 className="font-bold text-gray-900">Schedule & Status</h3>
-        <button onClick={onNavigate} className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm h-full flex flex-col transition-colors">
+      <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+        <h3 className="font-bold text-gray-900 dark:text-white">Schedule & Status</h3>
+        <button onClick={onNavigate} className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center gap-1">
           View All <ArrowRight size={16} />
         </button>
       </div>
 
-      <div className="p-5 flex-1 overflow-y-auto">
+      <div className="p-5 flex-1 overflow-y-auto custom-scrollbar">
         {loading ? (
-           <p className="text-gray-500 text-sm text-center py-4">Loading schedule...</p>
+           <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-4">Loading schedule...</p>
         ) : displayList.length === 0 ? (
-           <div className="text-center py-6 text-gray-500">
-             <Calendar size={32} className="mx-auto mb-2 text-gray-300" />
+           <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+             <Calendar size={32} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />
              <p>No classes scheduled.</p>
            </div>
         ) : (
           <div className="space-y-4">
             {displayList.map((cls) => (
-              <div key={cls.classId} className={`flex items-center gap-4 p-3 rounded-lg transition-colors border cursor-pointer ${cls.status === 'in-progress' ? 'bg-red-50 border-red-100' : 'hover:bg-gray-50 border-transparent hover:border-gray-100'}`}>
+              <div key={cls.classId} className={`flex items-center gap-4 p-3 rounded-lg transition-colors border cursor-pointer 
+                ${cls.status === 'in-progress' 
+                    ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-900/30' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700 border-transparent hover:border-gray-100 dark:hover:border-gray-600'}`}>
                 
                 {/* Time Box */}
-                <div className={`flex-shrink-0 w-16 h-16 rounded-lg flex flex-col items-center justify-center ${cls.status === 'in-progress' ? 'bg-white text-red-600 shadow-sm' : 'bg-blue-50 text-blue-700'}`}>
+                <div className={`flex-shrink-0 w-16 h-16 rounded-lg flex flex-col items-center justify-center 
+                    ${cls.status === 'in-progress' 
+                        ? 'bg-white dark:bg-red-900/40 text-red-600 dark:text-red-400 shadow-sm' 
+                        : 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'}`}>
                   <span className="text-xs font-bold uppercase mb-1">
                     {cls.dayOfWeek ? cls.dayOfWeek.substring(0, 3) : 'Date'}
                   </span>
@@ -117,15 +123,15 @@ const UpcomingClasses = ({ onNavigate }) => {
                   <div className="flex justify-between items-start mb-1">
                     <div className="flex items-center gap-2 truncate pr-2">
                         {getTypeIcon(cls.classType)}
-                        <h4 className="font-bold text-gray-900 truncate">
+                        <h4 className="font-bold text-gray-900 dark:text-white truncate">
                             {cls.className || cls.subject}
                         </h4>
                     </div>
                     {getStatusBadge(cls.status)}
                   </div>
                   
-                  <div className="flex items-center text-xs text-gray-500 gap-3">
-                    <span className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded">
+                  <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-3">
+                    <span className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
                         <Clock size={10} /> 
                         {calculateDuration(cls.startTime, cls.endTime)}
                     </span>

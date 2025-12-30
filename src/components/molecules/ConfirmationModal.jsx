@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertCircle, CheckCircle, Info, XCircle } from 'lucide-react';
-import Button from '../atoms/Button'; // Reusing your existing Button atom
+import Button from '../atoms/Button';
 
 const ConfirmationModal = ({ 
   isOpen, 
@@ -20,19 +20,22 @@ const ConfirmationModal = ({
       case 'danger':
         return {
           icon: <XCircle size={32} />,
-          iconBg: 'bg-red-100 text-red-600',
+          // Dark mode: darker red background, lighter red text
+          iconBg: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
           btnVariant: 'danger'
         };
       case 'success':
         return {
           icon: <CheckCircle size={32} />,
-          iconBg: 'bg-green-100 text-green-600',
-          btnVariant: 'primary' // Assuming you might add a success variant to Button later
+          // Dark mode: darker green background, lighter green text
+          iconBg: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
+          btnVariant: 'primary' 
         };
       default:
         return {
           icon: <AlertCircle size={32} />,
-          iconBg: 'bg-blue-100 text-blue-600',
+          // Dark mode: darker blue background, lighter blue text
+          iconBg: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
           btnVariant: 'primary'
         };
     }
@@ -42,7 +45,7 @@ const ConfirmationModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100">
         <div className="flex flex-col items-center text-center">
           
           {/* Icon */}
@@ -51,15 +54,15 @@ const ConfirmationModal = ({
           </div>
 
           {/* Text Content */}
-          <h3 className="text-lg font-bold text-gray-900">{title}</h3>
-          <p className="text-gray-500 mt-2 mb-6 text-sm">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h3>
+          <p className="text-gray-500 dark:text-gray-400 mt-2 mb-6 text-sm">
             {message}
           </p>
           
           {/* Actions */}
           <div className="flex gap-3 w-full">
             <Button 
-              variant="secondary" // Gray button for cancel
+              variant="secondary"
               onClick={onClose}
               fullWidth
             >

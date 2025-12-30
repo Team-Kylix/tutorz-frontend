@@ -33,7 +33,6 @@ const ClassFormModal = ({
   const [showSubjectSuggestions, setShowSubjectSuggestions] = useState(false);
 
   // Sync form data on open/edit
-
   useEffect(() => {
     if (!isOpen) return;
 
@@ -136,33 +135,37 @@ const ClassFormModal = ({
 
   if (!isOpen) return null;
 
+  // Reusable input class for raw selects/inputs to ensure consistency
+  const inputClass = "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white focus:outline-none transition-colors";
+  const labelClass = "text-sm font-medium text-gray-700 dark:text-gray-300";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] transition-colors">
 
         {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b">
-          <h2 className="text-lg font-bold">
+        <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">
             {initialData ? 'Edit Details' : 'Create New Session'}
           </h2>
-          <button onClick={onClose}>
-            <X className="text-gray-500 hover:text-gray-700" />
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+            <X className="text-gray-500 dark:text-gray-400" size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
 
           {/* Institute & Type */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">
+              <label className={labelClass}>
                 Institute <span className="text-red-500">*</span>
               </label>
               <select
                 name="instituteName"
                 value={formData.instituteName}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                className={inputClass}
               >
                 {MOCK_INSTITUTES.map((inst) => (
                   <option key={inst.id} value={inst.name}>
@@ -173,14 +176,14 @@ const ClassFormModal = ({
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">
+              <label className={labelClass}>
                 Type <span className="text-red-500">*</span>
               </label>
               <select
                 name="classType"
                 value={formData.classType}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                className={inputClass}
               >
                 <option value="Class">Class (Weekly)</option>
                 <option value="Seminar">Seminar</option>
@@ -194,32 +197,21 @@ const ClassFormModal = ({
           <div className="grid grid-cols-2 gap-4">
             {isRecurring ? (
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
+                <label className={labelClass}>
                   Grade <span className="text-red-500">*</span>
                 </label>
                 <select
                   name="grade"
                   value={formData.grade}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                  className={inputClass}
                   required
                 >
                   <option value="">Select Grade</option>
                   {[
-                    'Preschool',
-                    'Grade 1',
-                    'Grade 2',
-                    'Grade 3',
-                    'Grade 4',
-                    'Grade 5',
-                    'Grade 6',
-                    'Grade 7',
-                    'Grade 8',
-                    'Grade 9',
-                    'Grade 10',
-                    'Grade 11 (O/L)',
-                    'Grade 12 (A/L)',
-                    'Grade 13 (A/L)'
+                    'Preschool', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4',
+                    'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9',
+                    'Grade 10', 'Grade 11 (O/L)', 'Grade 12 (A/L)', 'Grade 13 (A/L)'
                   ].map((g) => (
                     <option key={g} value={g}>
                       {g}
@@ -265,12 +257,12 @@ const ClassFormModal = ({
             </div>
 
             {showSubjectSuggestions && filteredSubjects.length > 0 && (
-              <ul className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto mt-1">
+              <ul className="absolute z-20 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto mt-1">
                 {filteredSubjects.map((s) => (
                   <li
                     key={s}
                     onMouseDown={() => handleSubjectSelect(s)}
-                    className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700"
+                    className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 transition-colors"
                   >
                     {s}
                   </li>
@@ -282,7 +274,7 @@ const ClassFormModal = ({
           {/* Day / Date & Time */}
           <div className="grid grid-cols-3 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">
+              <label className={labelClass}>
                 {isRecurring ? 'Day' : 'Date'}{' '}
                 <span className="text-red-500">*</span>
               </label>
@@ -292,16 +284,11 @@ const ClassFormModal = ({
                   name="dayOfWeek"
                   value={formData.dayOfWeek}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                  className={inputClass}
                 >
                   {[
-                    'Monday',
-                    'Tuesday',
-                    'Wednesday',
-                    'Thursday',
-                    'Friday',
-                    'Saturday',
-                    'Sunday'
+                    'Monday', 'Tuesday', 'Wednesday', 'Thursday',
+                    'Friday', 'Saturday', 'Sunday'
                   ].map((d) => (
                     <option key={d} value={d}>
                       {d}
@@ -315,7 +302,7 @@ const ClassFormModal = ({
                   value={formData.date}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={inputClass}
                 />
               )}
             </div>
@@ -358,13 +345,13 @@ const ClassFormModal = ({
           </div>
 
           {/* Footer */}
-          <div className="pt-4 border-t mt-2 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
+          <div className="pt-4 border-t border-gray-100 dark:border-gray-700 mt-2 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
             <div className="order-3 sm:order-1 w-full sm:w-auto flex justify-center sm:justify-start">
               {initialData && (
                 <button
                   type="button"
                   onClick={() => onDelete(initialData.classId)}
-                  className="flex items-center gap-2 text-red-500 hover:text-red-700 text-sm font-medium px-2 py-1 rounded hover:bg-red-50 transition"
+                  className="flex items-center gap-2 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-sm font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition"
                 >
                   <Trash2 size={16} /> Delete
                 </button>
@@ -378,7 +365,7 @@ const ClassFormModal = ({
                     type="button"
                     onClick={toggleStatus}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      formData.isActive ? 'bg-green-500' : 'bg-gray-300'
+                      formData.isActive ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
                     }`}
                   >
                     <span
@@ -391,9 +378,9 @@ const ClassFormModal = ({
                   </button>
                   <span className="text-xs font-semibold w-14 inline-block">
                     {formData.isActive ? (
-                      <span className="text-green-600">Active</span>
+                      <span className="text-green-600 dark:text-green-400">Active</span>
                     ) : (
-                      <span className="text-gray-500">Inactive</span>
+                      <span className="text-gray-500 dark:text-gray-400">Inactive</span>
                     )}
                   </span>
                 </div>
