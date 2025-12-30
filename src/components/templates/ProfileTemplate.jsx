@@ -21,8 +21,8 @@ const ProfileTemplate = ({
 
     if (loading) return (
         <div className="flex flex-col justify-center items-center h-96 space-y-4">
-            <Loader className="animate-spin text-blue-600" size={40} />
-            <p className="text-gray-500 text-sm animate-pulse">Loading profile...</p>
+            <Loader className="animate-spin text-blue-600 dark:text-blue-400" size={40} />
+            <p className="text-gray-500 dark:text-gray-400 text-sm animate-pulse">Loading profile...</p>
         </div>
     );
 
@@ -35,19 +35,20 @@ const ProfileTemplate = ({
         // Now it uses 'w-full' to fill the entire screen space provided by the parent.
         <div className="w-full space-y-6">
             
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors">
                 
                 <ProfileAvatarHeader firstName={headerInfo?.firstName} />
 
-                <div className="pt-14 px-8 pb-6 border-b border-gray-100">
+                <div className="pt-14 px-8 pb-6 border-b border-gray-100 dark:border-gray-700">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                 {headerInfo?.firstName || "User"} {headerInfo?.lastName}
-                                {headerInfo?.registrationNumber && <BadgeCheck className="text-blue-500" size={20} />}
+                                {headerInfo?.registrationNumber && <BadgeCheck className="text-blue-500 dark:text-blue-400" size={20} />}
                             </h1>
-                            <p className="text-sm text-gray-500 font-medium mt-1">
-                                Registration ID: <span className="font-mono text-gray-700 bg-gray-100 px-2 py-0.5 rounded text-xs ml-1">
+                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mt-1">
+                                Registration ID: 
+                                <span className="font-mono text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-xs ml-1">
                                     {headerInfo?.registrationNumber || "PENDING"}
                                 </span>
                             </p>

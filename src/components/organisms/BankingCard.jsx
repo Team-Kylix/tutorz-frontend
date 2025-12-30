@@ -3,7 +3,7 @@ import { CreditCard, Building2 } from 'lucide-react';
 
 const BankingCard = ({ bankName, accountNumber }) => {
     return (
-        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden transition-transform hover:scale-[1.01] duration-300">
+        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden transition-transform hover:scale-[1.01] duration-300 border border-gray-700">
             {/* Decorative Background Elements */}
             <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white opacity-5 rounded-full blur-2xl"></div>
             <div className="absolute bottom-0 left-0 -mb-4 -ml-4 w-20 h-20 bg-blue-500 opacity-10 rounded-full blur-xl"></div>

@@ -8,7 +8,7 @@ export default function LoginPage() {
 
     // This function will be passed to the LoginForm
     const handleSwitchToRegister = () => {
-        navigate('/register'); // Tell the router to go to the register page
+        navigate('/register'); 
     };
 
     return (
