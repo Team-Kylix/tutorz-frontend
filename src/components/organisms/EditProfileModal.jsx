@@ -43,7 +43,6 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                 // Format Date for HTML input if it exists
                 dateOfBirth: initialData.dateOfBirth ? initialData.dateOfBirth.split('T')[0] : ''
             }));
-            // If there's an existing profile picture URL, you might want to set it here too
         }
     }, [initialData]);
 
@@ -62,9 +61,6 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        
-        // If it's a Student, we might send JSON directly (as per your backend requirement)
-        // If it's a Tutor, we send FormData for the image.
         
         if (role === 'student') {
             onSave(formData); // Send JSON object
@@ -89,11 +85,11 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                 {role === 'tutor' && (
                     <div className="flex flex-col items-center gap-2">
                         <div className="relative group cursor-pointer w-24 h-24">
-                            <div className="w-full h-full rounded-full overflow-hidden border-4 border-white shadow-lg bg-gray-100">
+                            <div className="w-full h-full rounded-full overflow-hidden border-4 border-white dark:border-gray-700 shadow-lg bg-gray-100 dark:bg-gray-700 transition-colors">
                                 {previewImage ? (
                                     <img src={previewImage} alt="Preview" className="w-full h-full object-cover" />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                    <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
                                         <Camera size={32} />
                                     </div>
                                 )}
@@ -107,7 +103,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                                 onChange={handleImageChange}
                             />
                         </div>
-                        <Label htmlFor="profilePicture" className="text-xs text-gray-400 cursor-pointer">
+                        <Label htmlFor="profilePicture" className="text-xs text-gray-400 dark:text-gray-500 cursor-pointer">
                             Tap to change photo
                         </Label>
                     </div>
@@ -115,7 +111,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
 
                 {/* --- SECTION 2: Personal Info (Common Fields) --- */}
                 <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 border-b pb-2">Personal Information</h3>
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">Personal Information</h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} />
@@ -123,10 +119,8 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Email is usually read-only, assuming it's in initialData */}
-                        <FormField id="email" label="Email" value={formData.email} disabled className="bg-gray-50 text-gray-500 cursor-not-allowed" />
-                        
-                        {/* Phone is for Tutor, maybe Student too? */}
+                        {/* Email is usually read-only */}
+                        <FormField id="email" label="Email" value={formData.email} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
                         <FormField id="phoneNumber" label="Phone Number" value={formData.phoneNumber} onChange={handleChange} />
                     </div>
 
@@ -146,7 +140,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
 
                 {/* --- SECTION 3: Role Specific Details --- */}
                 <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 border-b pb-2">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">
                         {role === 'tutor' ? 'Financial Details' : 'Academic Details'}
                     </h3>
 
@@ -167,7 +161,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField id="grade" label="Grade / Year" value={formData.grade} onChange={handleChange} placeholder="e.g. Grade 10" />
                                 {initialData?.registrationNumber && (
-                                    <FormField id="regNumber" label="Registration No" value={initialData.registrationNumber} disabled className="bg-gray-50 text-gray-500 cursor-not-allowed" />
+                                    <FormField id="regNumber" label="Registration No" value={initialData.registrationNumber} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
                                 )}
                             </div>
                         </>
@@ -175,7 +169,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                 </div>
 
                 {/* --- Footer Buttons --- */}
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                     <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
                     <Button type="submit" variant="primary" disabled={isSaving}>
                         {isSaving ? <Loader size={18} className="animate-spin mr-2"/> : <Save size={18} className="mr-2"/>}

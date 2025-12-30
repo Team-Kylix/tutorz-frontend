@@ -253,10 +253,10 @@ const RegisterForm = ({ onSwitchToLogin }) => {
 
     return (
         <div className="w-full">
-            <h1 className="text-2xl font-semibold text-gray-900 text-center">Create your account</h1>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white text-center">Create your account</h1>
 
             <div className="mt-6">
-                <Label className="block text-sm font-bold text-gray-700 mb-3 text-center ">
+                <Label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 text-center ">
                     I am a (Select Role)
                 </Label>
                 <div className="grid grid-cols-3 gap-3">
@@ -265,18 +265,20 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                             key={option}
                             type="button"
                             onClick={() => { setRole(option); setRoleError(''); }}
-                            className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200
-                ${role === option
-                                    ? 'border-blue-600 bg-blue-50 text-blue-700 ring-2 ring-blue-500 ring-opacity-50'
-                                    : 'border-gray-200 text-gray-600 hover:border-blue-300 hover:bg-gray-50'
-                                }`}
+                            className={`
+                                flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200
+                                ${role === option
+                                    ? 'border-blue-600 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 ring-2 ring-blue-500 ring-opacity-50'
+                                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                }
+                            `}
                         >
                             {icons[option]}
                             <span className="text-xs font-semibold">{option}</span>
                         </button>
                     ))}
                 </div>
-                {roleError && <p className="text-xs text-red-500 mt-2 text-center font-medium">{roleError}</p>}
+                {roleError && <p className="text-xs text-red-500 dark:text-red-400 mt-2 text-center font-medium">{roleError}</p>}
             </div>
 
             <div className="mt-6 space-y-4">
@@ -287,14 +289,14 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                     <SocialLoginButton provider="apple" onClick={handleAppleClick} type="button">
                         Sign up with Apple
                     </SocialLoginButton>
-                    {appleError && <p className="text-xs text-red-500 mt-2 text-center font-medium ">{appleError}</p>}
+                    {appleError && <p className="text-xs text-red-500 dark:text-red-400 mt-2 text-center font-medium ">{appleError}</p>}
                 </div>
             </div>
 
             <div className="my-6 flex items-center">
-                <hr className="flex-grow border-gray-300" />
-                <span className="mx-4 text-sm font-medium text-gray-500">OR</span>
-                <hr className="flex-grow border-gray-300" />
+                <hr className="flex-grow border-gray-300 dark:border-gray-700" />
+                <span className="mx-4 text-sm font-medium text-gray-500 dark:text-gray-400">OR</span>
+                <hr className="flex-grow border-gray-300 dark:border-gray-700" />
             </div>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
@@ -330,9 +332,9 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                 </Button>
             </form>
 
-            <p className="mt-4 text-center text-sm text-gray-600">
+            <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
                 Already have an account?{' '}
-                <button onClick={onSwitchToLogin} className="font-medium text-blue-600 hover:underline">
+                <button onClick={onSwitchToLogin} className="font-medium text-blue-600 dark:text-blue-400 hover:underline">
                     Log In
                 </button>
             </p>
