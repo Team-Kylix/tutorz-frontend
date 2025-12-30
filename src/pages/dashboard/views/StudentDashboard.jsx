@@ -15,14 +15,14 @@ const StudentDashboard = ({ user, setActivePage }) => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Student Dashboard</h1>
-          <p className="text-gray-500">Welcome back, {user?.firstName}!</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Student Dashboard</h1>
+          <p className="text-gray-500 dark:text-gray-400">Welcome back, {user?.firstName}!</p>
         </div>
 
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setIsSearchModalOpen(true)}  
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 dark:hover:bg-blue-500 transition-colors shadow-sm"
           >
             <Search size={18} />
             <span>Find New Class</span>
@@ -47,10 +47,10 @@ const StudentDashboard = ({ user, setActivePage }) => {
           {/* 2. Enrolled Classes Preview */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-900 text-lg">My Classes</h3>
+              <h3 className="font-bold text-gray-900 dark:text-white text-lg">My Classes</h3>
               <button 
                 onClick={() => setActivePage('classes')} 
-                className="text-sm text-blue-600 hover:underline"
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
               >
                 See All
               </button>
@@ -80,10 +80,10 @@ const StudentDashboard = ({ user, setActivePage }) => {
         <div>
            <StudentQuickActions />
            
-           {/* You can add a "Recent Notifications" or "Medals" widget here later */}
-           <div className="mt-6 bg-blue-50 border border-blue-100 rounded-xl p-5">
-              <h4 className="font-bold text-blue-800 mb-2">Did you know?</h4>
-              <p className="text-sm text-blue-600">
+           {/* Notification / Info Widget */}
+           <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/50 rounded-xl p-5 transition-colors">
+              <h4 className="font-bold text-blue-800 dark:text-blue-300 mb-2">Did you know?</h4>
+              <p className="text-sm text-blue-600 dark:text-blue-400">
                 You have 85% attendance this month! Keep it up to earn the "Consistent Learner" medal.
               </p>
            </div>
