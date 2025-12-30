@@ -1,6 +1,7 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { loginSuccess, logout } from '../store/authSlice';
 import { login as loginService, register as registerService, registerSibling as registerSiblingService } from '../services/auth/authService';
+
 export const useAuth = () => {
   const dispatch = useDispatch();
   const { user, token, isAuthenticated } = useSelector((state) => state.auth);
@@ -15,7 +16,9 @@ export const useAuth = () => {
           email: data.email,
           role: data.role,
           firstName: data.firstName, 
-          lastName: data.lastName
+          lastName: data.lastName,
+          // 👇 Added this mapping so Login gets the Reg No
+          registrationNumber: data.registrationNumber 
         }, 
         token: data.token 
       }));
@@ -36,7 +39,9 @@ export const useAuth = () => {
           email: data.email, 
           role: data.role,
           firstName: data.firstName || registrationData.firstName,
-          lastName: data.lastName || registrationData.lastName
+          lastName: data.lastName || registrationData.lastName,
+          // 👇 Added this mapping
+          registrationNumber: data.registrationNumber
         },
         token: data.token
       }));
@@ -60,8 +65,10 @@ export const useAuth = () => {
                     userId: data.userId,
                     email: data.email,
                     role: data.role,
-                    firstName: data.profiles[0]?.firstName, // Grab name from the new profile
-                    lastName: "" // Optional if not returned
+                    firstName: data.profiles[0]?.firstName, 
+                    lastName: "", 
+                    // 👇 Added this mapping
+                    registrationNumber: data.registrationNumber 
                 },
                 token: data.token
             }));
