@@ -58,25 +58,25 @@ const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-transparent dark:border-gray-700">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-900">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                 {selectedClass ? 'Class Details' : 'Find a New Class'}
             </h2>
             {!selectedClass && (
-                <p className="text-sm text-gray-500">Showing classes for <span className="font-bold text-blue-600">{userGrade}</span></p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Showing classes for <span className="font-bold text-blue-600 dark:text-blue-400">{userGrade}</span></p>
             )}
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition">
-            <X size={20} className="text-gray-500" />
+          <button onClick={onClose} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
+            <X size={20} className="text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-6 bg-white dark:bg-gray-800 custom-scrollbar">
           
           {selectedClass ? (
             <ClassDetailView 
@@ -94,7 +94,7 @@ const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
                 <input
                   type="text"
                   placeholder="Search by Subject, Tutor Name or Tutor ID (TUT)..."
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-800 placeholder-gray-400"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   autoFocus
@@ -102,12 +102,12 @@ const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
               </div>
 
               {/* Error State */}
-              {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+              {error && <p className="text-red-500 dark:text-red-400 text-sm text-center">{error}</p>}
 
               {/* Loading State */}
               {loading && (
                   <div className="flex justify-center py-12">
-                      <Loader className="animate-spin text-blue-600" size={32} />
+                      <Loader className="animate-spin text-blue-600 dark:text-blue-400" size={32} />
                   </div>
               )}
 
@@ -134,8 +134,8 @@ const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
                         </div>
                       ))
                     ) : (
-                      <div className="col-span-2 text-center py-12 text-gray-500">
-                        <Search size={48} className="mx-auto mb-3 text-gray-300" />
+                      <div className="col-span-2 text-center py-12 text-gray-500 dark:text-gray-400">
+                        <Search size={48} className="mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                         <p className="font-medium">No classes found.</p>
                         <p className="text-sm">Try adjusting your search terms.</p>
                       </div>

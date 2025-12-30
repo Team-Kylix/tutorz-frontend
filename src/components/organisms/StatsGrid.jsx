@@ -16,7 +16,6 @@ const StatsGrid = () => {
 
       if (data) {
         // Calculate Active Classes
-        // We filter the list where isActive is true (or not false/null)
         const activeCount = data.filter(c => c.isActive).length;
 
         // Update the specific card in our stats array
