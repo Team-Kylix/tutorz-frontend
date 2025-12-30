@@ -6,7 +6,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import SidebarItem from '../molecules/SidebarItem';
 import ConfirmationModal from '../molecules/ConfirmationModal'; 
-import Logo from '../atoms/Logo'; // 1. Import Logo
+import Logo from '../atoms/Logo'; 
 import { useAuth } from '../../hooks/useAuth';
 
 const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
@@ -62,40 +62,37 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         `}
       >
         {/* Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-700">
+        <div className={`h-16 flex items-center px-4 border-b border-gray-100 dark:border-gray-700 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           
-          {/* 2. REPLACED HARDCODED TEXT WITH LOGO COMPONENT */}
-          <div className="flex items-center">
-             {/* If sidebar is collapsed (on desktop), we can just show the Icon if we wanted, 
-                 but typically we hide the whole text or keep it small. 
-                 The current Logo 'small' variant works for both. */}
-             {!isCollapsed ? (
-                <Logo size="small" />
-             ) : (
-                // Optional: Just show the text 'T' or icon if collapsed?
-                // For now, let's keep it simple or hide it if it overflows.
-                // Since the collapsed width is 5rem (w-20), the full logo might not fit well.
-                // We can force just the icon here manually or make Logo smarter.
-                // Let's stick to the full small logo and let CSS handle overflow or just hiding it.
-                <div className="hidden md:block">
-                   <Logo size="small" className="justify-center" /> 
-                </div>
-             )}
-             {/* Mobile specific logic handled by isCollapsed check above or CSS */}
-             {isCollapsed && <span className="md:hidden"><Logo size="small" /></span>}
-          </div>
+          {/* Logo Component with collapsed prop */}
+          <Logo size="small" collapsed={isCollapsed} />
 
-          <button onClick={toggleSidebar} className="hidden md:block p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300">
-            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-          </button>
-           <button onClick={toggleSidebar} className="md:hidden p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300">
+          {/* Desktop Toggle Button */}
+          
+          {!isCollapsed && (
+             <button onClick={toggleSidebar} className="hidden md:block p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300">
+               <ChevronLeft size={20} />
+             </button>
+          )}
+          
+          {/* Mobile Toggle Button */}
+           <button onClick={toggleSidebar} className="md:hidden ml-auto p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300">
             <ChevronLeft size={20} />
           </button>
         </div>
 
+        {/* If collapsed on Desktop, show a button to expand at the top or bottom of the list */}
+        {isCollapsed && (
+            <div className="hidden md:flex justify-center py-2 border-b border-gray-100 dark:border-gray-700">
+                <button onClick={toggleSidebar} className="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300">
+                    <ChevronRight size={20} />
+                </button>
+            </div>
+        )}
+
         {/* User Profile */}
         <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/50">
-          <div className={`flex items-center gap-3 ${isCollapsed ? 'md:justify-center' : ''}`}>
+          <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
             <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 font-bold shrink-0">
                 {displayName.charAt(0)}
             </div>
