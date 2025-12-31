@@ -19,10 +19,10 @@ const DashboardHome = ({ activePage, setActivePage }) => {
   // --- NAVIGATION SWITCHER ---
   // If Sidebar selected 'classes', show the Classes Page immediately
   if (activePage === 'classes') {
-     return <ClassesPage />;
+      return <ClassesPage />;
   }
   if (activePage === 'profile') {
-     switch (user?.role) {
+      switch (user?.role) {
         case ROLES.STUDENT:
            return <StudentProfile />;
         case ROLES.TUTOR:
@@ -30,7 +30,7 @@ const DashboardHome = ({ activePage, setActivePage }) => {
         // Add InstituteProfile later if needed
         default:
            return <TutorProfile />;
-     }
+      }
   }
   // --- ROLE BASED RENDERING ---
   switch (user?.role) {

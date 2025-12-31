@@ -69,11 +69,11 @@ const StudentProfile = () => {
                 value={profile?.dateOfBirth ? new Date(profile.dateOfBirth).toLocaleDateString() : "Not set"} 
             />
             {/* Guardian Info Card */}
-            <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide mb-1">Guardian</p>
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900 transition-colors">
+                <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold uppercase tracking-wide mb-1">Guardian</p>
                 <div className="flex items-center gap-2">
-                    <User size={18} className="text-blue-500" />
-                    <span className="text-gray-900 font-medium">
+                    <User size={18} className="text-blue-500 dark:text-blue-400" />
+                    <span className="text-gray-900 dark:text-white font-medium">
                         {profile?.parentName || "Parent name not set"}
                     </span>
                 </div>
@@ -88,9 +88,9 @@ const StudentProfile = () => {
             <InfoCard icon={GraduationCap} label="Grade / Year" value={profile?.grade || "Not provided"} />
             
             {/* Status Badge */}
-            <div className="mt-2 flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
-                <span className="text-sm text-gray-500">Account Status</span>
-                <span className="px-3 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">
+            <div className="mt-2 flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm transition-colors">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Account Status</span>
+                <span className="px-3 py-1 text-xs font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 rounded-full">
                     Active Student
                 </span>
             </div>
