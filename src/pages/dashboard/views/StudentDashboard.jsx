@@ -4,19 +4,24 @@ import ClassCard from '../../../components/molecules/ClassCard';
 import StudentStatsGrid from '../../../components/organisms/StudentStatsGrid';
 import StudentQuickActions from '../../../components/organisms/StudentQuickActions';
 import StudentUpcomingClasses from '../../../components/organisms/StudentUpcomingClasses';
-import { ENROLLED_CLASSES } from '../../../utils/studentMockData'; // Reusing mock data
+import { ENROLLED_CLASSES } from '../../../utils/studentMockData'; 
 import ClassSearchModal from '../../../components/organisms/ClassSearchModal';
 
 const StudentDashboard = ({ user, setActivePage }) => {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const userGrade = user?.grade || 'Grade 8';
+  const userGrade = user?.grade;
+  
+  //Combine names safely
+  const welcomeName = user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Student';
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Student Dashboard</h1>
-          <p className="text-gray-500 dark:text-gray-400">Welcome back, {user?.firstName}!</p>
+          {/*Updated Welcome Message */}
+          <p className="text-gray-500 dark:text-gray-400">Welcome back, {welcomeName}!</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -62,9 +67,9 @@ const StudentDashboard = ({ user, setActivePage }) => {
                   <ClassCard 
                     subject={cls.subject}
                     grade={cls.grade}
-                    className={cls.tutorName} // Reusing className prop for Tutor Name visually
+                    className={cls.tutorName} 
                     time={cls.time}
-                    students={24} // Mock enrollment count
+                    students={24} 
                     status={cls.status}
                     fee={cls.fee}
                     classType={cls.classType}

@@ -4,10 +4,8 @@ import IconButton from '../atoms/IconButton.jsx';
 import { useThemeContext } from '../../context/ThemeContext'; 
 
 const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
-  // Get Theme Data
   const { theme, toggleTheme } = useThemeContext();
 
-  // PWA INSTALL LOGIC START
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
   useEffect(() => {
@@ -27,21 +25,17 @@ const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
     const { outcome } = await deferredPrompt.userChoice;
     setDeferredPrompt(null);
   };
-  // PWA INSTALL LOGIC END
 
   return (
     <header 
-      // Add dark mode classes (dark:bg-gray-900, dark:border-gray-700)
       className={`
         h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 
         fixed top-0 right-0 z-20 transition-all duration-300
         flex items-center justify-between px-4 md:px-6
+        /* FIXED POSITIONING LOGIC BELOW */
+        left-0 
+        ${isCollapsed ? 'md:left-20' : 'md:left-64'}
       `}
-      style={{ 
-        left: 0, 
-        marginLeft: isCollapsed ? '5rem' : '16rem', 
-        width: 'auto'
-      }}
     >
       {/* Mobile Sidebar Toggle & Search */}
       <div className="flex items-center flex-1 gap-4">
@@ -59,7 +53,6 @@ const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
           <input 
             type="text" 
             placeholder="Search student by ID, Name or QR..." 
-            // Update Input Styles for Dark Mode
             className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white transition-all"
           />
         </div>
@@ -89,11 +82,11 @@ const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
         )}
 
         <div className="md:hidden text-gray-500 dark:text-gray-400">
-            <IconButton icon={Search} />
+           <IconButton icon={Search} />
         </div>
         
         <div className="text-gray-500 dark:text-gray-400">
-            <IconButton icon={Bell} hasBadge={true} />
+           <IconButton icon={Bell} hasBadge={true} />
         </div>
         
         <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1 hidden md:block"></div>
