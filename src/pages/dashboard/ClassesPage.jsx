@@ -188,12 +188,12 @@ const ClassesPage = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Classes</h1>
-            <p className="text-gray-500">Manage your subjects and schedules</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Classes</h1>
+            <p className="text-gray-500 dark:text-gray-400">Manage your subjects and schedules</p>
         </div>
         <button 
             onClick={handleCreateClick}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-500 transition"
         >
             <Plus size={20} /> Create Class
         </button>
@@ -204,22 +204,22 @@ const ClassesPage = () => {
         <input 
             type="text" 
             placeholder="Search by subject or grade..." 
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-colors"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
       {isLoading ? (
-        <div className="text-center py-10">Loading classes...</div>
+        <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading classes...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredClasses.map((cls) => (
-                <div key={cls.classId} className="relative">
+                <div key={cls.classId} className="relative group">
                     <ClassCard 
                         className={cls.className}
                         subject={cls.subject} 
-                        grade={cls.grade}
+                        grade={cls.grade} 
                         classType={cls.classType} 
                         time={`${cls.dayOfWeek || (cls.date ? cls.date.split('T')[0] : '')} ${cls.startTime} - ${cls.endTime}`} 
                         students={cls.studentCount} 
@@ -229,14 +229,14 @@ const ClassesPage = () => {
                     <div className="absolute top-4 right-4 flex gap-2">
                         <button 
                             onClick={() => handleEditClick(cls)} 
-                            className="p-1.5 bg-white shadow-sm border rounded-full hover:bg-gray-50 text-gray-600"
+                            className="p-1.5 bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
                             title="Edit Class"
                         >
                             <Edit2 size={16} />
                         </button>
                         <button 
                             onClick={() => handleAddStudentClick(cls.classId)} 
-                            className="p-1.5 bg-white shadow-sm border rounded-full hover:bg-gray-50 text-blue-600"
+                            className="p-1.5 bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 text-blue-600 dark:text-blue-400 transition-colors"
                             title="Add Student"
                         >
                             <UserPlus size={16} />
@@ -245,7 +245,7 @@ const ClassesPage = () => {
                 </div>
             ))}
             {filteredClasses.length === 0 && (
-                <div className="col-span-full text-center py-10 text-gray-500 bg-gray-50 rounded-xl border border-dashed">
+                <div className="col-span-full text-center py-10 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 transition-colors">
                     No classes found. Create one to get started!
                 </div>
             )}

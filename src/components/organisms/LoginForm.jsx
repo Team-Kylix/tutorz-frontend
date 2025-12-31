@@ -30,20 +30,15 @@ const LoginForm = ({ onSwitchToRegister }) => {
         
                 const data = await socialLogin(payload);
         
-                // FIX: Construct user object from flat backend response
                 const userObj = {
                     userId: data.userId,
                     email: data.email,
                     role: data.role,
-                    // Map other fields if your backend sends them (e.g., firstName)
                     firstName: data.firstName, 
                     lastName: data.lastName
                 };
 
-                // Save to Redux
                 dispatch(loginSuccess({ user: userObj, token: data.token }));
-        
-                // Redirect to Dashboard
                 navigate('/dashboard', { replace: true });
 
             } catch (err) {
@@ -79,7 +74,6 @@ const LoginForm = ({ onSwitchToRegister }) => {
         try {
             const data = await login(identifier, password);
             
-            // FIX: Construct user object from flat backend response
             const userObj = {
                 userId: data.userId,
                 email: data.email,
@@ -89,8 +83,6 @@ const LoginForm = ({ onSwitchToRegister }) => {
             };
 
             dispatch(loginSuccess({ user: userObj, token: data.token }));
-            
-            // Redirect to Dashboard
             navigate('/dashboard', { replace: true });
 
         } catch (err) {
@@ -102,7 +94,7 @@ const LoginForm = ({ onSwitchToRegister }) => {
 
     return (
         <div className="w-full">
-            <h1 className="text-2xl font-semibold text-gray-900 text-center">Log in to your account</h1>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white text-center">Log in to your account</h1>
 
             <div className="mt-6 space-y-4">
                 <SocialLoginButton
@@ -112,17 +104,18 @@ const LoginForm = ({ onSwitchToRegister }) => {
                 >
                     Continue with Google
                 </SocialLoginButton>
-                    <div className="flex flex-col">
-                <SocialLoginButton 
+                
+                <div className="flex flex-col">
+                    <SocialLoginButton 
                         provider="apple" 
                         type="button"
                         onClick={handleAppleLogin}
                     >
                         Continue with Apple
-                </SocialLoginButton>
+                    </SocialLoginButton>
                     
                     {appleError && (
-                        <p className="text-xs text-red-500 mt-2 text-center font-medium ">
+                        <p className="text-xs text-red-500 dark:text-red-400 mt-2 text-center font-medium ">
                             {appleError}
                         </p>
                     )}
@@ -130,9 +123,9 @@ const LoginForm = ({ onSwitchToRegister }) => {
             </div>
 
             <div className="my-6 flex items-center">
-                <div className="flex-grow border-t border-gray-300"></div>
-                <span className="mx-4 text-xs font-medium text-gray-500">OR</span>
-                <div className="flex-grow border-t border-gray-300"></div>
+                <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
+                <span className="mx-4 text-xs font-medium text-gray-500 dark:text-gray-400">OR</span>
+                <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
             </div>
 
             <form className="space-y-4" onSubmit={handleManualLogin}>
@@ -159,13 +152,13 @@ const LoginForm = ({ onSwitchToRegister }) => {
                 />
 
                 {error && (
-                    <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
+                    <div className="p-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-800">
                         {error}
                     </div>
                 )}
 
                 <div className="text-right">
-                    <a href="/forgot-password" className="text-sm font-medium text-blue-600 hover:underline">
+                    <a href="/forgot-password" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
                         Forgot password?
                     </a>
                 </div>
@@ -174,16 +167,16 @@ const LoginForm = ({ onSwitchToRegister }) => {
                     type="submit"
                     disabled={loading}
                     className={`w-full bg-blue-600 text-white font-semibold py-3 rounded-lg
-                        ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'}
-                        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm`}
+                        ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700 dark:hover:bg-blue-500'}
+                        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900 transition-all duration-200 shadow-sm`}
                 >
                     {loading ? 'Logging in...' : 'Log In'}
                 </button>
             </form>
 
-            <p className="mt-6 text-center text-sm text-gray-600">
+            <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
                 Don't have an account?{' '}
-                <button onClick={onSwitchToRegister} className="font-medium text-blue-600 hover:underline">
+                <button onClick={onSwitchToRegister} className="font-medium text-blue-600 dark:text-blue-400 hover:underline">
                     Register
                 </button>
             </p>

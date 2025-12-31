@@ -9,6 +9,9 @@ import InstituteDashboard from './views/InstituteDashboard';
 
 // Import Pages for Navigation Switching
 import ClassesPage from './ClassesPage';
+import TutorProfile from './TutorProfile';
+import StudentProfile from './StudentProfile';
+
 
 const DashboardHome = ({ activePage, setActivePage }) => {
   const { user } = useAuth();
@@ -16,9 +19,19 @@ const DashboardHome = ({ activePage, setActivePage }) => {
   // --- NAVIGATION SWITCHER ---
   // If Sidebar selected 'classes', show the Classes Page immediately
   if (activePage === 'classes') {
-     return <ClassesPage />;
+      return <ClassesPage />;
   }
-
+  if (activePage === 'profile') {
+      switch (user?.role) {
+        case ROLES.STUDENT:
+           return <StudentProfile />;
+        case ROLES.TUTOR:
+           return <TutorProfile />;
+        // Add InstituteProfile later if needed
+        default:
+           return <TutorProfile />;
+      }
+  }
   // --- ROLE BASED RENDERING ---
   switch (user?.role) {
     case ROLES.TUTOR:
