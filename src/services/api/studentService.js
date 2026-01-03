@@ -27,6 +27,8 @@ export const searchClasses = async (grade, query) => {
  * @param {string} classId - The GUID of the class
  */
 export const requestJoinClass = async (classId) => {
-  const response = await apiClient.post('/student/join-class', { classId });
+  // Ensure the body matches the JoinClassRequest DTO on the backend
+  // Backend expects: public class JoinClassRequest { public Guid ClassId { get; set; } }
+  const response = await apiClient.post('/student/join-class', { classId: classId });
   return response.data;
 };
