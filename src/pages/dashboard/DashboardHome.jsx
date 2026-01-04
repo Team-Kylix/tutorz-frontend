@@ -11,6 +11,7 @@ import InstituteDashboard from './views/InstituteDashboard';
 import ClassesPage from './ClassesPage';
 import TutorProfile from './TutorProfile';
 import StudentProfile from './StudentProfile';
+import InstituteProfile from './InstituteProfile';
 
 
 const DashboardHome = ({ activePage, setActivePage }) => {
@@ -27,6 +28,8 @@ const DashboardHome = ({ activePage, setActivePage }) => {
            return <StudentProfile />;
         case ROLES.TUTOR:
            return <TutorProfile />;
+        case ROLES.INSTITUTE:
+           return <InstituteProfile />;
         // Add InstituteProfile later if needed
         default:
            return <TutorProfile />;
