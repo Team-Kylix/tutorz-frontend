@@ -11,10 +11,12 @@ import UpcomingClasses from '../../../components/organisms/UpcomingClasses';
 import QuickActions from '../../../components/organisms/QuickActions';
 import ClassFormModal from '../../../components/organisms/ClassFormModal';
 import ConfirmationModal from '../../../components/molecules/ConfirmationModal';
+import StudentRequestsModal from '../../../components/organisms/StudentRequestsModal';
 
 const TutorDashboard = ({ setActivePage }) => {
   // -- State for Dashboard Quick Actions --
   const [isClassModalOpen, setClassModalOpen] = useState(false);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   
   // Confirmation States
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -26,6 +28,14 @@ const TutorDashboard = ({ setActivePage }) => {
 
   // --- HANDLERS ---
   
+  // Handle Quick Action Clicks
+  const handleQuickAction = (actionType) => {
+      console.log("Quick Action Clicked:", actionType);
+      if (actionType === 'studentRequests') {
+          setIsRequestModalOpen(true);
+      }
+  };
+
   const handleClassSubmit = (formData) => {
     setPendingFormData(formData);
     setIsConfirmOpen(true);
@@ -74,11 +84,11 @@ const TutorDashboard = ({ setActivePage }) => {
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          {/* We pass setActivePage down so the 'View All' buttons work */}
           <UpcomingClasses onNavigate={() => setActivePage('classes')} />
         </div>
         <div>
-          <QuickActions />
+          {/* Pass the handler */}
+          <QuickActions onActionClick={handleQuickAction} />
         </div>
       </div>
 
@@ -88,6 +98,11 @@ const TutorDashboard = ({ setActivePage }) => {
         onClose={() => setClassModalOpen(false)} 
         onSubmit={handleClassSubmit}
         isSubmitting={isSaving}
+      />
+
+      <StudentRequestsModal 
+        isOpen={isRequestModalOpen}
+        onClose={() => setIsRequestModalOpen(false)}
       />
 
       <ConfirmationModal

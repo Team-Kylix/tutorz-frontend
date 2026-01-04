@@ -32,8 +32,8 @@ const ClassDetailView = ({ classData, onBack, onRequestJoin }) => {
             <p className="text-gray-500 dark:text-gray-400 font-medium">{classData.grade}</p>
           </div>
           <div className="text-right">
-             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">LKR {classData.fee}</div>
-             <div className="text-xs text-gray-500 dark:text-gray-400">per month</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">LKR {classData.fee}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">per month</div>
           </div>
         </div>
 
@@ -44,7 +44,7 @@ const ClassDetailView = ({ classData, onBack, onRequestJoin }) => {
             <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
               <div className="flex items-start gap-4">
                 <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-300 font-bold text-xl flex-shrink-0">
-                  {classData.tutorName.charAt(0)}
+                  {(classData.tutorName || "T").charAt(0)}
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-gray-900 dark:text-white">{classData.tutorName}</h3>
@@ -88,7 +88,8 @@ const ClassDetailView = ({ classData, onBack, onRequestJoin }) => {
               variant="primary" 
               fullWidth 
               size="large"
-              onClick={() => onRequestJoin(classData.id)}
+              // Use classId (or check your DTO if it's named 'id')
+              onClick={() => onRequestJoin(classData.classId || classData.id)}
             >
               Request to Join
             </Button>
