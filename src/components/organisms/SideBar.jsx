@@ -6,19 +6,24 @@ import {
 import { useNavigate } from 'react-router-dom';
 import SidebarItem from '../molecules/SidebarItem';
 import ConfirmationModal from '../molecules/ConfirmationModal'; 
+import Logo from '../atoms/Logo'; 
 import { useAuth } from '../../hooks/useAuth';
 
 const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   
-  // State for logout confirmation
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // Safe check for user data
-  const displayName = user?.FirstName || "User";
+  // UPDATED LOGIC HERE
+  const firstName = user?.firstName || "User";
+  const lastName = user?.lastName || "";
+  const fullName = `${firstName} ${lastName}`.trim();
+  
   const displayRole = user?.role || "Member";
-  const displayId = user?.userId || ""; 
+  
+  // Use registrationNumber if available, otherwise fall back to userId or empty
+  const displayId = user?.registrationNumber || user?.userId || ""; 
 
   const handleLogoutConfirm = () => {
     logout();
@@ -46,7 +51,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         ></div>
       )}
 
-      {/* --- REUSABLE CONFIRMATION MODAL --- */}
       <ConfirmationModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
@@ -56,7 +60,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         confirmLabel="Logout"
         variant="danger" 
       />
-      {/* ---------------------------------- */}
 
       <aside
         className={`
@@ -65,28 +68,44 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         `}
       >
         {/* Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-2 font-bold text-xl text-blue-700 dark:text-blue-400">
-            <span>Tutorz</span>
-          </div>
-          <button onClick={toggleSidebar} className="hidden md:block p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300">
-            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-          </button>
-           <button onClick={toggleSidebar} className="md:hidden p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300">
+        <div className={`h-16 flex items-center px-4 border-b border-gray-100 dark:border-gray-700 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+          <Logo size="small" collapsed={isCollapsed} />
+
+          {!isCollapsed && (
+             <button onClick={toggleSidebar} className="hidden md:block p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300">
+               <ChevronLeft size={20} />
+             </button>
+          )}
+          
+           <button onClick={toggleSidebar} className="md:hidden ml-auto p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300">
             <ChevronLeft size={20} />
           </button>
         </div>
 
+        {isCollapsed && (
+            <div className="hidden md:flex justify-center py-2 border-b border-gray-100 dark:border-gray-700">
+                <button onClick={toggleSidebar} className="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300">
+                    <ChevronRight size={20} />
+                </button>
+            </div>
+        )}
+
         {/* User Profile */}
         <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/50">
-          <div className={`flex items-center gap-3 ${isCollapsed ? 'md:justify-center' : ''}`}>
+          <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
             <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 font-bold shrink-0">
-                {displayName.charAt(0)}
+                {firstName.charAt(0)}
             </div>
             {!isCollapsed && (
               <div className="overflow-hidden">
-                <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200 truncate">{displayName}</h4>
-                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{displayRole} {displayId && `| ${displayId}`}</p>
+                {/* 👇 Display Full Name */}
+                <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200 truncate" title={fullName}>
+                    {fullName}
+                </h4>
+                {/* 👇 Display Registration ID */}
+                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize truncate">
+                    {displayRole} {displayId && `| ${displayId}`}
+                </p>
               </div>
             )}
           </div>
