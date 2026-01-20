@@ -1,6 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { loginSuccess, logout } from '../store/authSlice';
-import { login as loginService, register as registerService } from '../services/auth/authService';
+import { login as loginService, register as registerService, registerSibling as registerSiblingService } from '../services/auth/authService';
 
 export const useAuth = () => {
   const dispatch = useDispatch();
@@ -10,7 +10,18 @@ export const useAuth = () => {
   const login = async (email, password) => {
     try {
       const data = await loginService(email, password);
-      dispatch(loginSuccess({ user: data.user, token: data.token }));
+      dispatch(loginSuccess({ 
+        user: {
+          userId: data.userId,
+          email: data.email,
+          role: data.role,
+          firstName: data.firstName, 
+          lastName: data.lastName,
+          // Added this mapping so Login gets the Reg No
+          registrationNumber: data.registrationNumber 
+        }, 
+        token: data.token 
+      }));
       return { success: true };
     } catch (error) {
       return { success: false, error };
@@ -21,9 +32,17 @@ export const useAuth = () => {
   const register = async (registrationData) => {
     try {
       const data = await registerService(registrationData);
-      // Automatically log the user in after registration
+      
       dispatch(loginSuccess({
-        user: { userId: data.userId, email: data.email, role: data.role },
+        user: { 
+          userId: data.userId, 
+          email: data.email, 
+          role: data.role,
+          firstName: data.firstName || registrationData.firstName,
+          lastName: data.lastName || registrationData.lastName,
+          // Added this mapping
+          registrationNumber: data.registrationNumber
+        },
         token: data.token
       }));
       return { success: true };
@@ -32,21 +51,42 @@ export const useAuth = () => {
     }
   };
 
-  // Wrapper for Logout
   const logoutUser = () => {
     dispatch(logout());
-    // You might also want to clear local storage here if you use it
-    // localStorage.removeItem('token');
   };
 
-  return {
-    user,
-    token,
-    isAuthenticated,
-    login,
-    register,
-    logout: logoutUser,
-  };
+  const registerSibling = async (siblingData) => {
+        try {
+            const data = await registerSiblingService(siblingData);
+
+            // Automatically log the user in with the new profile
+            dispatch(loginSuccess({
+                user: {
+                    userId: data.userId,
+                    email: data.email,
+                    role: data.role,
+                    firstName: data.profiles[0]?.firstName, 
+                    lastName: "", 
+                    // Added this mapping
+                    registrationNumber: data.registrationNumber 
+                },
+                token: data.token
+            }));
+            return { success: true };
+        } catch (error) {
+            return { success: false, error };
+        }
+    };
+
+    return {
+        user,
+        token,
+        isAuthenticated,
+        login,
+        register,
+        registerSibling,
+        logout: logoutUser,
+    };
 };
 
 export default useAuth;

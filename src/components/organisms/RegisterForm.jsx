@@ -5,34 +5,40 @@ import SocialLoginButton from '../molecules/SocialLogin/SocialLoginButton.jsx';
 import FormField from '../molecules/FormField.jsx';
 import PasswordInput from '../molecules/PasswordInput.jsx';
 import Label from '../atoms/Label.jsx';
-import { checkEmailExists } from '../../services/auth/authService.js';
+import Button from '../atoms/Button.jsx';
+import DuplicateUserModal from './DuplicateUserModal.jsx';
+import OtpVerificationModal from './OtpVerificationModal.jsx';
+import { checkUserStatus, sendOtp, verifyOtp } from '../../services/auth/authService.js';
 import { getGoogleUserProfile } from '../../services/auth/googleAuthService.js';
-import { validateEmail, validateSocialProvider } from '../../utils/validators.js';
+import { validateSocialProvider } from '../../utils/validators.js';
 
 const RegisterForm = ({ onSwitchToLogin }) => {
+    const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [role, setRole] = useState(''); 
+    const [role, setRole] = useState('');
+
+    // Errors
     const [passwordError, setPasswordError] = useState('');
-    const [emailError, setEmailError] = useState(''); 
-    const [roleError, setRoleError] = useState(''); 
-    const [isChecking, setIsChecking] = useState(false);
+    const [emailError, setEmailError] = useState('');
+    const [roleError, setRoleError] = useState('');
     const [appleError, setAppleError] = useState('');
-    
-    const navigate = useNavigate();
 
+    // Loading & Modals
+    const [isChecking, setIsChecking] = useState(false);
+    const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+    const [showOtpModal, setShowOtpModal] = useState(false);
+    const [existingUser, setExistingUser] = useState(null);
+    const [tempSocialProfile, setTempSocialProfile] = useState(null);
+
+    // --- HANDLERS ---
     const handleAppleClick = () => {
-        setAppleError(''); 
-        
+        setAppleError('');
         if (!validateRoleSelection()) return;
-
         const validation = validateSocialProvider('apple');
-        if (!validation.isValid) {
-            setAppleError(validation.message);
-        }
+        if (!validation.isValid) setAppleError(validation.message);
     };
 
-    // VALIDATION HELPER
     const validateRoleSelection = () => {
         if (!role) {
             setRoleError('Please select a role first: Student, Tutor or Institute.');
@@ -42,39 +48,65 @@ const RegisterForm = ({ onSwitchToLogin }) => {
         return true;
     };
 
-    // GOOGLE REGISTRATION LOGIC
     const googleRegister = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
             setIsChecking(true);
             setEmailError('');
             try {
                 const profile = await getGoogleUserProfile(tokenResponse.access_token);
-                const exists = await checkEmailExists(profile.email);
+                const statusResponse = await checkUserStatus(profile.email); 
+                const status = statusResponse.status;
                 
-                if (exists) {
+                // If the user exists (Student or Other), but they are trying to register as Tutor/Institute
+                // We BLOCK them. Sibling flow is only for Students.
+                if (status !== 'NOT_FOUND' && role !== 'Student') {
                     setEmailError('You are already registered. Please log in.');
                     setIsChecking(false);
-                    return; 
+                    return;
                 }
 
-                navigate('/register-details', { 
-                    state: { 
+                // User exists as Student AND is registering as Student -> Trigger Sibling Flow
+                if (status === 'EXISTS_AS_STUDENT') {
+                    setEmail(profile.email); // Sync local state
+                    setExistingUser({ identifier: profile.email });
+
+                    // Save Google data to pass it after OTP verification
+                    setTempSocialProfile({
+                        firstName: profile.firstName,
+                        lastName: profile.lastName,
+                        email: profile.email,
+                        idToken: tokenResponse.access_token
+                    });
+
+                    setShowDuplicateModal(true);
+                    return;
+                }
+
+                // User exists as Other Role (and tried to register as Student) -> Block
+                if (status === 'EXISTS_OTHER_ROLE') {
+                    setEmailError('You are already registered. Please log in.');
+                    return;
+                }
+
+                // New User -> Proceed to Details
+                navigate('/register-details', {
+                    state: {
                         stepOneData: {
                             email: profile.email,
-                            role: role, 
+                            role: role,
                             isSocial: true,
                             provider: 'Google',
                         },
                         socialProfile: {
                             firstName: profile.firstName,
                             lastName: profile.lastName,
-                            idToken: tokenResponse.access_token 
+                            idToken: tokenResponse.access_token
                         }
-                    } 
+                    }
                 });
             } catch (error) {
-                console.error("Google Registration Error", error);
-                setEmailError("Failed to verify Google account. Please try again.");
+                console.error(error);
+                setEmailError("Failed to verify Google account.");
             } finally {
                 setIsChecking(false);
             }
@@ -82,83 +114,149 @@ const RegisterForm = ({ onSwitchToLogin }) => {
         onError: () => setEmailError('Google registration failed.'),
     });
 
-    // Wrapper to validate role before triggering Google
     const handleGoogleClick = () => {
-        if (validateRoleSelection()) {
-            googleRegister();
-        }
+        if (validateRoleSelection()) googleRegister();
     };
 
-    // MANUAL SUBMIT
     const handleSubmit = async (event) => {
         event.preventDefault();
         setEmailError('');
         setRoleError('');
         setPasswordError('');
 
-        // Validate Role first
-        if (!validateRoleSelection()) return;
+        if (!role) {
+            setRoleError('Please select a role first.');
+            return;
+        }
 
-        // Password Validation
         if (password.length < 6 || password.length > 10) {
             setPasswordError("Password must be between 6 and 10 characters.");
             return;
         }
 
-        // Validate Email
-        const emailValidation = validateEmail(email);
-        if (!emailValidation.isValid) {
-            setEmailError(emailValidation.message);
+        // Basic format check
+        const isEmail = email.includes('@');
+        const isPhone = /^07\d{8}$/.test(email);
+
+        if (!isEmail && !isPhone) {
+            setEmailError("Please enter a valid Email or Mobile Number (07...)");
             return;
         }
 
         setIsChecking(true);
         try {
-            const exists = await checkEmailExists(email);
-            if (exists) {
-                setEmailError('User with this email already exists.');
-                setIsChecking(false);
-                return;
+            const response = await checkUserStatus(email);
+            const status = response.status;
+
+            // If found AND user is NOT trying to be a student, block them immediately.
+            if (status !== 'NOT_FOUND' && role !== 'Student') {
+                 setEmailError("This account already exists. Please log in.");
+                 setIsChecking(false);
+                 return;
+            }
+
+            // Only show Sibling Modal if they exist as a student AND are trying to register as a student
+            if (status === 'EXISTS_AS_STUDENT') {
+                setExistingUser({ identifier: email });
+                setShowDuplicateModal(true);
+            } 
+            else if (status === 'EXISTS_OTHER_ROLE') {
+                // If they exist as a Tutor/Institute, they cannot use this flow
+                setEmailError("This account already exists. Please log in.");
+            } 
+            else {
+                // New User (NOT_FOUND)
+                const stepOneData = { email, password, role, isSocial: false };
+                navigate('/register-details', { state: { stepOneData } });
+            }
+
+
+        } catch (error) {
+            setEmailError(error.message || 'Something went wrong. Please try again.');
+        } finally {
+            setIsChecking(false);
+        }
+    };
+
+    // Modal Actions
+    const handleItsMe = () => {
+        alert("Please log in using your existing credentials.");
+        navigate('/login');
+    };
+
+    const handleItsParent = async () => {
+        setShowDuplicateModal(false);
+        setIsChecking(true);
+        try {
+            await sendOtp(email);
+            setShowOtpModal(true);
+        } catch (error) {
+            setEmailError("Failed to send verification code.");
+        } finally {
+            setIsChecking(false);
+        }
+    };
+
+    const handleVerifyOtp = async (otpCode) => {
+        try {
+            const response = await verifyOtp(email, otpCode);
+
+            setShowOtpModal(false);
+            let backendPhone = response.phoneNumber;
+            let formattedPhone = backendPhone;
+            
+            if (backendPhone && backendPhone.startsWith('+94')) {
+                formattedPhone = '0' + backendPhone.substring(3);
             }
 
             const stepOneData = {
                 email,
                 password,
                 role,
-                isSocial: false
+                isSocial: false,
+                isLinkedAccount: true,
+                linkedPhoneNumber: formattedPhone
             };
-            navigate('/register-details', { state: { stepOneData } });
+            
+            // If it was a Google flow that triggered this, merge the social data back
+            if (tempSocialProfile) {
+                navigate('/register-details', {
+                    state: {
+                        stepOneData: {
+                            ...stepOneData,
+                            isSocial: true,
+                            provider: 'Google'
+                        },
+                        socialProfile: {
+                            firstName: tempSocialProfile.firstName,
+                            lastName: tempSocialProfile.lastName,
+                            idToken: tempSocialProfile.idToken
+                        }
+                    }
+                });
+            } else {
+                navigate('/register-details', { state: { stepOneData } });
+            }
+
         } catch (error) {
-            setEmailError('Something went wrong. Please try again.');
-        } finally {
-            setIsChecking(false);
+            console.error("OTP Error", error);
+            throw error;
         }
     };
 
+    // Icons
     const icons = {
-        Student: (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.499 5.24 50.552 50.552 0 01-2.478.783M12 10.147a3.896 3.896 0 100-7.792 3.896 3.896 0 000 7.792z" />
-            </svg>
-        ),
-        Tutor: (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-            </svg>
-        ),
-        Institute: (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
-            </svg>
-        )
+        Student: (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-2"><path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.499 5.24 50.552 50.552 0 01-2.478.783M12 10.147a3.896 3.896 0 100-7.792 3.896 3.896 0 000 7.792z" /></svg>),
+        Tutor: (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-2"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>),
+        Institute: (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" /></svg>)
     };
 
     return (
         <div className="w-full">
-            <h1 className="text-2xl font-semibold text-gray-900 text-center">Create your account</h1>
-            
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white text-center">Create your account</h1>
+
             <div className="mt-6">
-                <Label className="block text-sm font-bold text-gray-700 mb-3 text-center ">
+                <Label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 text-center ">
                     I am a (Select Role)
                 </Label>
                 <div className="grid grid-cols-3 gap-3">
@@ -166,62 +264,47 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                         <button
                             key={option}
                             type="button"
-                            onClick={() => {
-                                setRole(option);
-                                setRoleError('');
-                            }}
-                            className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 
-                                ${role === option 
-                                    ? 'border-blue-600 bg-blue-50 text-blue-700 ring-2 ring-blue-500 ring-opacity-50' 
-                                    : 'border-gray-200 text-gray-600 hover:border-blue-300 hover:bg-gray-50'
-                                }`}
+                            onClick={() => { setRole(option); setRoleError(''); }}
+                            className={`
+                                flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200
+                                ${role === option
+                                    ? 'border-blue-600 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 ring-2 ring-blue-500 ring-opacity-50'
+                                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                }
+                            `}
                         >
                             {icons[option]}
                             <span className="text-xs font-semibold">{option}</span>
                         </button>
                     ))}
                 </div>
-                {roleError && <p className="text-xs text-red-500 mt-2 text-center font-medium">{roleError}</p>}
+                {roleError && <p className="text-xs text-red-500 dark:text-red-400 mt-2 text-center font-medium">{roleError}</p>}
             </div>
 
             <div className="mt-6 space-y-4">
-                <SocialLoginButton 
-                    provider="google" 
-                    onClick={handleGoogleClick}
-                    type="button"
-                >
+                <SocialLoginButton provider="google" onClick={handleGoogleClick} type="button">
                     Sign up with Google
                 </SocialLoginButton>
-
-                 <div className="flex flex-col">
-                    <SocialLoginButton 
-                        provider="apple" 
-                        onClick={handleAppleClick}
-                        type="button"
-                    >
+                <div className="flex flex-col">
+                    <SocialLoginButton provider="apple" onClick={handleAppleClick} type="button">
                         Sign up with Apple
                     </SocialLoginButton>
-                    
-                    {appleError && (
-                        <p className="text-xs text-red-500 mt-2 text-center font-medium ">
-                            {appleError}
-                        </p>
-                    )}
+                    {appleError && <p className="text-xs text-red-500 dark:text-red-400 mt-2 text-center font-medium ">{appleError}</p>}
                 </div>
             </div>
 
             <div className="my-6 flex items-center">
-                <hr className="flex-grow border-gray-300" />
-                <span className="mx-4 text-sm font-medium text-gray-500">OR</span>
-                <hr className="flex-grow border-gray-300" />
+                <hr className="flex-grow border-gray-300 dark:border-gray-700" />
+                <span className="mx-4 text-sm font-medium text-gray-500 dark:text-gray-400">OR</span>
+                <hr className="flex-grow border-gray-300 dark:border-gray-700" />
             </div>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
                 <FormField
                     id="email"
-                    label="Email"
-                    type="email"
-                    placeholder="you@example.com"
+                    label="Email or Mobile Number"
+                    type="text"
+                    placeholder="you@example.com or 0712345678"
                     value={email}
                     onChange={(e) => {
                         setEmail(e.target.value);
@@ -230,7 +313,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                     required
                     error={emailError}
                 />
-                
+
                 <PasswordInput
                     id="password"
                     label="Password"
@@ -238,30 +321,38 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                     value={password}
                     onChange={(e) => {
                         setPassword(e.target.value);
-                        // Clear error when typing
-                        if (passwordError) setPasswordError(''); 
+                        if (passwordError) setPasswordError('');
                     }}
                     required
-                    error={passwordError} // Pass the error here
+                    error={passwordError}
                 />
 
-                <button
-                    type="submit"
-                    disabled={isChecking}
-                    className={`w-full bg-blue-600 text-white font-semibold py-3 rounded-lg
-                    ${isChecking ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'}
-                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm hover:shadow-md`}
-                >
+                <Button type="submit" variant="primary" fullWidth disabled={isChecking}>
                     {isChecking ? 'Checking...' : 'Next'}
-                </button>
+                </Button>
             </form>
 
-            <p className="mt-4 text-center text-sm text-gray-600">
+            <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
                 Already have an account?{' '}
-                <button onClick={onSwitchToLogin} className="font-medium text-blue-600 hover:underline">
+                <button onClick={onSwitchToLogin} className="font-medium text-blue-600 dark:text-blue-400 hover:underline">
                     Log In
                 </button>
             </p>
+
+            <DuplicateUserModal
+                isOpen={showDuplicateModal}
+                onClose={() => setShowDuplicateModal(false)}
+                existingUser={existingUser}
+                onItsMe={handleItsMe}
+                onItsParent={handleItsParent}
+            />
+            
+            <OtpVerificationModal
+                isOpen={showOtpModal}
+                onClose={() => setShowOtpModal(false)}
+                onVerify={handleVerifyOtp}
+                identifier={email}
+            />
         </div>
     );
 };

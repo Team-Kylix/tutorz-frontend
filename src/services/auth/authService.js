@@ -66,6 +66,44 @@ export const socialLogin = async (payload) => {
     }
 };
 
+/**
+ * Checks if a user exists and returns limited details (Name, Masked Phone)
+ * to verify identity.
+ */
+export const checkUserStatus = async (identifier) => {
+    try {
+        // Backend should return: { exists: bool, name: string, phoneNumber: string }
+        const response = await apiClient.post('/auth/check-status', { identifier });
+        return response.data;
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Failed to check user status.');
+    }
+};
+
+/**
+ * Sends an OTP to the registered email of the identifier.
+ */
+export const sendOtp = async (identifier) => {
+    try {
+        const response = await apiClient.post('/auth/send-otp', { identifier });
+        return response.data;
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Failed to send OTP.');
+    }
+};
+
+/**
+ * Verifies the OTP.
+ */
+export const verifyOtp = async (identifier, otp) => {
+    try {
+        const response = await apiClient.post('/auth/verify-otp', { identifier, otp });
+        return response.data; // Should return success: true
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Invalid OTP.');
+    }
+};
+
 export const forgotPassword = async (email) => {
     try {
         const response = await apiClient.post('/auth/forgot-password', { email });
@@ -84,3 +122,16 @@ export const resetPassword = async (token, newPassword) => {
     }
 };
 
+/**
+ * Registers a new student under an existing parent account.
+ * @param {object} siblingData - { identifier, firstName, lastName, grade, ... }
+ */
+export const registerSibling = async (siblingData) => {
+    try {
+        // Matches Backend: [HttpPost("register-sibling")]
+        const response = await apiClient.post('/auth/register-sibling', siblingData);
+        return response.data;
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Sibling registration failed.');
+    }
+};
