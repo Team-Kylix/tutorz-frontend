@@ -6,6 +6,7 @@ import { ROLES } from '../../utils/constants';
 import TutorDashboard from './views/TutorDashboard';
 import StudentDashboard from './views/StudentDashboard';
 import InstituteDashboard from './views/InstituteDashboard';
+import AdminDashboard from './views/AdminDashboard';
 
 // Import Pages for Navigation Switching
 import ClassesPage from './ClassesPage';
@@ -45,6 +46,9 @@ const DashboardHome = ({ activePage, setActivePage }) => {
       
     case ROLES.INSTITUTE:
       return <InstituteDashboard user={user} />;
+
+    case ROLES.ADMIN:
+    return <AdminDashboard user={user} />;
       
     default:
       // Fallback
