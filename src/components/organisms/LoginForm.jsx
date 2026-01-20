@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useGoogleLogin } from '@react-oauth/google'; 
+import { useGoogleLogin } from '@react-oauth/google';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { loginSuccess } from '../../store/authSlice.js';
@@ -25,17 +25,18 @@ const LoginForm = ({ onSwitchToRegister }) => {
                 const payload = {
                     provider: "google",
                     idToken: tokenResponse.access_token,
-                    role: null 
+                    role: null
                 };
-        
+
                 const data = await socialLogin(payload);
-        
+
                 const userObj = {
                     userId: data.userId,
                     email: data.email,
                     role: data.role,
-                    firstName: data.firstName, 
-                    lastName: data.lastName
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    registrationNumber: data.registrationNumber
                 };
 
                 dispatch(loginSuccess({ user: userObj, token: data.token }));
@@ -43,16 +44,16 @@ const LoginForm = ({ onSwitchToRegister }) => {
 
             } catch (err) {
                 console.error("Login failed:", err);
-                setError(err.message || "Social login failed"); 
+                setError(err.message || "Social login failed");
             }
         },
         onError: () => setError('Google login failed.'),
     });
 
-     const handleAppleLogin = () => {
-        setAppleError(''); 
+    const handleAppleLogin = () => {
+        setAppleError('');
         const validation = validateSocialProvider('apple');
-        
+
         if (!validation.isValid) {
             setAppleError(validation.message);
             return;
@@ -73,13 +74,14 @@ const LoginForm = ({ onSwitchToRegister }) => {
 
         try {
             const data = await login(identifier, password);
-            
+
             const userObj = {
                 userId: data.userId,
                 email: data.email,
                 role: data.role,
                 firstName: data.firstName,
-                lastName: data.lastName
+                lastName: data.lastName,
+                registrationNumber: data.registrationNumber
             };
 
             dispatch(loginSuccess({ user: userObj, token: data.token }));
@@ -104,16 +106,16 @@ const LoginForm = ({ onSwitchToRegister }) => {
                 >
                     Continue with Google
                 </SocialLoginButton>
-                
+
                 <div className="flex flex-col">
-                    <SocialLoginButton 
-                        provider="apple" 
+                    <SocialLoginButton
+                        provider="apple"
                         type="button"
                         onClick={handleAppleLogin}
                     >
                         Continue with Apple
                     </SocialLoginButton>
-                    
+
                     {appleError && (
                         <p className="text-xs text-red-500 dark:text-red-400 mt-2 text-center font-medium ">
                             {appleError}

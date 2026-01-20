@@ -3,6 +3,7 @@ export const ROLES = {
   STUDENT: 'Student',
   TUTOR: 'Tutor',
   INSTITUTE: 'Institute',
+  ADMIN: 'Admin',
 };
 
 export const API_URLS = {
