@@ -17,7 +17,7 @@ export const useAuth = () => {
           role: data.role,
           firstName: data.firstName, 
           lastName: data.lastName,
-          // 👇 Added this mapping so Login gets the Reg No
+          // Added this mapping so Login gets the Reg No
           registrationNumber: data.registrationNumber 
         }, 
         token: data.token 
@@ -40,7 +40,7 @@ export const useAuth = () => {
           role: data.role,
           firstName: data.firstName || registrationData.firstName,
           lastName: data.lastName || registrationData.lastName,
-          // 👇 Added this mapping
+          // Added this mapping
           registrationNumber: data.registrationNumber
         },
         token: data.token
@@ -67,7 +67,7 @@ export const useAuth = () => {
                     role: data.role,
                     firstName: data.profiles[0]?.firstName, 
                     lastName: "", 
-                    // 👇 Added this mapping
+                    // Added this mapping
                     registrationNumber: data.registrationNumber 
                 },
                 token: data.token
