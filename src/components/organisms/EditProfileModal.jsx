@@ -28,6 +28,12 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
         parentName: '',
         dateOfBirth: '',
 
+        //Institute Details
+        instituteName: '',
+        address: '',
+        contactNumber: '',
+        website: '',
+
         ...initialData
     });
 
@@ -38,9 +44,10 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
     useEffect(() => {
         if (initialData) {
             setFormData(prev => ({ 
-                ...prev, 
-                ...initialData,
-                // Format Date for HTML input if it exists
+                instituteName: initialData.instituteName || '',
+                address: initialData.address || '',
+                contactNumber: initialData.contactNumber || '',
+                website: initialData.website || '',
                 dateOfBirth: initialData.dateOfBirth ? initialData.dateOfBirth.split('T')[0] : ''
             }));
         }
@@ -62,7 +69,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
     const handleSubmit = (e) => {
         e.preventDefault();
         
-        if (role === 'student') {
+        if (role === 'student' || role === 'institute') {
             onSave(formData); // Send JSON object
         } else {
             // Send FormData for Tutors (supports Image upload)
@@ -136,6 +143,13 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                     {role === 'tutor' && (
                         <TextAreaField id="bio" label="Biography" value={formData.bio} onChange={handleChange} placeholder="Tell students about yourself..." />
                     )}
+
+                    {/* Institute Name */}
+                    {role === 'institute' && (
+                         <div className="grid grid-cols-1 gap-4">
+                            <FormField id="instituteName" label="Institute Name" value={formData.instituteName} onChange={handleChange} />
+                        </div>
+                    )}
                 </div>
 
                 {/* --- SECTION 3: Role Specific Details --- */}
@@ -163,6 +177,17 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                                 {initialData?.registrationNumber && (
                                     <FormField id="regNumber" label="Registration No" value={initialData.registrationNumber} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
                                 )}
+                            </div>
+                        </>
+                    )}
+
+                    {/* INSTITUTE FIELDS */}
+                    {role === 'institute' && (
+                        <>
+                            <FormField id="address" label="Address" value={formData.address} onChange={handleChange} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField id="contactNumber" label="Contact Number" value={formData.contactNumber} onChange={handleChange} />
+                                <FormField id="website" label="Website" value={formData.website} onChange={handleChange} placeholder="https://..." />
                             </div>
                         </>
                     )}
