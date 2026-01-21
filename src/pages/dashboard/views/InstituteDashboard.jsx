@@ -1,116 +1,326 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Users, GraduationCap, Calendar, DollarSign, 
-  Plus, QrCode 
+  Plus, QrCode, UserPlus, Loader2, Save
 } from 'lucide-react';
-import Button from '../../../components/atoms/Button';
-import StatCard from '../../../components/molecules/StatCard';
-import SectionTitle from '../../../components/atoms/SectionTitle';
-import StatusBadge from '../../../components/atoms/StatusBadge'; 
 
-// --- Mock Data ---
+// --- Existing Components ---
+import Button from '../../../components/atoms/Button';
+import SectionTitle from '../../../components/atoms/SectionTitle';
+import Select from '../../../components/atoms/Select'; 
+import StatCard from '../../../components/molecules/StatCard';
+import Modal from '../../../components/molecules/Modal';
+import FormField from '../../../components/molecules/FormField';
+import QuickActionCard from '../../../components/molecules/QuickActionCard';
+import ConfirmationModal from '../../../components/molecules/ConfirmationModal';
+
+// --- Services ---
+import { checkUserStatus, register } from '../../../services/auth/authService';
+
+// --- Constants ---
 const MOCK_STATS = [
-  // Added dark mode color classes to the string
-  { label: 'Total Tutors', value: '24', change: '+2 this month', icon: Users, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400' },
-  { label: 'Active Students', value: '856', change: '+12% vs last mo', icon: GraduationCap, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
-  { label: 'Classes Today', value: '42', change: '+8 Live Now', icon: Calendar, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400' },
-  { label: 'Revenue (Dec)', value: 'Rs 12,450', change: '+5% growth', icon: DollarSign, color: 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400' },
+  { label: 'Total Tutors', value: '24', change: '+2 this month', icon: Users, color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' },
+  { label: 'Active Students', value: '856', change: '+12% vs last mo', icon: GraduationCap, color: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' },
+  { label: 'Classes Today', value: '42', change: '+8 Live Now', icon: Calendar, color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' },
+  { label: 'Revenue (Dec)', value: 'Rs 12,450', change: '+5% growth', icon: DollarSign, color: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' },
+];
+
+const GRADE_GROUPS = [
+    { label: "Primary Education", options: ['Preschool','Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'] },
+    { label: "Secondary Education", options: ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11 (O/L)','Grade 12 (A/L)', 'Grade 13 (A/L)'] },
+    { label: "Other", options: ['Course', 'Seminar', 'Workshop'] }
 ];
 
 const InstituteDashboard = ({ user }) => {
-  return (
-    <div className="p-2 md:p-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+  // --- Modal States ---
+  const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);        
+  const [isCheckModalOpen, setIsCheckModalOpen] = useState(false);        
+  const [isExistingUserModalOpen, setIsExistingUserModalOpen] = useState(false); 
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false); 
+
+  // --- Logic States ---
+  const [checkData, setCheckData] = useState({ email: '', mobile: '' });
+  const [isChecking, setIsChecking] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false); 
+  const [checkError, setCheckError] = useState('');
+  const [existingUser, setExistingUser] = useState(null);
+
+  // --- Registration Form State (Simplified) ---
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    grade: ''
+  });
+
+  // 1. Open Selection
+  const openSelection = () => {
+      setIsSelectionModalOpen(true);
+  };
+
+  // 2. Select "Add Student" -> Open Check Modal
+  const handleSelectStudent = () => {
+      setIsSelectionModalOpen(false);
+      setCheckData({ email: '', mobile: '' });
+      setCheckError('');
+      setIsChecking(false); // <--- FIX 1: Reset checking state here
+      setIsCheckModalOpen(true);
+  };
+
+  // 3. Check User Existence
+  const handleCheckUser = async (e) => {
+      e.preventDefault();
       
-      {/* --- Action Header --- */}
+      if (!checkData.email.trim() && !checkData.mobile.trim()) {
+          setCheckError("Please enter at least a Mobile Number or Email.");
+          return;
+      }
+
+      setIsChecking(true);
+      setCheckError('');
+
+      try {
+          const result = await checkUserStatus({ 
+              email: checkData.email, 
+              phoneNumber: checkData.mobile 
+          });
+
+          // Close check modal immediately on success
+          setIsCheckModalOpen(false);
+
+          if (result.exists) {
+              setExistingUser(result);
+              setIsExistingUserModalOpen(true);
+          } else {
+              // User New -> Open Simplified Registration
+              setFormData({ firstName: '', lastName: '', grade: '' }); // Reset form
+              setIsRegisterModalOpen(true);
+          }
+      } catch (err) {
+          setCheckError("Failed to verify user. Please try again.");
+          // Keep modal open if error to allow retry
+      } finally {
+          setIsChecking(false); // <--- FIX 2: Always reset checking state
+      }
+  };
+
+  // 4. Final Register (Simplified UI)
+  const handleRegister = async (e) => {
+      e.preventDefault();
+      setIsRegistering(true);
+
+      try {
+          // Construct payload with hidden defaults for backend compatibility
+          const payload = {
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+              grade: formData.grade,
+              role: "Student",
+              // Use the checked data for contact info
+              email: checkData.email || `student.${checkData.mobile}@tutorz.lk`, 
+              phoneNumber: checkData.mobile,
+              // Default/Hidden fields to satisfy backend validation
+              password: "ChangeMe", 
+              schoolName: "Not Provided",
+              parentName: "Not Provided",
+              dateOfBirth: new Date().toISOString() 
+          };
+
+          await register(payload);
+          
+          alert("Student Registered Successfully!");
+          setIsRegisterModalOpen(false);
+      } catch (err) {
+          alert(err.message || "Registration Failed");
+      } finally {
+          setIsRegistering(false);
+      }
+  };
+
+  return (
+    <div className="p-2 md:p-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+      
+      {/* --- Header --- */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
          <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Institute Overview</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Welcome back, {user?.firstName || 'Admin'}</p>
          </div>
          <div className="flex gap-3">
-           <Button variant="outline">
-              <QrCode size={18} className="mr-2" /> Scan QR
-           </Button>
-           {/* Static Button: No onClick function */}
-           <Button variant="primary">
-              <Plus size={18} className="mr-2" /> Add New
-           </Button>
+           <Button variant="outline"><QrCode size={18} className="mr-2" /> Scan QR</Button>
+           <Button variant="primary" onClick={openSelection}><Plus size={18} className="mr-2" /> Add New</Button>
          </div>
       </div>
 
-      {/* --- Stats Grid --- */}
+      {/* --- Stats --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {MOCK_STATS.map((stat, idx) => (
-          <StatCard 
-            key={idx} 
-            label={stat.label} 
-            value={stat.value} 
-            icon={stat.icon} 
-            color={stat.color} 
-            change={stat.change} 
-          />
+          <StatCard key={idx} {...stat} />
         ))} 
       </div>
 
-      {/* --- Main Content Grid --- */}
+      {/* --- Main Content --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column: Recent Activity */}
+        {/* Recent Activity */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden p-6 transition-colors">
-             <div className="flex justify-between items-center mb-4">
-                <SectionTitle title="Today's Classes" />
-                <Button variant="ghost" size="small">View All</Button>
-             </div>
-             
-             <div className="space-y-3">
-               {[1, 2, 3].map((item) => (
-                 <div key={item} className="flex items-center p-3 border border-gray-100 dark:border-gray-700 rounded-lg hover:border-blue-200 dark:hover:border-blue-800 transition-colors">
-                   {/* Time Box */}
-                   <div className="h-12 w-12 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex flex-col items-center justify-center mr-4">
-                     <span className="text-[10px] font-bold uppercase">MON</span>
-                     <span className="text-sm font-bold">10:00</span>
-                   </div>
-                   {/* Details */}
-                   <div className="flex-1">
-                     <h4 className="font-bold text-gray-900 dark:text-white text-sm">Advanced Mathematics</h4>
-                     <p className="text-xs text-gray-500 dark:text-gray-400">By Dr. Sarah Wilson • Hall A</p>
-                   </div>
-                   {/* Badge */}
-                   <StatusBadge status={item === 1 ? 'Live' : 'Upcoming'} />
-                 </div>
-               ))}
-             </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+             <SectionTitle title="Today's Classes" />
+             <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">No classes scheduled right now.</div>
           </div>
         </div>
-
-        {/* Right Column: New Students */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden h-fit transition-colors">
+        
+        {/* New Registrations List */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 h-fit">
            <div className="p-4 border-b border-gray-100 dark:border-gray-700">
              <h3 className="font-bold text-gray-900 dark:text-white">New Registrations</h3>
            </div>
-           
-           <div className="divide-y divide-gray-100 dark:divide-gray-700">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="p-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors">
-                   <div className="h-8 w-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-300">
-                      ST
-                   </div>
-                   <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">Student Name {i}</p>
-                      <p className="text-[10px] text-gray-400 dark:text-gray-500">Joined today</p>
-                   </div>
-                   <StatusBadge status="New" className="!px-2 !py-0.5 text-[10px]" />
-                </div>
-              ))}
-           </div>
-           
-           <div className="p-3 text-center border-t border-gray-100 dark:border-gray-700">
-              <Button variant="ghost" size="small" fullWidth>View All Students</Button>
-           </div>
+           <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">No new registrations today.</div>
         </div>
-
       </div>
+
+      {/* ================= MODALS ================= */}
+
+      {/* 1. SELECTION MODAL */}
+      <Modal 
+        isOpen={isSelectionModalOpen} 
+        onClose={() => setIsSelectionModalOpen(false)} 
+        title="What would you like to add?"
+      >
+        <div className="grid grid-cols-2 gap-4">
+            <QuickActionCard 
+                icon={GraduationCap} 
+                label="Add Student" 
+                colorClass="text-blue-600 dark:text-blue-400"
+                onClick={handleSelectStudent}
+            />
+            <QuickActionCard 
+                icon={UserPlus} 
+                label="Add Tutor" 
+                colorClass="text-purple-600 dark:text-purple-400"
+                onClick={() => console.log("Add Tutor")}
+            />
+        </div>
+      </Modal>
+
+      {/* 2. CHECK USER MODAL */}
+      <Modal 
+        isOpen={isCheckModalOpen} 
+        onClose={() => setIsCheckModalOpen(false)} 
+        title="Register Student"
+      >
+        <form onSubmit={handleCheckUser} className="space-y-4">
+            <div className="space-y-4">
+                <FormField 
+                    id="mobile"
+                    label="Mobile Number"
+                    placeholder="e.g. 0771234567"
+                    value={checkData.mobile}
+                    onChange={(e) => setCheckData({...checkData, mobile: e.target.value})}
+                    autoFocus
+                />
+                <FormField 
+                    id="email"
+                    label="Email Address (Optional)"
+                    placeholder="student@example.com"
+                    value={checkData.email}
+                    onChange={(e) => setCheckData({...checkData, email: e.target.value})}
+                />
+            </div>
+
+            {checkError && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                    <Loader2 size={12} className="animate-spin" /> {checkError}
+                </p>
+            )}
+
+            <Button type="submit" fullWidth disabled={isChecking}>
+                {isChecking ? 'Checking...' : 'Verify & Continue'}
+            </Button>
+        </form>
+      </Modal>
+
+      {/* 3. EXISTING USER MODAL */}
+      <ConfirmationModal
+        isOpen={isExistingUserModalOpen}
+        onClose={() => setIsExistingUserModalOpen(false)}
+        title="User Already Exists"
+        message={`This user is already registered as ${existingUser?.name} | ${existingUser?.role}.`}
+        confirmLabel="View Profile"
+        cancelLabel="Close"
+        onConfirm={() => alert("Navigate to Profile")}
+        variant="primary" // Uses Blue icon
+      />
+
+      {/* 4. NEW REGISTRATION MODAL (Simplified) */}
+      <Modal
+        isOpen={isRegisterModalOpen}
+        onClose={() => setIsRegisterModalOpen(false)}
+        title="New Student Registration"
+      >
+        <form onSubmit={handleRegister} className="space-y-4">
+            
+            {/* Read-Only Context */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800 grid grid-cols-2 gap-4">
+                <div>
+                    <p className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold uppercase">Mobile</p>
+                    <p className="font-mono text-sm font-bold text-blue-800 dark:text-blue-300">{checkData.mobile || "N/A"}</p>
+                </div>
+                <div>
+                    <p className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold uppercase">Email</p>
+                    <p className="font-mono text-sm font-bold text-blue-800 dark:text-blue-300 truncate">{checkData.email || "N/A"}</p>
+                </div>
+            </div>
+
+            {/* Simplified Fields */}
+            <div className="grid grid-cols-2 gap-4">
+                <FormField 
+                    id="firstName"
+                    label="First Name"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                    required
+                />
+                <FormField 
+                    id="lastName"
+                    label="Last Name"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                    required
+                />
+            </div>
+
+            <div>
+                {/* Reusing Label Atom + Select Atom with Groups */}
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Grade
+                </label>
+                <Select
+                    value={formData.grade}
+                    onChange={(e) => setFormData({...formData, grade: e.target.value})}
+                    required
+                >
+                    <option value="">Select Grade</option>
+                    {GRADE_GROUPS.map((group, index) => (
+                        <optgroup key={index} label={group.label} className="font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">
+                            {group.options.map((opt) => (
+                                <option key={opt} value={opt} className="text-gray-900 dark:text-white font-normal bg-white dark:bg-gray-800">{opt}</option>
+                            ))}
+                        </optgroup>
+                    ))}
+                </Select>
+            </div>
+
+            <div className="pt-4">
+                <Button type="submit" fullWidth disabled={isRegistering}>
+                    {isRegistering ? (
+                        <><Loader2 size={18} className="animate-spin mr-2"/> Registering...</>
+                    ) : (
+                        <><Save size={18} className="mr-2"/> Register Student</>
+                    )}
+                </Button>
+            </div>
+        </form>
+      </Modal>
+
     </div>
   );
 };

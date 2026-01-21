@@ -67,13 +67,17 @@ export const socialLogin = async (payload) => {
 };
 
 /**
- * Checks if a user exists and returns limited details (Name, Masked Phone)
- * to verify identity.
+ * Checks if a user exists (Mobile OR Email).
+ * @param {object} data - { email: string, phoneNumber: string }
  */
-export const checkUserStatus = async (identifier) => {
+export const checkUserStatus = async (data) => {
     try {
-        // Backend should return: { exists: bool, name: string, phoneNumber: string }
-        const response = await apiClient.post('/auth/check-status', { identifier });
+        // Backend now expects { email, phoneNumber } in the body
+        // Ensure keys match what the Backend DTO expects
+        const response = await apiClient.post('/auth/check-status', { 
+            email: data.email, 
+            phoneNumber: data.phoneNumber 
+        });
         return response.data;
     } catch (err) {
         throw new Error(err.response?.data?.message || 'Failed to check user status.');
@@ -135,3 +139,4 @@ export const registerSibling = async (siblingData) => {
         throw new Error(err.response?.data?.message || 'Sibling registration failed.');
     }
 };
+
