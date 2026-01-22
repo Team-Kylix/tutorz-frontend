@@ -37,6 +37,10 @@ const InstituteDashboard = ({ user }) => {
   const [isCheckModalOpen, setIsCheckModalOpen] = useState(false);        
   const [isExistingUserModalOpen, setIsExistingUserModalOpen] = useState(false); 
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false); 
+  
+  // NEW: Success Modal State
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState({ title: '', message: '' });
 
   // --- Logic States ---
   const [checkData, setCheckData] = useState({ email: '', mobile: '' });
@@ -45,28 +49,28 @@ const InstituteDashboard = ({ user }) => {
   const [checkError, setCheckError] = useState('');
   const [existingUser, setExistingUser] = useState(null);
 
-  // --- Registration Form State (Simplified) ---
+  // --- Registration Form State ---
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     grade: ''
   });
 
-  // 1. Open Selection
+  // Open Selection
   const openSelection = () => {
       setIsSelectionModalOpen(true);
   };
 
-  // 2. Select "Add Student" -> Open Check Modal
+  // elect "Add Student" -> Open Check Modal
   const handleSelectStudent = () => {
       setIsSelectionModalOpen(false);
       setCheckData({ email: '', mobile: '' });
       setCheckError('');
-      setIsChecking(false); // <--- FIX 1: Reset checking state here
+      setIsChecking(false); 
       setIsCheckModalOpen(true);
   };
 
-  // 3. Check User Existence
+  //Check User Existence
   const handleCheckUser = async (e) => {
       e.preventDefault();
       
@@ -84,42 +88,41 @@ const InstituteDashboard = ({ user }) => {
               phoneNumber: checkData.mobile 
           });
 
-          // Close check modal immediately on success
           setIsCheckModalOpen(false);
 
           if (result.exists) {
               setExistingUser(result);
               setIsExistingUserModalOpen(true);
           } else {
-              // User New -> Open Simplified Registration
-              setFormData({ firstName: '', lastName: '', grade: '' }); // Reset form
+              setFormData({ firstName: '', lastName: '', grade: '' }); 
               setIsRegisterModalOpen(true);
           }
       } catch (err) {
           setCheckError("Failed to verify user. Please try again.");
-          // Keep modal open if error to allow retry
       } finally {
-          setIsChecking(false); // <--- FIX 2: Always reset checking state
+          setIsChecking(false); 
       }
   };
 
-  // 4. Final Register (Simplified UI)
+  // Final Register
   const handleRegister = async (e) => {
       e.preventDefault();
       setIsRegistering(true);
 
       try {
-          // Construct payload with hidden defaults for backend compatibility
+          const mobileStr = checkData.mobile.trim();
+          const generatedPassword = mobileStr.length >= 6 
+              ? mobileStr.slice(-6) 
+              : "123456"; 
+
           const payload = {
               firstName: formData.firstName,
               lastName: formData.lastName,
               grade: formData.grade,
               role: "Student",
-              // Use the checked data for contact info
-              email: checkData.email || `student.${checkData.mobile}@tutorz.lk`, 
-              phoneNumber: checkData.mobile,
-              // Default/Hidden fields to satisfy backend validation
-              password: "ChangeMe", 
+              email: checkData.email || `student.${mobileStr}@tutorz.lk`, 
+              phoneNumber: mobileStr,
+              password: generatedPassword, 
               schoolName: "Not Provided",
               parentName: "Not Provided",
               dateOfBirth: new Date().toISOString() 
@@ -127,8 +130,16 @@ const InstituteDashboard = ({ user }) => {
 
           await register(payload);
           
-          alert("Student Registered Successfully!");
+          // Close Registration Form
           setIsRegisterModalOpen(false);
+
+          // Set Success Message and Open Success Modal
+          setSuccessMessage({
+              title: "Registration Successful!",
+              message: `Student account created successfully.\n\nDefault Password: ${generatedPassword}`
+          });
+          setIsSuccessModalOpen(true);
+
       } catch (err) {
           alert(err.message || "Registration Failed");
       } finally {
@@ -139,7 +150,7 @@ const InstituteDashboard = ({ user }) => {
   return (
     <div className="p-2 md:p-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       
-      {/* --- Header --- */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
          <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Institute Overview</h1>
@@ -151,24 +162,21 @@ const InstituteDashboard = ({ user }) => {
          </div>
       </div>
 
-      {/* --- Stats --- */}
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {MOCK_STATS.map((stat, idx) => (
           <StatCard key={idx} {...stat} />
         ))} 
       </div>
 
-      {/* --- Main Content --- */}
+      {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Activity */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
              <SectionTitle title="Today's Classes" />
              <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">No classes scheduled right now.</div>
           </div>
         </div>
-        
-        {/* New Registrations List */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 h-fit">
            <div className="p-4 border-b border-gray-100 dark:border-gray-700">
              <h3 className="font-bold text-gray-900 dark:text-white">New Registrations</h3>
@@ -177,9 +185,8 @@ const InstituteDashboard = ({ user }) => {
         </div>
       </div>
 
-      {/* ================= MODALS ================= */}
 
-      {/* 1. SELECTION MODAL */}
+      {/*Selection Modal */}
       <Modal 
         isOpen={isSelectionModalOpen} 
         onClose={() => setIsSelectionModalOpen(false)} 
@@ -201,7 +208,7 @@ const InstituteDashboard = ({ user }) => {
         </div>
       </Modal>
 
-      {/* 2. CHECK USER MODAL */}
+      {/* Check User Modal */}
       <Modal 
         isOpen={isCheckModalOpen} 
         onClose={() => setIsCheckModalOpen(false)} 
@@ -238,19 +245,19 @@ const InstituteDashboard = ({ user }) => {
         </form>
       </Modal>
 
-      {/* 3. EXISTING USER MODAL */}
+      {/*Existing User Modal */}
       <ConfirmationModal
         isOpen={isExistingUserModalOpen}
         onClose={() => setIsExistingUserModalOpen(false)}
         title="User Already Exists"
-        message={`This user is already registered as ${existingUser?.name} | ${existingUser?.role}.`}
+        message={`This user is already registered as ${existingUser?.name} [${existingUser?.role}].`}
         confirmLabel="View Profile"
         cancelLabel="Close"
         onConfirm={() => alert("Navigate to Profile")}
-        variant="primary" // Uses Blue icon
+        variant="primary" 
       />
 
-      {/* 4. NEW REGISTRATION MODAL (Simplified) */}
+      {/*New Registration Modal */}
       <Modal
         isOpen={isRegisterModalOpen}
         onClose={() => setIsRegisterModalOpen(false)}
@@ -258,7 +265,6 @@ const InstituteDashboard = ({ user }) => {
       >
         <form onSubmit={handleRegister} className="space-y-4">
             
-            {/* Read-Only Context */}
             <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800 grid grid-cols-2 gap-4">
                 <div>
                     <p className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold uppercase">Mobile</p>
@@ -270,7 +276,6 @@ const InstituteDashboard = ({ user }) => {
                 </div>
             </div>
 
-            {/* Simplified Fields */}
             <div className="grid grid-cols-2 gap-4">
                 <FormField 
                     id="firstName"
@@ -289,7 +294,6 @@ const InstituteDashboard = ({ user }) => {
             </div>
 
             <div>
-                {/* Reusing Label Atom + Select Atom with Groups */}
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Grade
                 </label>
@@ -317,9 +321,25 @@ const InstituteDashboard = ({ user }) => {
                         <><Save size={18} className="mr-2"/> Register Student</>
                     )}
                 </Button>
+                <p className="text-[10px] text-center text-gray-400 mt-2">
+                    Default password will be last 6 digits of mobile
+                </p>
             </div>
         </form>
       </Modal>
+
+      {/*Success Confirmation Modal*/}
+      <ConfirmationModal
+        isOpen={isSuccessModalOpen}
+        onClose={() => setIsSuccessModalOpen(false)}
+        title={successMessage.title}
+        message={successMessage.message}
+        confirmLabel="Done"
+        cancelLabel="Add Another"
+        onConfirm={() => setIsSuccessModalOpen(false)}
+        onCancel={handleSelectStudent} 
+        variant="success" 
+      />
 
     </div>
   );
