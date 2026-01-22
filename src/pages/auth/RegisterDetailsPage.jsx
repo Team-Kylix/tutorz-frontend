@@ -4,10 +4,10 @@ import AuthLayout from '../../components/templates/AuthLayout.jsx';
 import FormField from '../../components/molecules/FormField.jsx';
 import { ROLES } from '../../utils/constants';
 import { validatePhoneNumber } from '../../utils/validators';
-import { extractErrorMessage } from '../../utils/helpers';
 import useAuth from '../../hooks/useAuth';
 import { socialLogin } from '../../services/auth/authService.js'; 
-import Label from '../../components/atoms/Label.jsx'; 
+import Label from '../../components/atoms/Label.jsx';
+import LocationSelector from '../../components/molecules/LocationSelector'; 
 
 const GRADE_GROUPS = [
     { label: "Primary Education", options: ['Preschool','Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'] },
@@ -59,7 +59,6 @@ const RegisterDetailsPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     
-    // Destructure specifically to get registerSibling
     const auth = useAuth(); 
     const manualRegister = auth.register;
     const registerSibling = auth.registerSibling;
@@ -67,7 +66,6 @@ const RegisterDetailsPage = () => {
     const stepOneData = location.state?.stepOneData;
     const socialProfile = location.state?.socialProfile;
     
-    // Check flags
     const isLinkedAccount = stepOneData?.isLinkedAccount === true;
     const linkedPhoneNumber = stepOneData?.linkedPhoneNumber || '';
 
@@ -79,7 +77,6 @@ const RegisterDetailsPage = () => {
     const isSocial = stepOneData.isSocial === true;
 
     const [formData, setFormData] = useState({
-        // Ensure linkedPhoneNumber is set as initial state if present
         phoneNumber: isLinkedAccount ? linkedPhoneNumber : (stepOneData.phoneNumber || ''), 
         firstName: socialProfile?.firstName || '',
         lastName: socialProfile?.lastName || '',
@@ -91,7 +88,8 @@ const RegisterDetailsPage = () => {
         parentName: '',
         dateOfBirth: '',
         instituteName: '',
-        address: ''
+        address: '',
+        cityId: '' 
     });
 
     const [errors, setErrors] = useState({});
@@ -104,8 +102,12 @@ const RegisterDetailsPage = () => {
         if (errors[id]) setErrors(prev => ({ ...prev, [id]: null }));
     };
 
+    const handleCityChange = (cityId) => {
+        setFormData(prev => ({ ...prev, cityId }));
+        if (errors.cityId) setErrors(prev => ({ ...prev, cityId: null }));
+    };
+
     const handlePhoneBlur = () => {
-        // Don't validate on blur if it's disabled/linked
         if (!isLinkedAccount) {
             const validation = validatePhoneNumber(formData.phoneNumber);
             if (!validation.isValid) setErrors(prev => ({ ...prev, phoneNumber: validation.message }));
@@ -116,7 +118,6 @@ const RegisterDetailsPage = () => {
         event.preventDefault();
         setGlobalError(null);
 
-        // Skip phone validation if it is a Linked Account or Social Login
         if (!isLinkedAccount && !isSocial) {
             const phoneValidation = validatePhoneNumber(formData.phoneNumber);
             if (!phoneValidation.isValid) {
@@ -125,11 +126,15 @@ const RegisterDetailsPage = () => {
             }
         }
 
+        if (!formData.cityId) {
+            setErrors(prev => ({ ...prev, cityId: "Please select your city." }));
+            return;
+        }
+
         setIsSubmitting(true);
         const cleanDateOfBirth = formData.dateOfBirth === '' ? null : formData.dateOfBirth;
 
         try {
-            // --- SIBLING REGISTRATION ---
             if (isLinkedAccount) {
                 const siblingPayload = {
                     identifier: linkedPhoneNumber, 
@@ -139,7 +144,8 @@ const RegisterDetailsPage = () => {
                     schoolName: formData.school,
                     grade: formData.grade,
                     parentName: formData.parentName,
-                    dateOfBirth: cleanDateOfBirth || new Date().toISOString()
+                    dateOfBirth: cleanDateOfBirth || new Date().toISOString(),
+                    cityId: parseInt(formData.cityId)
                 };
 
                 const result = await registerSibling(siblingPayload);
@@ -150,7 +156,6 @@ const RegisterDetailsPage = () => {
                     setGlobalError(result.error?.message || "Sibling registration failed.");
                 }
             }
-            // --- SOCIAL LOGIN ---
             else if (isSocial) {
                 const payload = {
                     provider: stepOneData.provider,
@@ -167,16 +172,17 @@ const RegisterDetailsPage = () => {
                     parentName: formData.parentName,
                     dateOfBirth: cleanDateOfBirth,
                     instituteName: formData.instituteName,
-                    address: formData.address
+                    address: formData.address,
+                    cityId: parseInt(formData.cityId)
                 };
                 await socialLogin(payload);
                 navigate('/dashboard'); 
             } 
-            // --- MANUAL REGISTRATION ---
             else {
                 const fullRegistrationData = {
                     ...stepOneData,
                     ...formData,
+                    cityId: parseInt(formData.cityId),
                     schoolName: formData.school,
                     bankAccountNumber: formData.bankAccount,
                     dateOfBirth: cleanDateOfBirth,
@@ -189,7 +195,6 @@ const RegisterDetailsPage = () => {
                 if (result.success) {
                     navigate('/dashboard');
                 } else {
-                    // Safe error extraction
                     setGlobalError(result.error?.message || "Registration failed.");
                 }
             }
@@ -207,9 +212,6 @@ const RegisterDetailsPage = () => {
                     <>
                         <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required />
                         <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required />
-                        <FormField id="bio" label="Bio" value={formData.bio} onChange={handleChange} />
-                        <FormField id="bankAccount" label="Bank Account" value={formData.bankAccount} onChange={handleChange} />
-                        <FormField id="bankName" label="Bank Name" value={formData.bankName} onChange={handleChange} />
                     </>
                 );
             case ROLES.STUDENT:
@@ -266,6 +268,14 @@ const RegisterDetailsPage = () => {
                     {isLinkedAccount && (
                         <p className="text-xs text-blue-600 dark:text-blue-400 -mt-3 mb-2">* Linked to parent account</p>
                     )}
+
+                    {/* Stacked Vertical Layout for better UI */}
+                    <div className="pt-2">
+                        <LocationSelector 
+                            onCityChange={handleCityChange} 
+                            error={errors.cityId}
+                        />
+                    </div>
 
                     {renderRoleFields()}
                     
