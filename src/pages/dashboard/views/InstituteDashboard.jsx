@@ -37,10 +37,9 @@ const InstituteDashboard = ({ user }) => {
   const [isCheckModalOpen, setIsCheckModalOpen] = useState(false);        
   const [isExistingUserModalOpen, setIsExistingUserModalOpen] = useState(false); 
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false); 
-  
   // NEW: Success Modal State
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [successMessage, setSuccessMessage] = useState({ title: '', message: '' });
+  const [successData, setSuccessData] = useState({ title: '', message: '' });
 
   // --- Logic States ---
   const [checkData, setCheckData] = useState({ email: '', mobile: '' });
@@ -49,7 +48,7 @@ const InstituteDashboard = ({ user }) => {
   const [checkError, setCheckError] = useState('');
   const [existingUser, setExistingUser] = useState(null);
 
-  // --- Registration Form State ---
+  // --- Registration Form State (Simplified) ---
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -61,7 +60,7 @@ const InstituteDashboard = ({ user }) => {
       setIsSelectionModalOpen(true);
   };
 
-  // elect "Add Student" -> Open Check Modal
+  // Select "Add Student" -> Open Check Modal
   const handleSelectStudent = () => {
       setIsSelectionModalOpen(false);
       setCheckData({ email: '', mobile: '' });
@@ -70,7 +69,7 @@ const InstituteDashboard = ({ user }) => {
       setIsCheckModalOpen(true);
   };
 
-  //Check User Existence
+  // Check User Existence
   const handleCheckUser = async (e) => {
       e.preventDefault();
       
@@ -88,29 +87,36 @@ const InstituteDashboard = ({ user }) => {
               phoneNumber: checkData.mobile 
           });
 
+          // Close check modal immediately on success
           setIsCheckModalOpen(false);
 
           if (result.exists) {
               setExistingUser(result);
               setIsExistingUserModalOpen(true);
           } else {
-              setFormData({ firstName: '', lastName: '', grade: '' }); 
+              // User New -> Open Simplified Registration
+              setFormData({ firstName: '', lastName: '', grade: '' }); // Reset form
               setIsRegisterModalOpen(true);
           }
       } catch (err) {
           setCheckError("Failed to verify user. Please try again.");
+          // Keep modal open if error to allow retry
       } finally {
           setIsChecking(false); 
       }
   };
 
-  // Final Register
+  // Final Register (Updated with Confirmation Modal)
   const handleRegister = async (e) => {
       e.preventDefault();
       setIsRegistering(true);
 
       try {
+          // --- PASSWORD LOGIC START ---
           const mobileStr = checkData.mobile.trim();
+          
+          // Get the last 6 digits. 
+          // If the number is too short (unlikely), fallback to "123456" to satisfy backend.
           const generatedPassword = mobileStr.length >= 6 
               ? mobileStr.slice(-6) 
               : "123456"; 
@@ -130,12 +136,12 @@ const InstituteDashboard = ({ user }) => {
 
           await register(payload);
           
-          // Close Registration Form
+          // Close Register Modal
           setIsRegisterModalOpen(false);
 
-          // Set Success Message and Open Success Modal
-          setSuccessMessage({
-              title: "Registration Successful!",
+          // Configure and Open Success Confirmation Modal
+          setSuccessData({
+              title: "Registration Successful",
               message: `Student account created successfully.\n\nDefault Password: ${generatedPassword}`
           });
           setIsSuccessModalOpen(true);
@@ -150,7 +156,7 @@ const InstituteDashboard = ({ user }) => {
   return (
     <div className="p-2 md:p-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       
-      {/* Header */}
+      {/* --- Header --- */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
          <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Institute Overview</h1>
@@ -162,14 +168,14 @@ const InstituteDashboard = ({ user }) => {
          </div>
       </div>
 
-      {/* Stats */}
+      {/* --- Stats --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {MOCK_STATS.map((stat, idx) => (
           <StatCard key={idx} {...stat} />
         ))} 
       </div>
 
-      {/* Main Content */}
+      {/* --- Main Content --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
@@ -185,8 +191,9 @@ const InstituteDashboard = ({ user }) => {
         </div>
       </div>
 
+      {/* ================= MODALS ================= */}
 
-      {/*Selection Modal */}
+      {/* SELECTION MODAL */}
       <Modal 
         isOpen={isSelectionModalOpen} 
         onClose={() => setIsSelectionModalOpen(false)} 
@@ -208,7 +215,7 @@ const InstituteDashboard = ({ user }) => {
         </div>
       </Modal>
 
-      {/* Check User Modal */}
+      {/*  CHECK USER MODAL */}
       <Modal 
         isOpen={isCheckModalOpen} 
         onClose={() => setIsCheckModalOpen(false)} 
@@ -245,7 +252,7 @@ const InstituteDashboard = ({ user }) => {
         </form>
       </Modal>
 
-      {/*Existing User Modal */}
+      {/*  EXISTING USER MODAL */}
       <ConfirmationModal
         isOpen={isExistingUserModalOpen}
         onClose={() => setIsExistingUserModalOpen(false)}
@@ -257,7 +264,7 @@ const InstituteDashboard = ({ user }) => {
         variant="primary" 
       />
 
-      {/*New Registration Modal */}
+      {/*   NEW REGISTRATION MODAL */}
       <Modal
         isOpen={isRegisterModalOpen}
         onClose={() => setIsRegisterModalOpen(false)}
@@ -321,6 +328,7 @@ const InstituteDashboard = ({ user }) => {
                         <><Save size={18} className="mr-2"/> Register Student</>
                     )}
                 </Button>
+                {/* Updated Hint */}
                 <p className="text-[10px] text-center text-gray-400 mt-2">
                     Default password will be last 6 digits of mobile
                 </p>
@@ -328,16 +336,15 @@ const InstituteDashboard = ({ user }) => {
         </form>
       </Modal>
 
-      {/*Success Confirmation Modal*/}
+      {/*SUCCESS CONFIRMATION MODAL */}
       <ConfirmationModal
         isOpen={isSuccessModalOpen}
         onClose={() => setIsSuccessModalOpen(false)}
-        title={successMessage.title}
-        message={successMessage.message}
+        title={successData.title}
+        message={successData.message}
         confirmLabel="Done"
-        cancelLabel="Add Another"
+        cancelLabel="Close"
         onConfirm={() => setIsSuccessModalOpen(false)}
-        onCancel={handleSelectStudent} 
         variant="success" 
       />
 
