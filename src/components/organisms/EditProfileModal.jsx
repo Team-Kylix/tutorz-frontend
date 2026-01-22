@@ -10,13 +10,14 @@ import TextAreaField from '../molecules/TextAreaField';
 
 const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role = 'tutor' }) => {
     
-    // 1. Unified State: Includes fields for BOTH Tutor and Student
+    // Unified State: Includes fields for ALL Roles
     const [formData, setFormData] = useState({
         // Common
         firstName: '',
         lastName: '',
         phoneNumber: '',
-        
+        email: '', 
+
         // Tutor Specific
         bio: '',
         bankName: '',
@@ -28,34 +29,41 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
         parentName: '',
         dateOfBirth: '',
 
-        //Institute Details
+        // Institute Specific
         instituteName: '',
         address: '',
         contactNumber: '',
         website: '',
 
+        // Override with initial data
         ...initialData
     });
 
     const [previewImage, setPreviewImage] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
 
-    // Sync state
+    // Sync state when initialData changes or modal opens
     useEffect(() => {
         if (initialData) {
-            setFormData(prev => ({ 
-                instituteName: initialData.instituteName || '',
-                address: initialData.address || '',
-                contactNumber: initialData.contactNumber || '',
-                website: initialData.website || '',
-                dateOfBirth: initialData.dateOfBirth ? initialData.dateOfBirth.split('T')[0] : ''
+            setFormData(prev => ({
+                ...prev,
+                ...initialData,
+                // Ensure specific fields map correctly
+                dateOfBirth: initialData.dateOfBirth ? initialData.dateOfBirth.split('T')[0] : '',
+                contactNumber: initialData.contactNumber || initialData.phoneNumber || '',
             }));
+            
+            // Set existing profile picture if available
+            if (initialData.profilePictureUrl) {
+                setPreviewImage(initialData.profilePictureUrl); 
+            }
         }
-    }, [initialData]);
+    }, [initialData, isOpen]);
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        const { id, value } = e.target;
+        const key = id || e.target.name; 
+        setFormData(prev => ({ ...prev, [key]: value }));
     };
 
     const handleImageChange = (e) => {
@@ -69,69 +77,86 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
     const handleSubmit = (e) => {
         e.preventDefault();
         
-        if (role === 'student' || role === 'institute') {
-            onSave(formData); // Send JSON object
-        } else {
-            // Send FormData for Tutors (supports Image upload)
+        // Check if a file is selected regardless of Role
+        if (selectedFile) {
             const submitData = new FormData();
+            
+            // Append all text data
             Object.keys(formData).forEach(key => {
-                submitData.append(key, formData[key] || '');
+                // Prevent appending null/undefined which might become string "null"
+                submitData.append(key, formData[key] === null || formData[key] === undefined ? '' : formData[key]);
             });
-            if (selectedFile) {
-                submitData.append('profilePicture', selectedFile);
-            }
+            
+            // Append the file
+            submitData.append('profilePicture', selectedFile);
+            
             onSave(submitData);
+        } else {
+            // If no file changed, send standard JSON object
+            onSave(formData);
         }
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Edit ${role === 'student' ? 'Student' : 'Tutor'} Profile`}>
+        <Modal isOpen={isOpen} onClose={onClose} title={`Edit ${role.charAt(0).toUpperCase() + role.slice(1)} Profile`}>
             <form onSubmit={handleSubmit} className="space-y-6">
                 
-                {/* --- SECTION 1: Profile Picture (Tutor Only?) --- */}
-                {role === 'tutor' && (
-                    <div className="flex flex-col items-center gap-2">
-                        <div className="relative group cursor-pointer w-24 h-24">
-                            <div className="w-full h-full rounded-full overflow-hidden border-4 border-white dark:border-gray-700 shadow-lg bg-gray-100 dark:bg-gray-700 transition-colors">
-                                {previewImage ? (
-                                    <img src={previewImage} alt="Preview" className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
-                                        <Camera size={32} />
-                                    </div>
-                                )}
-                            </div>
-                            <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Upload className="text-white" size={20} />
-                            </div>
-                            <input 
-                                id="profilePicture" type="file" accept="image/*" 
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                onChange={handleImageChange}
-                            />
+                {/* --- SECTION 1: Profile Picture (Enabled for ALL Roles) --- */}
+                <div className="flex flex-col items-center gap-2 mb-4">
+                    <div className="relative group cursor-pointer w-24 h-24">
+                        <div className="w-full h-full rounded-full overflow-hidden border-4 border-white dark:border-gray-700 shadow-lg bg-gray-100 dark:bg-gray-700 transition-colors">
+                            {previewImage ? (
+                                <img src={previewImage} alt="Preview" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
+                                    <Camera size={32} />
+                                </div>
+                            )}
                         </div>
-                        <Label htmlFor="profilePicture" className="text-xs text-gray-400 dark:text-gray-500 cursor-pointer">
-                            Tap to change photo
-                        </Label>
+                        <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Upload className="text-white" size={20} />
+                        </div>
+                        <input 
+                            id="profilePicture" type="file" accept="image/*" 
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            onChange={handleImageChange}
+                        />
                     </div>
-                )}
+                    <Label htmlFor="profilePicture" className="text-xs text-gray-400 dark:text-gray-500 cursor-pointer hover:text-blue-500 transition-colors">
+                        Tap to change {role === 'institute' ? 'logo' : 'photo'}
+                    </Label>
+                </div>
 
                 {/* --- SECTION 2: Personal Info (Common Fields) --- */}
                 <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">Personal Information</h3>
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">
+                        Basic Information
+                    </h3>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} />
-                        <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} />
-                    </div>
+                    {role === 'institute' ? (
+                        // Institute Specific Top Fields
+                        <div className="grid grid-cols-1 gap-4">
+                            <FormField id="instituteName" label="Institute Name" value={formData.instituteName} onChange={handleChange} required />
+                        </div>
+                    ) : (
+                        // Tutor/Student Top Fields
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required />
+                            <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required />
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Email is usually read-only */}
                         <FormField id="email" label="Email" value={formData.email} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
-                        <FormField id="phoneNumber" label="Phone Number" value={formData.phoneNumber} onChange={handleChange} />
+                        <FormField 
+                            id={role === 'institute' ? 'contactNumber' : 'phoneNumber'} 
+                            label={role === 'institute' ? 'Contact Number' : 'Phone Number'} 
+                            value={role === 'institute' ? formData.contactNumber : formData.phoneNumber} 
+                            onChange={handleChange} 
+                        />
                     </div>
 
-                    {/* Student Specific Personal Fields */}
+                    {/* Student Specific Fields */}
                     {role === 'student' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField id="dateOfBirth" label="Date of Birth" type="date" value={formData.dateOfBirth} onChange={handleChange} />
@@ -143,19 +168,12 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                     {role === 'tutor' && (
                         <TextAreaField id="bio" label="Biography" value={formData.bio} onChange={handleChange} placeholder="Tell students about yourself..." />
                     )}
-
-                    {/* Institute Name */}
-                    {role === 'institute' && (
-                         <div className="grid grid-cols-1 gap-4">
-                            <FormField id="instituteName" label="Institute Name" value={formData.instituteName} onChange={handleChange} />
-                        </div>
-                    )}
                 </div>
 
                 {/* --- SECTION 3: Role Specific Details --- */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">
-                        {role === 'tutor' ? 'Financial Details' : 'Academic Details'}
+                        {role === 'tutor' ? 'Financial Details' : role === 'institute' ? 'Location & Web' : 'Academic Details'}
                     </h3>
 
                     {/* A. TUTOR FIELDS */}
@@ -181,14 +199,11 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                         </>
                     )}
 
-                    {/* INSTITUTE FIELDS */}
+                    {/* C. INSTITUTE FIELDS */}
                     {role === 'institute' && (
                         <>
                             <FormField id="address" label="Address" value={formData.address} onChange={handleChange} />
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField id="contactNumber" label="Contact Number" value={formData.contactNumber} onChange={handleChange} />
-                                <FormField id="website" label="Website" value={formData.website} onChange={handleChange} placeholder="https://..." />
-                            </div>
+                            <FormField id="website" label="Website" value={formData.website} onChange={handleChange} placeholder="https://..." />
                         </>
                     )}
                 </div>
