@@ -37,7 +37,6 @@ const InstituteDashboard = ({ user }) => {
   const [isCheckModalOpen, setIsCheckModalOpen] = useState(false);        
   const [isExistingUserModalOpen, setIsExistingUserModalOpen] = useState(false); 
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false); 
-  // NEW: Success Modal State
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successData, setSuccessData] = useState({ title: '', message: '' });
 
@@ -48,19 +47,19 @@ const InstituteDashboard = ({ user }) => {
   const [checkError, setCheckError] = useState('');
   const [existingUser, setExistingUser] = useState(null);
 
-  // --- Registration Form State (Simplified) ---
+  // --- Registration Form State---
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     grade: ''
   });
 
-  // Open Selection
+  // 1. Open Selection
   const openSelection = () => {
       setIsSelectionModalOpen(true);
   };
 
-  // Select "Add Student" -> Open Check Modal
+  // 2. Select "Add Student" -> Open Check Modal
   const handleSelectStudent = () => {
       setIsSelectionModalOpen(false);
       setCheckData({ email: '', mobile: '' });
@@ -69,7 +68,7 @@ const InstituteDashboard = ({ user }) => {
       setIsCheckModalOpen(true);
   };
 
-  // Check User Existence
+  // 3. Check User Existence
   const handleCheckUser = async (e) => {
       e.preventDefault();
       
@@ -106,7 +105,7 @@ const InstituteDashboard = ({ user }) => {
       }
   };
 
-  // Final Register (Updated with Confirmation Modal)
+  // 4. Final Register (Updated with Confirmation Modal)
   const handleRegister = async (e) => {
       e.preventDefault();
       setIsRegistering(true);
@@ -120,6 +119,7 @@ const InstituteDashboard = ({ user }) => {
           const generatedPassword = mobileStr.length >= 6 
               ? mobileStr.slice(-6) 
               : "123456"; 
+          // --- PASSWORD LOGIC END ---
 
           const payload = {
               firstName: formData.firstName,
@@ -134,7 +134,8 @@ const InstituteDashboard = ({ user }) => {
               dateOfBirth: new Date().toISOString() 
           };
 
-          await register(payload);
+          // Capture the response to get the generated Student ID (registrationNumber)
+          const response = await register(payload);
           
           // Close Register Modal
           setIsRegisterModalOpen(false);
@@ -142,7 +143,7 @@ const InstituteDashboard = ({ user }) => {
           // Configure and Open Success Confirmation Modal
           setSuccessData({
               title: "Registration Successful",
-              message: `Student account created successfully.\n\nDefault Password: ${generatedPassword}`
+              message: `Name: ${formData.firstName} ${formData.lastName}\nID: ${response.registrationNumber}\n\nDefault Password: ${generatedPassword}`
           });
           setIsSuccessModalOpen(true);
 
@@ -193,7 +194,7 @@ const InstituteDashboard = ({ user }) => {
 
       {/* ================= MODALS ================= */}
 
-      {/* SELECTION MODAL */}
+      {/* 1. SELECTION MODAL */}
       <Modal 
         isOpen={isSelectionModalOpen} 
         onClose={() => setIsSelectionModalOpen(false)} 
@@ -215,7 +216,7 @@ const InstituteDashboard = ({ user }) => {
         </div>
       </Modal>
 
-      {/*  CHECK USER MODAL */}
+      {/* 2. CHECK USER MODAL */}
       <Modal 
         isOpen={isCheckModalOpen} 
         onClose={() => setIsCheckModalOpen(false)} 
@@ -252,7 +253,7 @@ const InstituteDashboard = ({ user }) => {
         </form>
       </Modal>
 
-      {/*  EXISTING USER MODAL */}
+      {/* 3. EXISTING USER MODAL */}
       <ConfirmationModal
         isOpen={isExistingUserModalOpen}
         onClose={() => setIsExistingUserModalOpen(false)}
@@ -264,7 +265,7 @@ const InstituteDashboard = ({ user }) => {
         variant="primary" 
       />
 
-      {/*   NEW REGISTRATION MODAL */}
+      {/* 4. NEW REGISTRATION MODAL */}
       <Modal
         isOpen={isRegisterModalOpen}
         onClose={() => setIsRegisterModalOpen(false)}
@@ -336,7 +337,7 @@ const InstituteDashboard = ({ user }) => {
         </form>
       </Modal>
 
-      {/*SUCCESS CONFIRMATION MODAL */}
+      {/* 5. SUCCESS CONFIRMATION MODAL */}
       <ConfirmationModal
         isOpen={isSuccessModalOpen}
         onClose={() => setIsSuccessModalOpen(false)}
