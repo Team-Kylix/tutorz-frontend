@@ -1,8 +1,9 @@
-import apiClient from './apiClient'; 
+import apiClient from './apiClient';
+import { API_URLS } from '../../utils/constants';
 
 export const getProvinces = async () => {
     try {
-        const response = await apiClient.get('/locations/provinces');
+        const response = await apiClient.get(API_URLS.PROVINCES);
         return response.data;
     } catch (error) {
         console.error("Failed to fetch provinces", error);
@@ -12,7 +13,7 @@ export const getProvinces = async () => {
 
 export const getDistricts = async (provinceId) => {
     try {
-        const response = await apiClient.get(`/locations/provinces/${provinceId}/districts`);
+        const response = await apiClient.get(`${API_URLS.PROVINCES}/${provinceId}/districts`);
         return response.data;
     } catch (error) {
         console.error("Failed to fetch districts", error);
@@ -22,7 +23,7 @@ export const getDistricts = async (provinceId) => {
 
 export const getCities = async (districtId) => {
     try {
-        const response = await apiClient.get(`/locations/districts/${districtId}/cities`);
+        const response = await apiClient.get(`${API_URLS.DISTRICTS}/${districtId}/cities`);
         return response.data;
     } catch (error) {
         console.error("Failed to fetch cities", error);

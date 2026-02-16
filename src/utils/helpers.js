@@ -17,12 +17,14 @@ export const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString('en-US', options);
 };
 
+import { CURRENCY } from './constants';
+
 /**
  * Formats currency (e.g., LKR 1,000.00).
  */
 export const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-LK', {
+  return new Intl.NumberFormat(CURRENCY.LOCALE, {
     style: 'currency',
-    currency: 'LKR',
+    currency: CURRENCY.CODE,
   }).format(amount);
 };

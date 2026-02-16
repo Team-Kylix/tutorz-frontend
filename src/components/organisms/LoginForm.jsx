@@ -8,6 +8,7 @@ import SocialLoginButton from '../molecules/SocialLogin/SocialLoginButton.jsx';
 import FormField from '../molecules/FormField.jsx';
 import PasswordInput from '../molecules/PasswordInput.jsx';
 import { validateSocialProvider } from '../../utils/validators.js';
+import { SOCIAL_PROVIDERS, ERROR_MESSAGES } from '../../utils/constants.js';
 
 const LoginForm = ({ onSwitchToRegister }) => {
     const dispatch = useDispatch();
@@ -23,7 +24,7 @@ const LoginForm = ({ onSwitchToRegister }) => {
         onSuccess: async (tokenResponse) => {
             try {
                 const payload = {
-                    provider: "google",
+                    provider: SOCIAL_PROVIDERS.GOOGLE,
                     idToken: tokenResponse.access_token,
                     role: null
                 };
@@ -47,12 +48,12 @@ const LoginForm = ({ onSwitchToRegister }) => {
                 setError(err.message || "Social login failed");
             }
         },
-        onError: () => setError('Google login failed.'),
+        onError: () => setError(ERROR_MESSAGES.GOOGLE_FAILED),
     });
 
     const handleAppleLogin = () => {
         setAppleError('');
-        const validation = validateSocialProvider('apple');
+        const validation = validateSocialProvider(SOCIAL_PROVIDERS.APPLE);
 
         if (!validation.isValid) {
             setAppleError(validation.message);
@@ -67,7 +68,7 @@ const LoginForm = ({ onSwitchToRegister }) => {
         setLoading(true);
 
         if (password.length < 6 || password.length > 10) {
-            setError("Password must be between 6 and 10 characters.");
+            setError(ERROR_MESSAGES.INVALID_PASSWORD);
             setLoading(false);
             return;
         }
@@ -100,7 +101,7 @@ const LoginForm = ({ onSwitchToRegister }) => {
 
             <div className="mt-6 space-y-4">
                 <SocialLoginButton
-                    provider="google"
+                    provider={SOCIAL_PROVIDERS.GOOGLE}
                     type="button"
                     onClick={() => handleGoogleLogin()}
                 >
@@ -109,7 +110,7 @@ const LoginForm = ({ onSwitchToRegister }) => {
 
                 <div className="flex flex-col">
                     <SocialLoginButton
-                        provider="apple"
+                        provider={SOCIAL_PROVIDERS.APPLE}
                         type="button"
                         onClick={handleAppleLogin}
                     >

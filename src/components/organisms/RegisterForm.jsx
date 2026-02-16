@@ -10,7 +10,8 @@ import DuplicateUserModal from './DuplicateUserModal.jsx';
 import OtpVerificationModal from './OtpVerificationModal.jsx';
 import { checkUserStatus, sendOtp, verifyOtp } from '../../services/auth/authService.js';
 import { getGoogleUserProfile } from '../../services/auth/googleAuthService.js';
-import { validateSocialProvider } from '../../utils/validators.js';
+import { validateSocialProvider, validateEmail, validatePhoneNumber, validatePassword } from '../../utils/validators.js';
+import { ROLES, ERROR_MESSAGES, SOCIAL_PROVIDERS } from '../../utils/constants.js';
 
 const RegisterForm = ({ onSwitchToLogin }) => {
     // state and hooks
@@ -36,13 +37,13 @@ const RegisterForm = ({ onSwitchToLogin }) => {
     const handleAppleClick = () => {
         setAppleError('');
         if (!validateRoleSelection()) return;
-        const validation = validateSocialProvider('apple');
+        const validation = validateSocialProvider(SOCIAL_PROVIDERS.APPLE);
         if (!validation.isValid) setAppleError(validation.message);
     };
 
     const validateRoleSelection = () => {
         if (!role) {
-            setRoleError('Please select a role first: Student, Tutor or Institute.');
+            setRoleError(ERROR_MESSAGES.ROLE_REQUIRED);
             return false;
         }
         setRoleError('');
@@ -56,15 +57,15 @@ const RegisterForm = ({ onSwitchToLogin }) => {
             try {
                 const profile = await getGoogleUserProfile(tokenResponse.access_token);
 
-                const response = await checkUserStatus({ email: profile.email }); 
-                
+                const response = await checkUserStatus({ email: profile.email });
+
                 // User Found
                 if (response.exists) {
                     // Exists as Student AND trying to register as Student
                     if (response.role === 'Student' && role === 'Student') {
                         setEmail(profile.email);
                         setExistingUser({ identifier: profile.email, name: response.name });
-                        
+
                         setTempSocialProfile({
                             firstName: profile.firstName,
                             lastName: profile.lastName,
@@ -77,7 +78,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                     }
 
                     // Block other cases
-                    setEmailError('You are already registered. Please log in.');
+                    setEmailError(ERROR_MESSAGES.ALREADY_REGISTERED);
                     return;
                 }
 
@@ -88,7 +89,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                             email: profile.email,
                             role: role,
                             isSocial: true,
-                            provider: 'Google',
+                            provider: SOCIAL_PROVIDERS.GOOGLE,
                         },
                         socialProfile: {
                             firstName: profile.firstName,
@@ -99,12 +100,12 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                 });
             } catch (error) {
                 console.error(error);
-                setEmailError("Failed to verify Google account.");
+                setEmailError(ERROR_MESSAGES.GOOGLE_FAILED);
             } finally {
                 setIsChecking(false);
             }
         },
-        onError: () => setEmailError('Google registration failed.'),
+        onError: () => setEmailError(ERROR_MESSAGES.GOOGLE_FAILED),
     });
 
     const handleGoogleClick = () => {
@@ -118,21 +119,25 @@ const RegisterForm = ({ onSwitchToLogin }) => {
         setPasswordError('');
 
         if (!role) {
-            setRoleError('Please select a role first.');
+            setRoleError(ERROR_MESSAGES.ROLE_REQUIRED);
             return;
         }
 
-        if (password.length < 6 || password.length > 10) {
-            setPasswordError("Password must be between 6 and 10 characters.");
+        const passValidation = validatePassword(password);
+        if (!passValidation.isValid) {
+            setPasswordError(passValidation.message);
             return;
         }
 
-        // Basic format check
-        const isEmail = email.includes('@');
-        const isPhone = /^07\d{8}$/.test(email);
+        // Consolidate validation
+        const emailValidation = validateEmail(email);
+        const phoneValidation = validatePhoneNumber(email);
+
+        const isEmail = emailValidation.isValid;
+        const isPhone = phoneValidation.isValid;
 
         if (!isEmail && !isPhone) {
-            setEmailError("Please enter a valid Email or Mobile Number (07...)");
+            setEmailError(ERROR_MESSAGES.INVALID_EMAIL + ' or ' + ERROR_MESSAGES.INVALID_PHONE);
             return;
         }
 
@@ -144,18 +149,18 @@ const RegisterForm = ({ onSwitchToLogin }) => {
             else checkPayload = { phoneNumber: email };
 
             const response = await checkUserStatus(checkPayload);
-            
+
             // Use 'response.exists' instead of 'response.status'
             if (response.exists) {
                 // Sibling Flow
-                if (response.role === 'Student' && role === 'Student') {
+                if (response.role === ROLES.STUDENT && role === ROLES.STUDENT) {
                     setExistingUser({ identifier: email, name: response.name });
                     setShowDuplicateModal(true);
                 } else {
                     // Block Tutor/Institute re-registration or role mismatch
-                    setEmailError(`This account is already registered as a ${response.role}. Please log in.`);
+                    setEmailError(ERROR_MESSAGES.ACCOUNT_EXISTS);
                 }
-            } 
+            }
             // User Not Found -> Proceed
             else {
                 const stepOneData = { email, password, role, isSocial: false };
@@ -163,7 +168,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
             }
 
         } catch (error) {
-            setEmailError(error.message || 'Something went wrong. Please try again.');
+            setEmailError(error.message || ERROR_MESSAGES.GENERIC_ERROR);
         } finally {
             setIsChecking(false);
         }
@@ -195,7 +200,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
             setShowOtpModal(false);
             let backendPhone = response.phoneNumber;
             let formattedPhone = backendPhone;
-            
+
             if (backendPhone && backendPhone.startsWith('+94')) {
                 formattedPhone = '0' + backendPhone.substring(3);
             }
@@ -208,7 +213,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                 isLinkedAccount: true,
                 linkedPhoneNumber: formattedPhone
             };
-            
+
             if (tempSocialProfile) {
                 navigate('/register-details', {
                     state: {
@@ -250,7 +255,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                     I am a (Select Role)
                 </Label>
                 <div className="grid grid-cols-3 gap-3">
-                    {['Student', 'Tutor', 'Institute'].map((option) => (
+                    {[ROLES.STUDENT, ROLES.TUTOR, ROLES.INSTITUTE].map((option) => (
                         <button
                             key={option}
                             type="button"
@@ -272,11 +277,11 @@ const RegisterForm = ({ onSwitchToLogin }) => {
             </div>
 
             <div className="mt-6 space-y-4">
-                <SocialLoginButton provider="google" onClick={handleGoogleClick} type="button">
+                <SocialLoginButton provider={SOCIAL_PROVIDERS.GOOGLE} onClick={handleGoogleClick} type="button">
                     Sign up with Google
                 </SocialLoginButton>
                 <div className="flex flex-col">
-                    <SocialLoginButton provider="apple" onClick={handleAppleClick} type="button">
+                    <SocialLoginButton provider={SOCIAL_PROVIDERS.APPLE} onClick={handleAppleClick} type="button">
                         Sign up with Apple
                     </SocialLoginButton>
                     {appleError && <p className="text-xs text-red-500 dark:text-red-400 mt-2 text-center font-medium ">{appleError}</p>}
@@ -336,7 +341,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                 onItsMe={handleItsMe}
                 onItsParent={handleItsParent}
             />
-            
+
             <OtpVerificationModal
                 isOpen={showOtpModal}
                 onClose={() => setShowOtpModal(false)}

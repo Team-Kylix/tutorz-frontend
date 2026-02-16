@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AuthLayout from '../../components/templates/AuthLayout.jsx';
 import FormField from '../../components/molecules/FormField.jsx';
-import { ROLES } from '../../utils/constants';
+import { ROLES, ERROR_MESSAGES } from '../../utils/constants';
 import { validatePhoneNumber } from '../../utils/validators';
 import useAuth from '../../hooks/useAuth';
-import { socialLogin } from '../../services/auth/authService.js'; 
+import { socialLogin } from '../../services/auth/authService.js';
 import Label from '../../components/atoms/Label.jsx';
-import LocationSelector from '../../components/molecules/LocationSelector'; 
+import LocationSelector from '../../components/molecules/LocationSelector';
 
 const GRADE_GROUPS = [
-    { label: "Primary Education", options: ['Preschool','Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'] },
-    { label: "Secondary Education", options: ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11 (O/L)','Grade 12 (A/L)', 'Grade 13 (A/L)'] },
+    { label: "Primary Education", options: ['Preschool', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'] },
+    { label: "Secondary Education", options: ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11 (O/L)', 'Grade 12 (A/L)', 'Grade 13 (A/L)'] },
     { label: "Other", options: ['Course', 'Seminar', 'Workshop'] }
 ];
 
@@ -58,14 +58,14 @@ const SelectField = ({ id, label, value, onChange, groups, placeholder, required
 const RegisterDetailsPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    
-    const auth = useAuth(); 
+
+    const auth = useAuth();
     const manualRegister = auth.register;
     const registerSibling = auth.registerSibling;
-    
+
     const stepOneData = location.state?.stepOneData;
     const socialProfile = location.state?.socialProfile;
-    
+
     const isLinkedAccount = stepOneData?.isLinkedAccount === true;
     const linkedPhoneNumber = stepOneData?.linkedPhoneNumber || '';
 
@@ -73,11 +73,10 @@ const RegisterDetailsPage = () => {
         if (!stepOneData) navigate('/register');
     }, [stepOneData, navigate]);
 
-    if (!stepOneData) return null;
-    const isSocial = stepOneData.isSocial === true;
+    const isSocial = stepOneData?.isSocial === true;
 
     const [formData, setFormData] = useState({
-        phoneNumber: isLinkedAccount ? linkedPhoneNumber : (stepOneData.phoneNumber || ''), 
+        phoneNumber: isLinkedAccount ? linkedPhoneNumber : (stepOneData?.phoneNumber || ''),
         firstName: socialProfile?.firstName || '',
         lastName: socialProfile?.lastName || '',
         bio: '',
@@ -89,8 +88,10 @@ const RegisterDetailsPage = () => {
         dateOfBirth: '',
         instituteName: '',
         address: '',
-        cityId: '' 
+        cityId: ''
     });
+
+    if (!stepOneData) return null; // MOVED DOWN
 
     const [errors, setErrors] = useState({});
     const [globalError, setGlobalError] = useState(null);
@@ -127,7 +128,7 @@ const RegisterDetailsPage = () => {
         }
 
         if (!formData.cityId) {
-            setErrors(prev => ({ ...prev, cityId: "Please select your city." }));
+            setErrors(prev => ({ ...prev, cityId: ERROR_MESSAGES.REQUIRED }));
             return;
         }
 
@@ -137,7 +138,7 @@ const RegisterDetailsPage = () => {
         try {
             if (isLinkedAccount) {
                 const siblingPayload = {
-                    identifier: linkedPhoneNumber, 
+                    identifier: linkedPhoneNumber,
                     verificationToken: "VERIFIED",
                     firstName: formData.firstName,
                     lastName: formData.lastName,
@@ -149,7 +150,7 @@ const RegisterDetailsPage = () => {
                 };
 
                 const result = await registerSibling(siblingPayload);
-                
+
                 if (result.success) {
                     navigate('/dashboard');
                 } else {
@@ -176,8 +177,8 @@ const RegisterDetailsPage = () => {
                     cityId: parseInt(formData.cityId)
                 };
                 await socialLogin(payload);
-                navigate('/dashboard'); 
-            } 
+                navigate('/dashboard');
+            }
             else {
                 const fullRegistrationData = {
                     ...stepOneData,
@@ -190,16 +191,16 @@ const RegisterDetailsPage = () => {
                     instituteName: formData.instituteName,
                     address: formData.address
                 };
-                
+
                 const result = await manualRegister(fullRegistrationData);
                 if (result.success) {
                     navigate('/dashboard');
                 } else {
-                    setGlobalError(result.error?.message || "Registration failed.");
+                    setGlobalError(result.error?.message || ERROR_MESSAGES.GENERIC_ERROR);
                 }
             }
         } catch (error) {
-            setGlobalError(isSocial ? error.message : "Registration failed.");
+            setGlobalError(isSocial ? error.message : ERROR_MESSAGES.GENERIC_ERROR);
         } finally {
             setIsSubmitting(false);
         }
@@ -216,23 +217,23 @@ const RegisterDetailsPage = () => {
                 );
             case ROLES.STUDENT:
                 return (
-                <>
-                    <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required />
-                    <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required />
-                    <FormField id="school" label="School Name" value={formData.school} onChange={handleChange} />
-                    <SelectField 
-                        id="grade"
-                        label="Grade / Course ..."
-                        value={formData.grade}
-                        onChange={handleChange}
-                        groups={GRADE_GROUPS}      
-                        placeholder="Select Grade"         
-                        error={errors.grade}       
-                    />
-                    <FormField id="parentName" label="Parent Name" value={formData.parentName} onChange={handleChange} />
-                    <FormField id="dateOfBirth" label="Date of Birth" type="date" value={formData.dateOfBirth} onChange={handleChange} />
-                </>
-            );
+                    <>
+                        <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required />
+                        <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required />
+                        <FormField id="school" label="School Name" value={formData.school} onChange={handleChange} />
+                        <SelectField
+                            id="grade"
+                            label="Grade / Course ..."
+                            value={formData.grade}
+                            onChange={handleChange}
+                            groups={GRADE_GROUPS}
+                            placeholder="Select Grade"
+                            error={errors.grade}
+                        />
+                        <FormField id="parentName" label="Parent Name" value={formData.parentName} onChange={handleChange} />
+                        <FormField id="dateOfBirth" label="Date of Birth" type="date" value={formData.dateOfBirth} onChange={handleChange} />
+                    </>
+                );
             case ROLES.INSTITUTE:
                 return (
                     <>
@@ -262,23 +263,23 @@ const RegisterDetailsPage = () => {
                         onChange={handleChange}
                         onBlur={handlePhoneBlur}
                         error={errors.phoneNumber}
-                        disabled={isLinkedAccount} 
+                        disabled={isLinkedAccount}
                     />
-                    
+
                     {isLinkedAccount && (
                         <p className="text-xs text-blue-600 dark:text-blue-400 -mt-3 mb-2">* Linked to parent account</p>
                     )}
 
                     {/* Stacked Vertical Layout for better UI */}
                     <div className="pt-2">
-                        <LocationSelector 
-                            onCityChange={handleCityChange} 
+                        <LocationSelector
+                            onCityChange={handleCityChange}
                             error={errors.cityId}
                         />
                     </div>
 
                     {renderRoleFields()}
-                    
+
                     {globalError && <p className="text-xs text-red-500 dark:text-red-400 mt-1 text-center">{globalError}</p>}
 
                     <button
