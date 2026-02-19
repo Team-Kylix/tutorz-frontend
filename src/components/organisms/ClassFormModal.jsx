@@ -345,35 +345,33 @@ const ClassFormModal = ({
           </div>
 
           {/* Footer */}
-          <div className="pt-4 border-t border-gray-100 dark:border-gray-700 mt-2 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
+          <div className="pt-6 border-t border-gray-100 dark:border-gray-700 mt-4 flex flex-col gap-6 sm:flex-row sm:justify-between sm:items-center">
             <div className="order-3 sm:order-1 w-full sm:w-auto flex justify-center sm:justify-start">
               {initialData && (
                 <button
                   type="button"
                   onClick={() => onDelete(initialData.classId)}
-                  className="flex items-center gap-2 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-sm font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                  className="flex items-center gap-2 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                 >
                   <Trash2 size={16} /> Delete
                 </button>
               )}
             </div>
 
-            <div className="order-2 sm:order-2 w-full sm:w-auto flex justify-center">
+            <div className="order-2 sm:order-2 w-full sm:w-auto flex justify-center py-2 sm:py-0">
               {initialData && (
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={toggleStatus}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      formData.isActive ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.isActive ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        formData.isActive
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.isActive
                           ? 'translate-x-6'
                           : 'translate-x-1'
-                      }`}
+                        }`}
                     />
                   </button>
                   <span className="text-xs font-semibold w-14 inline-block">
@@ -391,13 +389,51 @@ const ClassFormModal = ({
               <Button variant="secondary" onClick={onClose} fullWidth>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting} fullWidth>
-                {isSubmitting
-                  ? 'Saving...'
-                  : initialData
-                  ? 'Update'
-                  : 'Create'}
-              </Button>
+
+              {initialData ? (
+                <button
+                  type="submit"
+                  disabled={isSubmitting || (
+                    initialData.instituteName === formData.instituteName &&
+                    initialData.classType === formData.classType &&
+                    initialData.subject === formData.subject &&
+                    initialData.grade === formData.grade &&
+                    initialData.className === formData.className &&
+                    // Date comparison logic can be tricky, check if one changed
+                    // For simplicity, checking if payload data matches initial.
+                    (initialData.date ? initialData.date.split('T')[0] : '') === formData.date &&
+                    (initialData.dayOfWeek || 'Monday') === formData.dayOfWeek &&
+                    initialData.startTime === formData.startTime &&
+                    initialData.endTime === formData.endTime &&
+                    initialData.hallName === formData.hallName &&
+                    initialData.fee == formData.fee &&
+                    (initialData.isActive ?? true) === formData.isActive
+                  )}
+                  className={`w-full sm:w-auto px-6 py-2 rounded-lg text-sm font-medium transition-colors ${isSubmitting || (
+                      initialData.instituteName === formData.instituteName &&
+                      initialData.classType === formData.classType &&
+                      initialData.subject === formData.subject &&
+                      initialData.grade === formData.grade &&
+                      initialData.className === formData.className &&
+                      (initialData.date ? initialData.date.split('T')[0] : '') === formData.date &&
+                      (initialData.dayOfWeek || 'Monday') === formData.dayOfWeek &&
+                      initialData.startTime === formData.startTime &&
+                      initialData.endTime === formData.endTime &&
+                      initialData.hallName === formData.hallName &&
+                      initialData.fee == formData.fee &&
+                      (initialData.isActive ?? true) === formData.isActive
+                    )
+                      ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
+                      : 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200 dark:shadow-none'
+                    }`}
+                >
+                  {isSubmitting ? 'Updating...' : 'Update'}
+                </button>
+              ) : (
+                <Button type="submit" disabled={isSubmitting} fullWidth variant="primary">
+                  {isSubmitting ? 'Saving...' : 'Create'}
+                </Button>
+              )}
             </div>
           </div>
         </form>
