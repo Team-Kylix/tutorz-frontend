@@ -178,7 +178,8 @@ const InstituteDashboard = ({ user }) => {
                 password: generatedPassword,
                 schoolName: "Not Provided",
                 parentName: "Not Provided",
-                dateOfBirth: new Date().toISOString()
+                dateOfBirth: new Date().toISOString(),
+                cityId: instituteProfile.cityId // Include Institute CityId
             };
 
             await register(payload);
