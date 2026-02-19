@@ -48,8 +48,21 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const studentMenu = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
-    { id: 'attendance', label: 'My Attendance', icon: Calendar }, 
+    { id: 'attendance', label: 'My Attendance', icon: Calendar },
     { id: 'profile', label: 'My Profile', icon: QrCode },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ];
+
+  // Menu for Institutes
+  const instituteMenu = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'classes', label: 'My Classes', icon: BookOpen },
+    { id: 'hall-management', label: 'Hall Management', icon: Building }, // New Item
+    { id: 'students', label: 'Students & Medals', icon: Users },
+    { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
+    { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
+    { id: 'reports', label: 'Reports', icon: FileText },
+    { id: 'profile', label: 'Profile & QR', icon: QrCode },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -71,10 +84,11 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
       case ROLES.ADMIN:
         return adminMenu;
       case ROLES.TUTOR:
-      case ROLES.INSTITUTE:
         return tutorMenu;
+      case ROLES.INSTITUTE:
+        return instituteMenu;
       case ROLES.STUDENT:
-        return studentMenu; // Updated to return the student list instead of []
+        return studentMenu;
       default:
         return tutorMenu;
     }
