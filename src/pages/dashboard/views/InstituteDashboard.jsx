@@ -283,7 +283,6 @@ const InstituteDashboard = ({ user }) => {
                 </div>
             </div>
 
-      {/* ================= MODALS ================= */}
 
             {/*Selection Modal */}
             <Modal
