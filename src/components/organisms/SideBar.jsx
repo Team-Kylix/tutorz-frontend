@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   LayoutDashboard, Users, BookOpen, Calendar, DollarSign,
   FileText, QrCode, Settings, ChevronRight, ChevronLeft, LogOut,
-  Building, ShieldAlert, UserCog, CheckSquare
+  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SidebarItem from '../molecules/SidebarItem';
@@ -57,8 +57,9 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const instituteMenu = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
-    { id: 'hall-management', label: 'Hall Management', icon: Building }, // New Item
-    { id: 'students', label: 'Students & Medals', icon: Users },
+    { id: 'hall-management', label: 'Hall Management', icon: Building },
+    { id: 'institute-students', label: 'Institute Students', icon: GraduationCap },
+    { id: 'institute-tutors', label: 'Institute Tutors', icon: UserCheck },
     { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
     { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
     { id: 'reports', label: 'Reports', icon: FileText },

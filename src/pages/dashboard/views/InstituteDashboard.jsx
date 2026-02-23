@@ -13,10 +13,11 @@ import Modal from '../../../components/molecules/Modal';
 import FormField from '../../../components/molecules/FormField';
 import QuickActionCard from '../../../components/molecules/QuickActionCard';
 import ConfirmationModal from '../../../components/molecules/ConfirmationModal';
+import InstituteSearchAssignModal from '../../../components/organisms/InstituteSearchAssignModal';
 
 // --- Services ---
 import { checkUserStatus, register } from '../../../services/auth/authService';
-import { getInstituteProfile } from '../../../services/api/instituteService';
+import { getInstituteProfile, searchStudents, searchTutors, assignStudent, assignTutor, getAssignedStudents, getAssignedTutors } from '../../../services/api/instituteService';
 import { validatePhoneNumber } from '../../../utils/validators';
 
 // --- Constants ---
@@ -36,6 +37,8 @@ const GRADE_GROUPS = [
 const InstituteDashboard = ({ user }) => {
     // --- Modal States ---
     const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
+    const [isSubOptionModalOpen, setIsSubOptionModalOpen] = useState(false); // Search vs Register sub-option
+    const [isSearchAssignModalOpen, setIsSearchAssignModalOpen] = useState(false);
     const [isCheckModalOpen, setIsCheckModalOpen] = useState(false);
     const [isExistingUserModalOpen, setIsExistingUserModalOpen] = useState(false);
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -53,6 +56,10 @@ const InstituteDashboard = ({ user }) => {
     const [existingUser, setExistingUser] = useState(null);
     const [instituteProfile, setInstituteProfile] = useState(null);
     const [addingRole, setAddingRole] = useState(null); // 'Student' or 'Tutor'
+
+    // NEW: Real Stats States
+    const [studentCount, setStudentCount] = useState('...');
+    const [tutorCount, setTutorCount] = useState('...');
 
     // --- Registration Form State ---
     const [formData, setFormData] = useState({
@@ -83,25 +90,56 @@ const InstituteDashboard = ({ user }) => {
         fetchProfile();
     }, [user]);
 
-    // Open Selection
+    // Fetch real stats
+    useEffect(() => {
+        const fetchStats = async () => {
+            // we don't strictly need instituteProfile.instituteId because the services use the auth token
+            try {
+                const [studentsRes, tutorsRes] = await Promise.all([
+                    getAssignedStudents(),
+                    getAssignedTutors()
+                ]);
+
+                setStudentCount(studentsRes.data?.length?.toString() || '0');
+                setTutorCount(tutorsRes.data?.length?.toString() || '0');
+            } catch (err) {
+                console.error("Failed to fetch real counts:", err);
+                setStudentCount('Err');
+                setTutorCount('Err');
+            }
+        };
+
+        fetchStats();
+    }, []);
+
+    // Open Selection (role picker)
     const openSelection = () => {
         setIsSelectionModalOpen(true);
     };
 
-    // Select "Add Student" -> Open Check Modal
+    // Select "Add Student" -> Open sub-option modal
     const handleSelectStudent = () => {
         setIsSelectionModalOpen(false);
         setAddingRole('Student');
-        setCheckData({ email: '', mobile: '' });
-        setCheckError('');
-        setIsChecking(false);
-        setIsCheckModalOpen(true);
+        setIsSubOptionModalOpen(true);
     };
 
-    // Select "Add Tutor" -> Open Check Modal
+    // Select "Add Tutor" -> Open sub-option modal
     const handleSelectTutor = () => {
         setIsSelectionModalOpen(false);
         setAddingRole('Tutor');
+        setIsSubOptionModalOpen(true);
+    };
+
+    // Sub-option: Search & Assign existing
+    const handleChooseSearch = () => {
+        setIsSubOptionModalOpen(false);
+        setIsSearchAssignModalOpen(true);
+    };
+
+    // Sub-option: Register new
+    const handleChooseRegister = () => {
+        setIsSubOptionModalOpen(false);
         setCheckData({ email: '', mobile: '' });
         setCheckError('');
         setIsChecking(false);
@@ -179,10 +217,24 @@ const InstituteDashboard = ({ user }) => {
                 schoolName: "Not Provided",
                 parentName: "Not Provided",
                 dateOfBirth: new Date().toISOString(),
-                cityId: instituteProfile.cityId // Include Institute CityId
+                cityId: instituteProfile?.cityId
+                // NOTE: does NOT include instituteId — backend has a bug using userId as tutorId
             };
 
             await register(payload);
+
+            // Step 2: Search the new student by first name and assign
+            try {
+                const searchRes = await searchStudents(formData.firstName);
+                const matched = (searchRes.data || []).find(
+                    s => !s.isAlreadyAssigned && (s.name?.toLowerCase().includes(formData.firstName.toLowerCase()))
+                );
+                if (matched) {
+                    await assignStudent(matched.roleSpecificId);
+                }
+            } catch (assignErr) {
+                console.warn('Auto-assign after registration failed, user can be assigned manually.', assignErr);
+            }
 
             setIsRegisterModalOpen(false);
 
@@ -225,16 +277,30 @@ const InstituteDashboard = ({ user }) => {
                 bankAccountNumber: formData.bankAccountNumber,
                 bankName: formData.bankName,
                 experienceYears: formData.experienceYears,
-                cityId: instituteProfile.cityId // Enforce same location
+                cityId: instituteProfile.cityId
+                // NOTE: does NOT include instituteId — backend has a bug using userId as tutorId
             };
 
             await register(payload);
+
+            // Step 2: Search the new tutor by first name and assign
+            try {
+                const searchRes = await searchTutors(formData.firstName);
+                const matched = (searchRes.data || []).find(
+                    t => !t.isAlreadyAssigned && (t.name?.toLowerCase().includes(formData.firstName.toLowerCase()))
+                );
+                if (matched) {
+                    await assignTutor(matched.roleSpecificId);
+                }
+            } catch (assignErr) {
+                console.warn('Auto-assign after registration failed, user can be assigned manually.', assignErr);
+            }
 
             setIsTutorRegisterModalOpen(false);
 
             setSuccessMessage({
                 title: "Tutor Added Successfully!",
-                message: `Tutor account created successfully and linked to ${instituteProfile.cityId} location.\n\nDefault Password: ${generatedPassword}`
+                message: `Tutor account created successfully.\n\nDefault Password: ${generatedPassword}`
             });
             setIsSuccessModalOpen(true);
 
@@ -263,9 +329,10 @@ const InstituteDashboard = ({ user }) => {
 
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {MOCK_STATS.map((stat, idx) => (
-                    <StatCard key={idx} {...stat} />
-                ))}
+                <StatCard label="Total Tutors" value={tutorCount} change="Latest active" icon={Users} color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
+                <StatCard label="Active Students" value={studentCount} change="Currently enrolled" icon={GraduationCap} color="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
+                <StatCard {...MOCK_STATS[2]} />
+                <StatCard {...MOCK_STATS[3]} />
             </div>
 
             {/* Main Content */}
@@ -285,7 +352,7 @@ const InstituteDashboard = ({ user }) => {
             </div>
 
 
-            {/*Selection Modal */}
+            {/*Selection Modal: Role Picker */}
             <Modal
                 isOpen={isSelectionModalOpen}
                 onClose={() => setIsSelectionModalOpen(false)}
@@ -306,6 +373,52 @@ const InstituteDashboard = ({ user }) => {
                     />
                 </div>
             </Modal>
+
+            {/* Sub-option Modal: Search & Assign OR Register New */}
+            <Modal
+                isOpen={isSubOptionModalOpen}
+                onClose={() => setIsSubOptionModalOpen(false)}
+                title={`Add ${addingRole} — Choose Method`}
+            >
+                <div className="grid grid-cols-1 gap-3">
+                    <button
+                        onClick={handleChooseSearch}
+                        className="flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700
+                            hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20
+                            transition-all duration-150 text-left group"
+                    >
+                        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                        </div>
+                        <div>
+                            <p className="font-semibold text-gray-900 dark:text-white">Search &amp; Assign Existing</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Find an already registered {addingRole?.toLowerCase()} and add them to your institute</p>
+                        </div>
+                    </button>
+
+                    <button
+                        onClick={handleChooseRegister}
+                        className="flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700
+                            hover:border-purple-400 dark:hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20
+                            transition-all duration-150 text-left group"
+                    >
+                        <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0 group-hover:scale-110 transition-transform">
+                            <UserPlus size={20} />
+                        </div>
+                        <div>
+                            <p className="font-semibold text-gray-900 dark:text-white">Register New {addingRole}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Create a brand new {addingRole?.toLowerCase()} account and enroll them instantly</p>
+                        </div>
+                    </button>
+                </div>
+            </Modal>
+
+            {/* Search & Assign Modal */}
+            <InstituteSearchAssignModal
+                isOpen={isSearchAssignModalOpen}
+                onClose={() => setIsSearchAssignModalOpen(false)}
+                type={addingRole || 'Student'}
+            />
 
             {/* Check User Modal */}
             <Modal
