@@ -13,6 +13,8 @@ import HallManagement from './views/HallManagement';
 import ClassesPage from './ClassesPage';
 // Import only the unified profile page
 import UserProfile from './UserProfile';
+import InstituteStudentsPage from './InstituteStudentsPage';
+import InstituteTutorsPage from './InstituteTutorsPage';
 
 const DashboardHome = ({ activePage, setActivePage }) => {
   const { user } = useAuth();
@@ -25,6 +27,14 @@ const DashboardHome = ({ activePage, setActivePage }) => {
 
   if (activePage === 'hall-management') {
     return <HallManagement />;
+  }
+
+  if (activePage === 'institute-students') {
+    return <InstituteStudentsPage />;
+  }
+
+  if (activePage === 'institute-tutors') {
+    return <InstituteTutorsPage />;
   }
 
   // No switch case needed here anymore.
