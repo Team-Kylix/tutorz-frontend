@@ -96,18 +96,28 @@ export const assignTutor = async (tutorId) => {
   }
 };
 
-export const getAssignedStudents = async () => {
+export const getAssignedStudents = async (searchQuery = '', page = 1, pageSize = 10) => {
   try {
-    const response = await apiClient.get('/institute/students');
+    const params = new URLSearchParams({
+      searchQuery: searchQuery,
+      page: page.toString(),
+      pageSize: pageSize.toString()
+    });
+    const response = await apiClient.get(`/institute/students?${params.toString()}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to fetch assigned students' };
   }
 };
 
-export const getAssignedTutors = async () => {
+export const getAssignedTutors = async (searchQuery = '', page = 1, pageSize = 10) => {
   try {
-    const response = await apiClient.get('/institute/tutors');
+    const params = new URLSearchParams({
+      searchQuery: searchQuery,
+      page: page.toString(),
+      pageSize: pageSize.toString()
+    });
+    const response = await apiClient.get(`/institute/tutors?${params.toString()}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to fetch assigned tutors' };
