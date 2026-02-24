@@ -4,6 +4,8 @@ import {
     RefreshCw, AlertCircle
 } from 'lucide-react';
 import Button from '../../components/atoms/Button';
+import Input from '../../components/atoms/Input';
+import StatCard from '../../components/molecules/StatCard';
 import InstituteSearchAssignModal from '../../components/organisms/InstituteSearchAssignModal';
 import { getAssignedTutors } from '../../services/api/instituteService';
 
@@ -72,22 +74,22 @@ const InstituteTutorsPage = () => {
 
             {/* Stats Banner & Search */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/40 rounded-xl px-5 py-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
-                        <Users size={20} />
-                    </div>
-                    <div>
-                        <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">{tutors.length}</p>
-                        <p className="text-xs text-purple-500 dark:text-purple-400">Total Active</p>
-                    </div>
+                <div className="w-full md:w-64">
+                    <StatCard
+                        label="Total Active"
+                        value={tutors.length}
+                        change="All time tutors"
+                        icon={Users}
+                        color="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
+                    />
                 </div>
 
                 <div className="relative w-full max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <input
+                    <Input
                         type="text"
                         placeholder="Search tutors..."
-                        className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-colors shadow-sm"
+                        className="pl-10 py-3 shadow-sm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
