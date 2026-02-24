@@ -11,40 +11,75 @@ import { getAssignedTutors } from '../../services/api/instituteService';
 
 const InstituteTutorsPage = () => {
     const [tutors, setTutors] = useState([]);
+    const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [error, setError] = useState('');
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
 
-    const fetchTutors = useCallback(async () => {
-        setIsLoading(true);
+    // Pagination and Search State
+    const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const PAGE_SIZE = 10;
+
+    // Debounce Search Term
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchTerm]);
+
+    const fetchTutors = useCallback(async (isLoadMore = false, currentPage = 1, currentSearch = '') => {
+        if (!isLoadMore) {
+            setIsLoading(true);
+        } else {
+            setIsLoadingMore(true);
+        }
         setError('');
+
         try {
-            const res = await getAssignedTutors();
-            setTutors(res.data || []);
+            const res = await getAssignedTutors(currentSearch, currentPage, PAGE_SIZE);
+            const newTutors = res.data?.items || [];
+
+            if (isLoadMore) {
+                setTutors(prev => [...prev, ...newTutors]);
+            } else {
+                setTutors(newTutors);
+            }
+
+            setTotalCount(res.data?.totalCount || 0);
+            setHasMore(res.data?.hasNextPage || false);
         } catch (err) {
             setError('Failed to load tutors. Please try again.');
         } finally {
             setIsLoading(false);
+            setIsLoadingMore(false);
         }
     }, []);
 
+    // Effect for initial load and search term changes
     useEffect(() => {
-        fetchTutors();
-    }, [fetchTutors]);
+        setPage(1);
+        fetchTutors(false, 1, debouncedSearchTerm);
+    }, [debouncedSearchTerm, fetchTutors]);
 
     const handleAssigned = () => {
-        fetchTutors();
+        setSearchTerm('');
+        setPage(1);
+        fetchTutors(false, 1, '');
     };
 
-    const filteredTutors = tutors.filter(tutor => {
-        const fullName = `${tutor.firstName || ''} ${tutor.lastName || ''}`.toLowerCase();
-        const searchLower = searchTerm.toLowerCase();
-        return fullName.includes(searchLower) ||
-            (tutor.registrationNumber && tutor.registrationNumber.toLowerCase().includes(searchLower)) ||
-            (tutor.phoneNumber && tutor.phoneNumber.includes(searchLower)) ||
-            (tutor.email && tutor.email.toLowerCase().includes(searchLower));
-    });
+    const handleScroll = (e) => {
+        const { scrollTop, clientHeight, scrollHeight } = e.target;
+        if (scrollHeight - scrollTop <= clientHeight + 50 && hasMore && !isLoadingMore && !isLoading) {
+            const nextPage = page + 1;
+            setPage(nextPage);
+            fetchTutors(true, nextPage, debouncedSearchTerm);
+        }
+    };
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -77,7 +112,7 @@ const InstituteTutorsPage = () => {
                 <div className="w-full md:w-64">
                     <StatCard
                         label="Total Active"
-                        value={tutors.length}
+                        value={totalCount}
                         change="All time tutors"
                         icon={Users}
                         color="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
@@ -108,13 +143,13 @@ const InstituteTutorsPage = () => {
                     <p className="text-sm font-medium">{error}</p>
                     <Button variant="outline" onClick={fetchTutors}>Retry</Button>
                 </div>
-            ) : filteredTutors.length === 0 ? (
+            ) : tutors.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 transition-colors">
                     <Users size={48} className="mx-auto mb-4 opacity-20" />
                     <p className="font-medium text-gray-600 dark:text-gray-400">
-                        {searchTerm ? 'No matching tutors found.' : 'No tutors found.'}
+                        {debouncedSearchTerm ? 'No matching tutors found.' : 'No tutors found.'}
                     </p>
-                    {searchTerm ? (
+                    {debouncedSearchTerm ? (
                         <p className="text-sm mt-2 text-gray-400">Try a different search term.</p>
                     ) : (
                         <Button variant="primary" className="mt-4 bg-purple-600 hover:bg-purple-700" onClick={() => setIsAssignModalOpen(true)}>
@@ -123,10 +158,14 @@ const InstituteTutorsPage = () => {
                     )}
                 </div>
             ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-gray-600 dark:text-gray-400">
-                            <thead className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+                    {/* Fixed Height Scrollable Container */}
+                    <div
+                        className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar"
+                        onScroll={handleScroll}
+                    >
+                        <table className="w-full text-left text-sm text-gray-600 dark:text-gray-400 relative">
+                            <thead className="bg-gray-50 dark:bg-gray-800/90 border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium sticky top-0 z-10 backdrop-blur-sm">
                                 <tr>
                                     <th className="px-6 py-4">Tutor Name</th>
                                     <th className="px-6 py-4">Registration No</th>
@@ -135,7 +174,7 @@ const InstituteTutorsPage = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                                {filteredTutors.map((tutor) => {
+                                {tutors.map((tutor) => {
                                     const initials = `${tutor.firstName?.charAt(0) || ''}${tutor.lastName ? tutor.lastName.charAt(0) : ''}`.toUpperCase();
                                     const fullName = `${tutor.firstName || ''} ${tutor.lastName || ''}`.trim() || 'Unknown';
 
@@ -172,6 +211,19 @@ const InstituteTutorsPage = () => {
                                 })}
                             </tbody>
                         </table>
+
+                        {/* Loading More Indicator */}
+                        {isLoadingMore && (
+                            <div className="flex items-center justify-center p-4 text-purple-500 space-x-2">
+                                <Loader2 size={16} className="animate-spin" />
+                                <span className="text-sm">Loading more tutors...</span>
+                            </div>
+                        )}
+                        {!hasMore && tutors.length > 0 && (
+                            <div className="text-center p-4 text-sm text-gray-400 dark:text-gray-500">
+                                No more tutors to load.
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

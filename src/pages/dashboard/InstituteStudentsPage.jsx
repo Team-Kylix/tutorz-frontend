@@ -11,40 +11,77 @@ import { getAssignedStudents } from '../../services/api/instituteService';
 
 const InstituteStudentsPage = () => {
     const [students, setStudents] = useState([]);
+    const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [error, setError] = useState('');
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
 
-    const fetchStudents = useCallback(async () => {
-        setIsLoading(true);
+    // Pagination and Search State
+    const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const PAGE_SIZE = 10;
+
+    // Debounce Search Term
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchTerm]);
+
+    const fetchStudents = useCallback(async (isLoadMore = false, currentPage = 1, currentSearch = '') => {
+        if (!isLoadMore) {
+            setIsLoading(true);
+        } else {
+            setIsLoadingMore(true);
+        }
         setError('');
+
         try {
-            const res = await getAssignedStudents();
-            setStudents(res.data || []);
+            const res = await getAssignedStudents(currentSearch, currentPage, PAGE_SIZE);
+            const newStudents = res.data?.items || [];
+
+            if (isLoadMore) {
+                setStudents(prev => [...prev, ...newStudents]);
+            } else {
+                setStudents(newStudents);
+            }
+
+            setTotalCount(res.data?.totalCount || 0);
+            setHasMore(res.data?.hasNextPage || false);
         } catch (err) {
             setError('Failed to load students. Please try again.');
         } finally {
             setIsLoading(false);
+            setIsLoadingMore(false);
         }
     }, []);
 
+    // Effect for initial load and search term changes
     useEffect(() => {
-        fetchStudents();
-    }, [fetchStudents]);
+        setPage(1); // Reset page on new search
+        fetchStudents(false, 1, debouncedSearchTerm);
+    }, [debouncedSearchTerm, fetchStudents]);
 
     const handleAssigned = () => {
-        fetchStudents();
+        // Refresh from start
+        setSearchTerm('');
+        setPage(1);
+        fetchStudents(false, 1, '');
     };
 
-    const filteredStudents = students.filter(student => {
-        const fullName = `${student.firstName || ''} ${student.lastName || ''}`.toLowerCase();
-        const searchLower = searchTerm.toLowerCase();
-        return fullName.includes(searchLower) ||
-            (student.registrationNumber && student.registrationNumber.toLowerCase().includes(searchLower)) ||
-            (student.phoneNumber && student.phoneNumber.includes(searchLower)) ||
-            (student.email && student.email.toLowerCase().includes(searchLower));
-    });
+    const handleScroll = (e) => {
+        const { scrollTop, clientHeight, scrollHeight } = e.target;
+        // If scrolled to the bottom (allow 50px buffer)
+        if (scrollHeight - scrollTop <= clientHeight + 50 && hasMore && !isLoadingMore && !isLoading) {
+            const nextPage = page + 1;
+            setPage(nextPage);
+            fetchStudents(true, nextPage, debouncedSearchTerm);
+        }
+    };
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -77,7 +114,7 @@ const InstituteStudentsPage = () => {
                 <div className="w-full md:w-64">
                     <StatCard
                         label="Total Enrolled"
-                        value={students.length}
+                        value={totalCount}
                         change="All time students"
                         icon={GraduationCap}
                         color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
@@ -108,13 +145,13 @@ const InstituteStudentsPage = () => {
                     <p className="text-sm font-medium">{error}</p>
                     <Button variant="outline" onClick={fetchStudents}>Retry</Button>
                 </div>
-            ) : filteredStudents.length === 0 ? (
+            ) : students.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 transition-colors">
                     <GraduationCap size={48} className="mx-auto mb-4 opacity-20" />
                     <p className="font-medium text-gray-600 dark:text-gray-400">
-                        {searchTerm ? 'No matching students found.' : 'No students found.'}
+                        {debouncedSearchTerm ? 'No matching students found.' : 'No students found.'}
                     </p>
-                    {searchTerm ? (
+                    {debouncedSearchTerm ? (
                         <p className="text-sm mt-2 text-gray-400">Try a different search term.</p>
                     ) : (
                         <Button variant="primary" className="mt-4" onClick={() => setIsAssignModalOpen(true)}>
@@ -123,10 +160,14 @@ const InstituteStudentsPage = () => {
                     )}
                 </div>
             ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-gray-600 dark:text-gray-400">
-                            <thead className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+                    {/* Fixed Height Scrollable Container */}
+                    <div
+                        className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar"
+                        onScroll={handleScroll}
+                    >
+                        <table className="w-full text-left text-sm text-gray-600 dark:text-gray-400 relative">
+                            <thead className="bg-gray-50 dark:bg-gray-800/90 border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium sticky top-0 z-10 backdrop-blur-sm">
                                 <tr>
                                     <th className="px-6 py-4">Student Name</th>
                                     <th className="px-6 py-4">Registration No</th>
@@ -135,7 +176,7 @@ const InstituteStudentsPage = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                                {filteredStudents.map((student) => {
+                                {students.map((student) => {
                                     const initials = `${student.firstName?.charAt(0) || ''}${student.lastName ? student.lastName.charAt(0) : ''}`.toUpperCase();
                                     const fullName = `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Unknown';
 
@@ -172,6 +213,19 @@ const InstituteStudentsPage = () => {
                                 })}
                             </tbody>
                         </table>
+
+                        {/* Loading More Indicator */}
+                        {isLoadingMore && (
+                            <div className="flex items-center justify-center p-4 text-blue-500 space-x-2">
+                                <Loader2 size={16} className="animate-spin" />
+                                <span className="text-sm">Loading more students...</span>
+                            </div>
+                        )}
+                        {!hasMore && students.length > 0 && (
+                            <div className="text-center p-4 text-sm text-gray-400 dark:text-gray-500">
+                                No more students to load.
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
