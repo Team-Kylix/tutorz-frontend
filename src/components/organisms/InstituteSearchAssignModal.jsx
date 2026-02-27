@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, CheckCircle2, UserPlus, Loader2, AlertCircle } from 'lucide-react';
 import Modal from '../molecules/Modal';
 import Button from '../atoms/Button';
-import { searchStudents, searchTutors, assignStudent, assignTutor } from '../../services/api/instituteService';
+import { searchStudents, searchTutors, assignStudent, sendTutorRequest } from '../../services/api/instituteService';
 
 /**
  * InstituteSearchAssignModal
@@ -60,9 +60,9 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = 'Student', onAssig
         setAssigningId(item.roleSpecificId);
         setFeedback({ id: null, type: '', message: '' });
         try {
-            const assignFn = type === 'Student' ? assignStudent : assignTutor;
+            const assignFn = type === 'Student' ? assignStudent : sendTutorRequest;
             await assignFn(item.roleSpecificId);
-            setFeedback({ id: item.roleSpecificId, type: 'success', message: 'Assigned successfully!' });
+            setFeedback({ id: item.roleSpecificId, type: 'success', message: type === 'Student' ? 'Assigned successfully!' : 'Join request sent successfully!' });
             // Mark as assigned in local results
             setResults(prev =>
                 prev.map(r => r.roleSpecificId === item.roleSpecificId ? { ...r, isAlreadyAssigned: true } : r)
@@ -143,7 +143,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = 'Student', onAssig
                                     key={item.roleSpecificId}
                                     className={`flex items-center gap-3 p-3 rounded-xl border transition-all
                                         ${item.isAlreadyAssigned
-                                            ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800/40'
+                                            ? (type === 'Student' ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800/40' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700')
                                             : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:shadow-sm'
                                         }`}
                                 >
@@ -177,9 +177,9 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = 'Student', onAssig
 
                                     {/* Action */}
                                     {item.isAlreadyAssigned ? (
-                                        <span className="flex items-center gap-1 text-xs font-semibold text-green-600 dark:text-green-400 shrink-0">
+                                        <span className="flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400 shrink-0">
                                             <CheckCircle2 size={15} />
-                                            Assigned
+                                            {type === 'Student' ? 'Assigned' : 'Requested / Assigned'}
                                         </span>
                                     ) : (
                                         <Button
@@ -192,7 +192,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = 'Student', onAssig
                                             {isBusy ? (
                                                 <Loader2 size={14} className="animate-spin" />
                                             ) : (
-                                                <><UserPlus size={14} className="mr-1" />Assign</>
+                                                <><UserPlus size={14} className="mr-1" />{type === 'Student' ? 'Assign' : 'Send Request'}</>
                                             )}
                                         </Button>
                                     )}

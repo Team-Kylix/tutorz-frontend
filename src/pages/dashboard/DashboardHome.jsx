@@ -15,6 +15,9 @@ import ClassesPage from './ClassesPage';
 import UserProfile from './UserProfile';
 import InstituteStudentsPage from './InstituteStudentsPage';
 import InstituteTutorsPage from './InstituteTutorsPage';
+import InstituteRequestsPage from './InstituteRequestsPage';
+import TutorRequestsPage from './TutorRequestsPage';
+import StudentRequestsPage from './StudentRequestsPage';
 
 const DashboardHome = ({ activePage, setActivePage }) => {
   const { user } = useAuth();
@@ -35,6 +38,18 @@ const DashboardHome = ({ activePage, setActivePage }) => {
 
   if (activePage === 'institute-tutors') {
     return <InstituteTutorsPage />;
+  }
+
+  if (activePage === 'institute-requests') {
+    return <InstituteRequestsPage />;
+  }
+
+  if (activePage === 'tutor-requests') {
+    return <TutorRequestsPage />;
+  }
+
+  if (activePage === 'student-requests') {
+    return <StudentRequestsPage />;
   }
 
   // No switch case needed here anymore.

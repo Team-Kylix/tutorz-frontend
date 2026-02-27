@@ -31,24 +31,53 @@ export const getTutorProfile = async () => {
 };
 
 export const updateTutorProfile = async (formData) => {
-    const response = await apiClient.put('/tutor/profile', formData); 
-    return response.data;
+  const response = await apiClient.put('/tutor/profile', formData);
+  return response.data;
 };
 
 export const getStudentRequests = async () => {
-    const response = await apiClient.get('/tutor/requests');
-    return response.data;
+  const response = await apiClient.get('/tutor/requests');
+  return response.data;
 };
 
 export const processStudentRequests = async (enrollmentIds, action) => {
-    const response = await apiClient.post('/tutor/requests/process', { 
-        enrollmentIds, 
-        action 
-    });
-    return response.data;
+  const response = await apiClient.post('/tutor/requests/process', {
+    enrollmentIds,
+    action
+  });
+  return response.data;
 };
 
 export const getStudentProfileForTutor = async (studentId) => {
-    const response = await apiClient.get(`/tutor/student-profile/${studentId}`);
+  const response = await apiClient.get(`/tutor/student-profile/${studentId}`);
+  return response.data;
+};
+
+// --- Institute Join Requests ---
+
+export const requestJoinInstitute = async (instituteId) => {
+  try {
+    const response = await apiClient.post(`/tutor/institutes/${instituteId}/request`);
     return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to send institute join request' };
+  }
+};
+
+export const getInstituteRequests = async () => {
+  try {
+    const response = await apiClient.get('/tutor/requests/institutes');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch institute requests' };
+  }
+};
+
+export const processInstituteRequest = async (requestId, action) => {
+  try {
+    const response = await apiClient.post(`/tutor/requests/institutes/${requestId}/process`, { action });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to process institute request' };
+  }
 };

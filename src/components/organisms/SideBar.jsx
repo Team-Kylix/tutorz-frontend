@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   LayoutDashboard, Users, BookOpen, Calendar, DollarSign,
   FileText, QrCode, Settings, ChevronRight, ChevronLeft, LogOut,
-  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck
+  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SidebarItem from '../molecules/SidebarItem';
@@ -36,7 +36,9 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const tutorMenu = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
-    { id: 'students', label: 'Students & Medals', icon: Users },
+    { id: 'student-requests', label: 'Student Requests', icon: Users },
+    { id: 'tutor-requests', label: 'Institute Requests', icon: Building },
+    { id: 'students', label: 'Students & Medals', icon: GraduationCap },
     { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
     { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
     { id: 'reports', label: 'Reports', icon: FileText },
@@ -58,8 +60,9 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
     { id: 'hall-management', label: 'Hall Management', icon: Building },
-    { id: 'institute-students', label: 'Institute Students', icon: GraduationCap },
-    { id: 'institute-tutors', label: 'Institute Tutors', icon: UserCheck },
+    { id: 'institute-requests', label: 'Requests', icon: UserPlus },
+    { id: 'institute-students', label: 'Students', icon: GraduationCap },
+    { id: 'institute-tutors', label: 'Tutors', icon: UserCheck },
     { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
     { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
     { id: 'reports', label: 'Reports', icon: FileText },
