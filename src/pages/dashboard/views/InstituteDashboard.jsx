@@ -100,8 +100,12 @@ const InstituteDashboard = ({ user }) => {
                     getAssignedTutors()
                 ]);
 
-                setStudentCount(studentsRes.data?.length?.toString() || '0');
-                setTutorCount(tutorsRes.data?.length?.toString() || '0');
+                // Ensure correct stats are derived whether data is paginated or not
+                const studentTotal = studentsRes.data?.totalCount ?? studentsRes.data?.items?.length ?? studentsRes.data?.length ?? 0;
+                const tutorTotal = tutorsRes.data?.totalCount ?? tutorsRes.data?.items?.length ?? tutorsRes.data?.length ?? 0;
+
+                setStudentCount(studentTotal.toString());
+                setTutorCount(tutorTotal.toString());
             } catch (err) {
                 console.error("Failed to fetch real counts:", err);
                 setStudentCount('Err');
