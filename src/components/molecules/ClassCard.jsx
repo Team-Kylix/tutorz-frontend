@@ -1,7 +1,7 @@
 import React from 'react';
-import { Clock, Users, BookOpen, Presentation, GraduationCap, PenTool } from 'lucide-react';
+import { Clock, Users, BookOpen, Presentation, GraduationCap, PenTool, Building2 } from 'lucide-react';
 
-const ClassCard = ({ className, subject, grade, time, students, status, fee, classType }) => {
+const ClassCard = ({ className, subject, grade, time, students, status, fee, classType, instituteName }) => {
 
   const getTypeConfig = (type) => {
     switch (type) {
@@ -81,8 +81,14 @@ const ClassCard = ({ className, subject, grade, time, students, status, fee, cla
           </div>
           {students !== undefined && (
             <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-              <Users size={16} className="mr-2 text-gray-400 dark:text-gray-500" />
+              <Users size={16} className="mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
               <span>{students} Students Enrolled</span>
+            </div>
+          )}
+          {instituteName && (
+            <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+              <Building2 size={16} className="mr-2 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+              <span className="truncate">{instituteName}</span>
             </div>
           )}
         </div>
@@ -105,8 +111,8 @@ const ClassCard = ({ className, subject, grade, time, students, status, fee, cla
 
             {/* Status Badge */}
             <span className={`w-20 text-center inline-block px-2 py-1 rounded-full text-xs font-medium ${status === 'active'
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
               }`}>
               {status === 'active' ? 'Active' : 'Inactive'}
             </span>

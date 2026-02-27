@@ -169,7 +169,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="p-3 space-y-1 mt-2 flex-1 overflow-y-auto h-[calc(100vh-180px)] custom-scrollbar">
+        <nav className="p-3 pb-6 space-y-1 mt-2 flex-1 overflow-y-auto h-[calc(100vh-190px)] custom-scrollbar">
           {menuItems.map((item) => (
             <SidebarItem
               key={item.id}

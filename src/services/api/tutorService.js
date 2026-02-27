@@ -81,3 +81,23 @@ export const processInstituteRequest = async (requestId, action) => {
     throw error.response?.data || { message: 'Failed to process institute request' };
   }
 };
+
+// --- Institutes & Halls ---
+
+export const getJoinedInstitutes = async () => {
+  try {
+    const response = await apiClient.get('/tutor/institutes');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch joined institutes' };
+  }
+};
+
+export const getInstituteHalls = async (instituteId) => {
+  try {
+    const response = await apiClient.get(`/institute/halls/${instituteId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch institute halls' };
+  }
+};
