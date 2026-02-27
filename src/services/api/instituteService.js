@@ -96,6 +96,34 @@ export const assignTutor = async (tutorId) => {
   }
 };
 
+export const sendTutorRequest = async (tutorId) => {
+  try {
+    const response = await apiClient.post('/institute/tutors/request', { tutorId });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to send tutor request' };
+  }
+};
+
+export const getIncomingRequests = async () => {
+  try {
+    const response = await apiClient.get('/institute/requests/incoming');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch incoming requests' };
+  }
+};
+
+export const processJoinRequest = async (requestId, action) => {
+  try {
+    const response = await apiClient.post(`/institute/requests/${requestId}/process`, { action });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to process request' };
+  }
+};
+
+
 export const getAssignedStudents = async (searchQuery = '', page = 1, pageSize = 10) => {
   try {
     const params = new URLSearchParams({

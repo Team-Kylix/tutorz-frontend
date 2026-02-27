@@ -249,6 +249,7 @@ const ClassesPage = () => {
                 students={cls.studentCount}
                 fee={cls.fee}
                 status={cls.isActive ? 'active' : 'inactive'}
+                instituteName={cls.instituteName}
               />
               <div className="absolute top-4 right-4 flex gap-2">
                 <button

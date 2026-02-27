@@ -100,8 +100,12 @@ const InstituteDashboard = ({ user }) => {
                     getAssignedTutors()
                 ]);
 
-                setStudentCount(studentsRes.data?.length?.toString() || '0');
-                setTutorCount(tutorsRes.data?.length?.toString() || '0');
+                // Ensure correct stats are derived whether data is paginated or not
+                const studentTotal = studentsRes.data?.totalCount ?? studentsRes.data?.items?.length ?? studentsRes.data?.length ?? 0;
+                const tutorTotal = tutorsRes.data?.totalCount ?? tutorsRes.data?.items?.length ?? tutorsRes.data?.length ?? 0;
+
+                setStudentCount(studentTotal.toString());
+                setTutorCount(tutorTotal.toString());
             } catch (err) {
                 console.error("Failed to fetch real counts:", err);
                 setStudentCount('Err');
@@ -217,24 +221,11 @@ const InstituteDashboard = ({ user }) => {
                 schoolName: "Not Provided",
                 parentName: "Not Provided",
                 dateOfBirth: new Date().toISOString(),
-                cityId: instituteProfile?.cityId
-                // NOTE: does NOT include instituteId — backend has a bug using userId as tutorId
+                cityId: instituteProfile?.cityId,
+                instituteId: instituteProfile?.instituteId || user?.instituteId
             };
 
             await register(payload);
-
-            // Step 2: Search the new student by first name and assign
-            try {
-                const searchRes = await searchStudents(formData.firstName);
-                const matched = (searchRes.data || []).find(
-                    s => !s.isAlreadyAssigned && (s.name?.toLowerCase().includes(formData.firstName.toLowerCase()))
-                );
-                if (matched) {
-                    await assignStudent(matched.roleSpecificId);
-                }
-            } catch (assignErr) {
-                console.warn('Auto-assign after registration failed, user can be assigned manually.', assignErr);
-            }
 
             setIsRegisterModalOpen(false);
 
@@ -277,24 +268,11 @@ const InstituteDashboard = ({ user }) => {
                 bankAccountNumber: formData.bankAccountNumber,
                 bankName: formData.bankName,
                 experienceYears: formData.experienceYears,
-                cityId: instituteProfile.cityId
-                // NOTE: does NOT include instituteId — backend has a bug using userId as tutorId
+                cityId: instituteProfile.cityId,
+                instituteId: instituteProfile?.instituteId || user?.instituteId
             };
 
             await register(payload);
-
-            // Step 2: Search the new tutor by first name and assign
-            try {
-                const searchRes = await searchTutors(formData.firstName);
-                const matched = (searchRes.data || []).find(
-                    t => !t.isAlreadyAssigned && (t.name?.toLowerCase().includes(formData.firstName.toLowerCase()))
-                );
-                if (matched) {
-                    await assignTutor(matched.roleSpecificId);
-                }
-            } catch (assignErr) {
-                console.warn('Auto-assign after registration failed, user can be assigned manually.', assignErr);
-            }
 
             setIsTutorRegisterModalOpen(false);
 
