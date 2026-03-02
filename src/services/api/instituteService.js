@@ -11,6 +11,23 @@ export const updateInstituteProfile = async (data) => {
   return response.data;
 };
 
+// --- Classes Management ---
+
+export const getInstituteClasses = async (searchQuery = '', page = 1, pageSize = 10) => {
+  try {
+    const params = new URLSearchParams({
+      searchQuery: searchQuery,
+      page: page.toString(),
+      pageSize: pageSize.toString()
+    });
+    // This expects the backend to have an equivalent endpoint.
+    const response = await apiClient.get(`/institute/classes?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch institute classes' };
+  }
+};
+
 // --- Hall Management ---
 
 export const getHalls = async () => {

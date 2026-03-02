@@ -228,6 +228,7 @@ const ClassFormModal = ({
 
     const payload = {
       ...formData,
+      instituteId: formData.instituteId === 'OWN_PLACE' ? null : formData.instituteId,
       fee: parseFloat(formData.fee),
       dayOfWeek: finalDayString,
       date: finalDate
