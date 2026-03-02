@@ -28,6 +28,42 @@ export const getInstituteClasses = async (searchQuery = '', page = 1, pageSize =
   }
 };
 
+export const createInstituteClass = async (data) => {
+  try {
+    const response = await apiClient.post('/institute/classes', data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to create institute class' };
+  }
+};
+
+export const updateInstituteClass = async (id, data) => {
+  try {
+    const response = await apiClient.put(`/institute/classes/${id}`, data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to update institute class' };
+  }
+};
+
+export const deleteInstituteClass = async (id) => {
+  try {
+    const response = await apiClient.delete(`/institute/classes/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to delete institute class' };
+  }
+};
+
+export const toggleInstituteClassStatus = async (id) => {
+  try {
+    const response = await apiClient.patch(`/institute/classes/${id}/status`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to toggle institute class status' };
+  }
+};
+
 // --- Hall Management ---
 
 export const getHalls = async () => {

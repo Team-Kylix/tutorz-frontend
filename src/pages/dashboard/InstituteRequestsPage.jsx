@@ -150,7 +150,7 @@ const InstituteRequestsPage = () => {
                     <Input
                         type="text"
                         placeholder="Search requests..."
-                        className="pl-10 py-3 shadow-sm"
+                        className="pl-10 shadow-sm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -180,18 +180,18 @@ const InstituteRequestsPage = () => {
                     )}
                 </div>
             ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
                     {/* Fixed Height Scrollable Container */}
                     <div
                         className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar"
                         onScroll={handleScroll}
                     >
-                        <table className="w-full text-left text-sm text-gray-600 dark:text-gray-400 relative">
-                            <thead className="bg-gray-50 dark:bg-gray-800/90 border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium sticky top-0 z-10 backdrop-blur-sm">
+                        <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
+                            <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 backdrop-blur-sm">
                                 <tr>
-                                    <th className="px-6 py-4">Tutor Name</th>
-                                    <th className="px-6 py-4">Tutor ID</th>
-                                    <th className="px-6 py-4 text-right">Action</th>
+                                    <th className="px-6 py-4 font-semibold">Tutor Name</th>
+                                    <th className="px-6 py-4 font-semibold">Tutor ID</th>
+                                    <th className="px-6 py-4 text-right font-semibold">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -200,7 +200,7 @@ const InstituteRequestsPage = () => {
                                     const fullName = request.tutorName || 'Unknown';
 
                                     return (
-                                        <tr key={request.requestId} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
+                                        <tr key={request.requestId} className="hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors group">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-9 h-9 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-orange-500 group-hover:text-white transition-colors">

@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar, DollarSign, User } from 'lucide-react';
+import { Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar, User } from 'lucide-react';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import StatCard from '../../components/molecules/StatCard';
+import ClassFormModal from '../../components/organisms/ClassFormModal';
+import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 import useApi from '../../hooks/useApi';
+import { useAuth } from '../../hooks/useAuth';
 import * as instituteService from '../../services/api/instituteService';
 
 const InstituteClassesPage = () => {
@@ -14,8 +17,44 @@ const InstituteClassesPage = () => {
     const [pageSize] = useState(10);
     const [hasMore, setHasMore] = useState(true);
 
+    // Modal States
+    const [isClassModalOpen, setClassModalOpen] = useState(false);
+    const [editingClass, setEditingClass] = useState(null);
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+    const [successMessage, setSuccessMessage] = useState("");
+    const [pendingFormData, setPendingFormData] = useState(null);
+
+    // Delete States
+    const [classToDelete, setClassToDelete] = useState(null);
+    const [isDeleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+    // Status Change States
+    const [statusCandidate, setStatusCandidate] = useState(null);
+    const [isStatusConfirmOpen, setStatusConfirmOpen] = useState(false);
+
+    // Profile State for Institute Context
+    const [instituteProfile, setInstituteProfile] = useState(null);
+
     // API Hooks
     const { request: fetchClasses, loading: isLoading } = useApi();
+    const { request: fetchProfile } = useApi();
+    const { request: saveClass, loading: isSaving } = useApi();
+    const { request: removeClass, loading: isDeleting } = useApi();
+
+    const { user } = useAuth();
+
+    // Load Profile
+    useEffect(() => {
+        const loadProfile = async () => {
+            const res = await fetchProfile(instituteService.getInstituteProfile);
+            if (res.data) {
+                // The backend might return { data: { instituteId: ..., instituteName: ... }, success: true }
+                setInstituteProfile(res.data.data || res.data);
+            }
+        };
+        loadProfile();
+    }, []);
 
     // Load Classes
     useEffect(() => {
@@ -50,6 +89,99 @@ const InstituteClassesPage = () => {
         }
     };
 
+    // --- HANDLERS ---
+    const handleCreateClick = () => {
+        setEditingClass(null);
+        setClassModalOpen(true);
+    };
+
+    const handleEditClick = (cls) => {
+        setEditingClass(cls);
+        setClassModalOpen(true);
+    };
+
+    const preparePayload = (data) => {
+        return {
+            ...data,
+            date: data.date === "" ? null : data.date,
+            fee: parseFloat(data.fee),
+            dayOfWeek: Array.isArray(data.dayOfWeek) ? data.dayOfWeek.join(',') : data.dayOfWeek
+        };
+    };
+
+    const handleDeleteClick = (classId) => {
+        setClassModalOpen(false);
+        setClassToDelete(classId);
+        setDeleteConfirmOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!classToDelete) return;
+        const result = await removeClass(instituteService.deleteInstituteClass, classToDelete);
+
+        // request returns { data: ..., error: ... }, check for success in data payload
+        if (result && result.data && result.data.success) {
+            setDeleteConfirmOpen(false);
+            setClassToDelete(null);
+            loadClasses(true);
+            setSuccessMessage("Class deleted successfully!");
+            setIsSuccessOpen(true);
+        } else {
+            // Handle error case if necessary
+            setDeleteConfirmOpen(false);
+            alert(result?.error || 'Failed to delete class. Please try again.');
+        }
+    };
+
+    const handleStatusChangeRequest = (currentFormData) => {
+        setStatusCandidate(currentFormData);
+        setStatusConfirmOpen(true);
+    };
+
+    const handleConfirmStatusChange = async () => {
+        if (!statusCandidate) return;
+
+        const newStatus = !statusCandidate.isActive;
+        const result = await saveClass(instituteService.toggleInstituteClassStatus, statusCandidate.classId);
+
+        if (result && result.data && result.data.success) {
+            setStatusConfirmOpen(false);
+            setEditingClass(prev => ({ ...prev, isActive: result.data.data }));
+            loadClasses(true);
+            setSuccessMessage(`Class ${newStatus ? 'activated' : 'deactivated'} successfully!`);
+            setIsSuccessOpen(true);
+        }
+    };
+
+    const handleClassSubmit = (formData) => {
+        setPendingFormData(formData);
+        setIsConfirmOpen(true);
+    };
+
+    const handleConfirmSave = async () => {
+        const cleanPayload = preparePayload(pendingFormData);
+
+        let result;
+        if (editingClass) {
+            result = await saveClass(instituteService.updateInstituteClass, editingClass.classId, cleanPayload);
+        } else {
+            result = await saveClass(instituteService.createInstituteClass, cleanPayload);
+        }
+
+        if (result && result.data) {
+            setIsConfirmOpen(false);
+            setClassModalOpen(false);
+            setPendingFormData(null);
+            loadClasses(true);
+            const msg = editingClass ? "Class updated successfully!" : "Class assigned successfully!";
+            setSuccessMessage(msg);
+            setIsSuccessOpen(true);
+        } else if (!editingClass) {
+            alert('Failed to create class.');
+            setIsConfirmOpen(false);
+        }
+    };
+
     return (
         <div className="space-y-6 animate-fade-in">
             {/* Header */}
@@ -67,6 +199,9 @@ const InstituteClassesPage = () => {
                     >
                         <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
                     </button>
+                    <Button variant="primary" onClick={handleCreateClick} disabled={!instituteProfile}>
+                        <BookOpen size={18} className="mr-2" /> Assign Class
+                    </Button>
                 </div>
             </div>
 
@@ -113,10 +248,19 @@ const InstituteClassesPage = () => {
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
                             {classes.length > 0 ? (
                                 classes.map((cls, index) => (
-                                    <tr key={cls.classId || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors group">
+                                    <tr
+                                        key={cls.classId || index}
+                                        className={`hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors group cursor-pointer ${!cls.isActive ? 'opacity-60 bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
+                                        onClick={() => handleEditClick(cls)}
+                                    >
                                         <td className="px-6 py-4">
-                                            <div className="font-semibold text-gray-900 dark:text-white">
-                                                {cls.className || '-'}
+                                            <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                                <span>{cls.className || '-'}</span>
+                                                {!cls.isActive && (
+                                                    <span className="px-2 py-0.5 text-[10px] tracking-wider font-bold bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md">
+                                                        INACTIVE
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
                                                 {cls.classType || 'Class'}
@@ -153,7 +297,7 @@ const InstituteClassesPage = () => {
                                         </td>
                                         <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
                                             <div className="flex items-center gap-1">
-                                                <DollarSign size={14} className="text-green-500" />
+                                                <span className="text-sm font-semibold text-green-500 mr-1">Rs</span>
                                                 <span>{cls.fee?.toLocaleString() || '0'}</span>
                                             </div>
                                         </td>
@@ -204,6 +348,67 @@ const InstituteClassesPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* --- MODALS --- */}
+            <ClassFormModal
+                isOpen={isClassModalOpen}
+                onClose={() => setClassModalOpen(false)}
+                onSubmit={handleClassSubmit}
+                onDelete={handleDeleteClick}
+                onStatusChange={handleStatusChangeRequest}
+                initialData={editingClass}
+                isSubmitting={isSaving}
+                isInstituteMode={true}
+                instituteProfile={instituteProfile}
+            />
+
+            <ConfirmationModal
+                isOpen={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                onConfirm={handleConfirmSave}
+                title={editingClass ? "Update Class" : "Create Class"}
+                message={editingClass
+                    ? "Are you sure you want to update this class details?"
+                    : "Are you sure you want to assign this new class to the selected tutor?"}
+                confirmLabel={editingClass ? "Update" : "Create"}
+                cancelLabel="Cancel"
+                variant="primary"
+            />
+
+            <ConfirmationModal
+                isOpen={isDeleteConfirmOpen}
+                onClose={() => setDeleteConfirmOpen(false)}
+                onConfirm={handleConfirmDelete}
+                title="Delete Class?"
+                message="Are you sure you want to delete this class? This action cannot be undone."
+                confirmLabel={isDeleting ? "Deleting..." : "Delete"}
+                cancelLabel="Cancel"
+                variant="danger"
+            />
+
+            <ConfirmationModal
+                isOpen={isStatusConfirmOpen}
+                onClose={() => setStatusConfirmOpen(false)}
+                onConfirm={handleConfirmStatusChange}
+                title={statusCandidate?.isActive ? "Deactivate Class?" : "Activate Class?"}
+                message={statusCandidate?.isActive
+                    ? "This will hide the class from the schedule. Are you sure?"
+                    : "This will make the class visible in the schedule again. Are you sure?"}
+                confirmLabel={statusCandidate?.isActive ? "Deactivate" : "Activate"}
+                cancelLabel="Cancel"
+                variant={statusCandidate?.isActive ? "danger" : "success"}
+            />
+
+            <ConfirmationModal
+                isOpen={isSuccessOpen}
+                onClose={() => setIsSuccessOpen(false)}
+                onConfirm={() => setIsSuccessOpen(false)}
+                title="Success"
+                message={successMessage}
+                confirmLabel="OK"
+                cancelLabel="Close"
+                variant="success"
+            />
         </div>
     );
 };

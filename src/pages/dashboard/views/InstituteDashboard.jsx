@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Users, GraduationCap, Calendar, DollarSign,
+    Users, GraduationCap, Calendar,
     Plus, QrCode, UserPlus, Loader2, Save
 } from 'lucide-react';
 
@@ -21,11 +21,17 @@ import { getInstituteProfile, searchStudents, searchTutors, assignStudent, assig
 import { validatePhoneNumber } from '../../../utils/validators';
 
 // --- Constants ---
+const RsIcon = ({ size, className }) => (
+    <span className={`font-bold text-[1.1em] ${className}`} style={{ fontSize: size ? `${size}px` : 'inherit' }}>
+        Rs
+    </span>
+);
+
 const MOCK_STATS = [
     { label: 'Total Tutors', value: '24', change: '+2 this month', icon: Users, color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' },
     { label: 'Active Students', value: '856', change: '+12% vs last mo', icon: GraduationCap, color: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' },
     { label: 'Classes Today', value: '42', change: '+8 Live Now', icon: Calendar, color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' },
-    { label: 'Revenue (Dec)', value: 'Rs 12,450', change: '+5% growth', icon: DollarSign, color: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' },
+    { label: 'Revenue (Dec)', value: 'Rs 12,450', change: '+5% growth', icon: RsIcon, color: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' },
 ];
 
 const GRADE_GROUPS = [

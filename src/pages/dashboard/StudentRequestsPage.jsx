@@ -135,7 +135,7 @@ const StudentRequestsPage = () => {
                     <Input
                         type="text"
                         placeholder="Search by Name, Reg ID, Mobile..."
-                        className="pl-10 py-3 shadow-sm"
+                        className="pl-10 shadow-sm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -189,12 +189,12 @@ const StudentRequestsPage = () => {
                     )}
                 </div>
             ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
                     <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
-                        <table className="w-full text-left text-sm text-gray-600 dark:text-gray-400 relative">
-                            <thead className="bg-gray-50 dark:bg-gray-800/90 border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium sticky top-0 z-10 backdrop-blur-sm">
+                        <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
+                            <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 backdrop-blur-sm">
                                 <tr>
-                                    <th className="px-6 py-4 w-10">
+                                    <th className="px-6 py-4 w-10 font-semibold">
                                         <input
                                             type="checkbox"
                                             className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-800 cursor-pointer"
@@ -202,10 +202,10 @@ const StudentRequestsPage = () => {
                                             checked={filteredRequests.length > 0 && selectedIds.length === filteredRequests.length}
                                         />
                                     </th>
-                                    <th className="px-6 py-4">Student Info</th>
-                                    <th className="px-6 py-4">Grade</th>
-                                    <th className="px-6 py-4">Requesting For</th>
-                                    <th className="px-6 py-4 text-right">Actions</th>
+                                    <th className="px-6 py-4 font-semibold">Student Info</th>
+                                    <th className="px-6 py-4 font-semibold">Grade</th>
+                                    <th className="px-6 py-4 font-semibold">Requesting For</th>
+                                    <th className="px-6 py-4 text-right font-semibold">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -213,7 +213,7 @@ const StudentRequestsPage = () => {
                                     <tr
                                         key={req.enrollmentId}
                                         onClick={(e) => handleRowClick(req, e)}
-                                        className={`hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group ${selectedIds.includes(req.enrollmentId) ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                                        className={`hover:bg-blue-50 dark:hover:bg-gray-700/20 transition-colors cursor-pointer group ${selectedIds.includes(req.enrollmentId) ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
                                     >
                                         <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                                             <input

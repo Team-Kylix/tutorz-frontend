@@ -4,6 +4,7 @@ import Button from '../atoms/Button';
 import FormField from '../molecules/FormField';
 import { MOCK_SUBJECTS } from '../../utils/mockData';
 import { getJoinedInstitutes, getInstituteHalls } from '../../services/api/tutorService';
+import { getAssignedTutors } from '../../services/api/instituteService';
 
 const ClassFormModal = ({
   isOpen,
@@ -12,7 +13,9 @@ const ClassFormModal = ({
   onDelete,
   onStatusChange,
   initialData = null,
-  isSubmitting
+  isSubmitting,
+  isInstituteMode = false,
+  instituteProfile = null
 }) => {
 
   const [formData, setFormData] = useState({
@@ -28,6 +31,8 @@ const ClassFormModal = ({
     hallName: '',
     hallId: '',
     instituteId: '',
+    tutorId: '', // Added for Institute mode
+    tutorName: '', // Added for Institute mode
     fee: '',
     isActive: true
   });
@@ -40,9 +45,16 @@ const ClassFormModal = ({
   const [filteredSubjects, setFilteredSubjects] = useState([]);
   const [showSubjectSuggestions, setShowSubjectSuggestions] = useState(false);
 
-  // Fetch Institutes
+  // Tutor Search State
+  const [tutorQuery, setTutorQuery] = useState('');
+  const [filteredTutors, setFilteredTutors] = useState([]);
+  const [showTutorSuggestions, setShowTutorSuggestions] = useState(false);
+  const [isSearchingTutors, setIsSearchingTutors] = useState(false);
+
+  // Fetch Institutes (Only for Tutors)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || isInstituteMode) return;
+
     const fetchInstitutes = async () => {
       setIsLoadingInstitutes(true);
       try {
@@ -73,7 +85,7 @@ const ClassFormModal = ({
       }
     };
     fetchInstitutes();
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, isInstituteMode, instituteProfile]);
 
   // Fetch Halls when instituteId changes
   useEffect(() => {
@@ -102,22 +114,62 @@ const ClassFormModal = ({
       }
     };
     fetchHalls();
-  }, [formData.instituteId, isOpen, initialData]);
+  }, [formData.instituteId, isOpen, initialData, isInstituteMode]);
+
+  // Handle Tutor Search (Debounced)
+  useEffect(() => {
+    if (!isInstituteMode || !tutorQuery.trim() || formData.tutorName === tutorQuery) {
+      setFilteredTutors([]);
+      setIsSearchingTutors(false);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearchingTutors(true);
+      try {
+        // Using getAssignedTutors for the search mapping
+        const res = await getAssignedTutors(tutorQuery, 1, 5);
+        setFilteredTutors(res.data?.items || res.items || []);
+        setShowTutorSuggestions(true);
+      } catch (error) {
+        console.error("Failed to search tutors:", error);
+        setFilteredTutors([]);
+      } finally {
+        setIsSearchingTutors(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [tutorQuery, isInstituteMode, formData.tutorName]);
 
   // Sync form data on open/edit
   useEffect(() => {
     if (!isOpen) return;
 
     if (initialData) {
-      setFormData({
+      let newFormData = {
         ...initialData,
+        grade: initialData.grade || '', // Ensure grade gets mapped explicitly
+        tutorId: initialData.tutorId || '', // Ensure tutorId gets mapped
         dayOfWeek: initialData.dayOfWeek || 'Monday',
         date: initialData.date ? initialData.date.split('T')[0] : '',
         isActive: initialData.isActive ?? true
-      });
+      };
+
+      if (isInstituteMode && instituteProfile) {
+        newFormData.instituteId = initialData.instituteId || instituteProfile.instituteId || instituteProfile.id;
+        newFormData.instituteName = initialData.instituteName || instituteProfile.instituteName || instituteProfile.name;
+      }
+      setFormData(newFormData);
+
+      // If editing in institute mode, initialize the search box with the tutor's name
+      if (isInstituteMode && initialData.tutorName) {
+        setTutorQuery(initialData.tutorName);
+      } else {
+        setTutorQuery('');
+      }
     } else {
-      setFormData(prev => ({
-        ...prev,
+      let newFormData = {
         classType: 'Class',
         subject: '',
         grade: '',
@@ -128,11 +180,20 @@ const ClassFormModal = ({
         endTime: '',
         hallName: '',
         hallId: '',
+        tutorId: '',
+        tutorName: '',
         fee: '',
         isActive: true
-      }));
+      };
+
+      if (isInstituteMode && instituteProfile) {
+        newFormData.instituteId = instituteProfile.instituteId || instituteProfile.id;
+        newFormData.instituteName = instituteProfile.instituteName || instituteProfile.name;
+      }
+      setFormData(newFormData);
+      setTutorQuery('');
     }
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen, isInstituteMode, instituteProfile]);
 
   // Auto-generate Class Name
   useEffect(() => {
@@ -194,6 +255,17 @@ const ClassFormModal = ({
     setShowSubjectSuggestions(false);
   };
 
+  const handleTutorSelect = (tutor) => {
+    const fullName = `${tutor.firstName} ${tutor.lastName}`;
+    setFormData((prev) => ({
+      ...prev,
+      tutorId: tutor.tutorId,
+      tutorName: fullName
+    }));
+    setTutorQuery(fullName);
+    setShowTutorSuggestions(false);
+  };
+
   const toggleStatus = () => {
     if (initialData) onStatusChange(formData);
     else setFormData((prev) => ({ ...prev, isActive: !prev.isActive }));
@@ -209,6 +281,11 @@ const ClassFormModal = ({
 
     if (!formData.className.trim()) {
       alert('Class Name is required.');
+      return;
+    }
+
+    if (isInstituteMode && !formData.tutorId) {
+      alert('Please select an assigned tutor.');
       return;
     }
 
@@ -229,6 +306,8 @@ const ClassFormModal = ({
     const payload = {
       ...formData,
       instituteId: formData.instituteId === 'OWN_PLACE' ? null : formData.instituteId,
+      tutorId: formData.tutorId === '' ? null : formData.tutorId,
+      hallId: formData.hallId === '' ? null : formData.hallId,
       fee: parseFloat(formData.fee),
       dayOfWeek: finalDayString,
       date: finalDate
@@ -267,25 +346,80 @@ const ClassFormModal = ({
             <label className={labelClass}>
               Institute <span className="text-red-500">*</span>
             </label>
-            <select
-              name="instituteId"
-              value={formData.instituteId || ''}
-              onChange={handleChange}
-              className={inputClass}
-              disabled={isLoadingInstitutes}
-            >
-              <option value="OWN_PLACE">My Own Place</option>
-              {isLoadingInstitutes ? (
-                <option value="" disabled>Loading...</option>
-              ) : (
-                institutes.map((inst) => (
-                  <option key={inst.instituteId || inst.id} value={inst.instituteId || inst.id}>
-                    {inst.name} {inst.city ? `- ${inst.city}` : ''}
-                  </option>
-                ))
-              )}
-            </select>
+            {isInstituteMode ? (
+              <div className={readOnlyBoxClass}>
+                {formData.instituteName || 'Loading...'}
+              </div>
+            ) : (
+              <select
+                name="instituteId"
+                value={formData.instituteId || ''}
+                onChange={handleChange}
+                className={inputClass}
+                disabled={isLoadingInstitutes}
+              >
+                <option value="OWN_PLACE">My Own Place</option>
+                {isLoadingInstitutes ? (
+                  <option value="" disabled>Loading...</option>
+                ) : (
+                  institutes.map((inst) => (
+                    <option key={inst.instituteId || inst.id} value={inst.instituteId || inst.id}>
+                      {inst.name} {inst.city ? `- ${inst.city}` : ''}
+                    </option>
+                  ))
+                )}
+              </select>
+            )}
           </div>
+
+          {isInstituteMode && (
+            <div className="relative flex flex-col gap-1">
+              <label className={labelClass}>
+                Assigned Tutor <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  className={`${inputClass} pl-10`}
+                  placeholder="Search tutor by name..."
+                  value={tutorQuery}
+                  onChange={(e) => {
+                    setTutorQuery(e.target.value);
+                    if (formData.tutorId) {
+                      setFormData(prev => ({ ...prev, tutorId: '', tutorName: '' })); // Reset if typing
+                    }
+                  }}
+                  onFocus={() => {
+                    if (tutorQuery.trim() && filteredTutors.length > 0) setShowTutorSuggestions(true);
+                  }}
+                />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <Search size={16} />
+                </div>
+              </div>
+
+              {showTutorSuggestions && (
+                <ul className="absolute z-20 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto mt-1 top-full">
+                  {isSearchingTutors && filteredTutors.length === 0 ? (
+                    <li className="px-4 py-3 text-sm text-gray-500 text-center">Searching...</li>
+                  ) : filteredTutors.length > 0 ? (
+                    filteredTutors.map((tutor) => (
+                      <li
+                        key={tutor.tutorId}
+                        onMouseDown={() => handleTutorSelect(tutor)}
+                        className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 transition-colors flex justify-between items-center"
+                      >
+                        <span>{tutor.firstName} {tutor.lastName}</span>
+                        <span className="text-xs text-gray-400">{tutor.registrationNumber}</span>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="px-4 py-3 text-sm text-gray-500 text-center">No assigned tutors found</li>
+                  )}
+                </ul>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-col gap-1">
             <label className={labelClass}>
@@ -541,15 +675,14 @@ const ClassFormModal = ({
                     initialData.subject === formData.subject &&
                     initialData.grade === formData.grade &&
                     initialData.className === formData.className &&
-                    // Date comparison logic can be tricky, check if one changed
-                    // For simplicity, checking if payload data matches initial.
                     (initialData.date ? initialData.date.split('T')[0] : '') === formData.date &&
                     (initialData.dayOfWeek || 'Monday') === formData.dayOfWeek &&
                     initialData.startTime === formData.startTime &&
                     initialData.endTime === formData.endTime &&
                     initialData.hallName === formData.hallName &&
                     initialData.fee == formData.fee &&
-                    (initialData.isActive ?? true) === formData.isActive
+                    (initialData.isActive ?? true) === formData.isActive &&
+                    (!isInstituteMode || initialData.tutorId === formData.tutorId)
                   )}
                   className={`w-full sm:w-auto px-6 py-2 rounded-lg text-sm font-medium transition-colors ${isSubmitting || (
                     initialData.instituteName === formData.instituteName &&
@@ -563,7 +696,8 @@ const ClassFormModal = ({
                     initialData.endTime === formData.endTime &&
                     initialData.hallName === formData.hallName &&
                     initialData.fee == formData.fee &&
-                    (initialData.isActive ?? true) === formData.isActive
+                    (initialData.isActive ?? true) === formData.isActive &&
+                    (!isInstituteMode || initialData.tutorId === formData.tutorId)
                   )
                     ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
                     : 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200 dark:shadow-none'
