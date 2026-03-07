@@ -14,6 +14,7 @@ import FormField from '../../../components/molecules/FormField';
 import QuickActionCard from '../../../components/molecules/QuickActionCard';
 import ConfirmationModal from '../../../components/molecules/ConfirmationModal';
 import InstituteSearchAssignModal from '../../../components/organisms/InstituteSearchAssignModal';
+import MarkAttendanceModal from '../../../components/organisms/MarkAttendanceModal';
 
 // --- Services ---
 import { checkUserStatus, register } from '../../../services/auth/authService';
@@ -49,6 +50,7 @@ const InstituteDashboard = ({ user }) => {
     const [isExistingUserModalOpen, setIsExistingUserModalOpen] = useState(false);
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
     const [isTutorRegisterModalOpen, setIsTutorRegisterModalOpen] = useState(false);
+    const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
 
     // NEW: Success Modal State
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -306,7 +308,7 @@ const InstituteDashboard = ({ user }) => {
                     <p className="text-sm text-gray-500 dark:text-gray-400">Welcome back, {user?.firstName || 'Admin'}</p>
                 </div>
                 <div className="flex gap-3">
-                    <Button variant="outline"><QrCode size={18} className="mr-2" /> Scan QR</Button>
+                    <Button variant="outline" onClick={() => setIsAttendanceModalOpen(true)}><QrCode size={18} className="mr-2" /> Mark Attendance</Button>
                     <Button variant="primary" onClick={openSelection}><Plus size={18} className="mr-2" /> Add New</Button>
                 </div>
             </div>
@@ -622,6 +624,12 @@ const InstituteDashboard = ({ user }) => {
                 onConfirm={() => setIsSuccessModalOpen(false)}
                 onCancel={addingRole === 'Student' ? handleSelectStudent : handleSelectTutor}
                 variant="success"
+            />
+
+            {/* Mark Attendance Modal */}
+            <MarkAttendanceModal
+                isOpen={isAttendanceModalOpen}
+                onClose={() => setIsAttendanceModalOpen(false)}
             />
 
         </div>
