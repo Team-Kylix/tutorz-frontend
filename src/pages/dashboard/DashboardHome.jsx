@@ -19,6 +19,7 @@ import InstituteTutorsPage from './InstituteTutorsPage';
 import InstituteRequestsPage from './InstituteRequestsPage';
 import TutorRequestsPage from './TutorRequestsPage';
 import StudentRequestsPage from './StudentRequestsPage';
+import AttendancePage from './AttendancePage';
 
 const DashboardHome = ({ activePage, setActivePage }) => {
   const { user } = useAuth();
@@ -60,6 +61,10 @@ const DashboardHome = ({ activePage, setActivePage }) => {
   // The UserProfile component inside handles the logic internally based on user.role
   if (activePage === 'profile') {
     return <UserProfile />;
+  }
+
+  if (activePage === 'attendance') {
+    return <AttendancePage />;
   }
 
   // --- DASHBOARD RENDERING ---

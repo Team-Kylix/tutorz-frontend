@@ -251,3 +251,20 @@ export const assignStudentToClass = async (studentId, classId) => {
     throw error.response?.data || { message: 'Failed to assign student to class' };
   }
 };
+
+export const getClassAttendanceHistory = async (classId, month, year, searchQuery = '') => {
+  try {
+    const params = new URLSearchParams();
+    if (month) params.append('month', month);
+    if (year) params.append('year', year);
+    if (searchQuery) params.append('searchQuery', searchQuery);
+
+    // Convert to string and prefix with ? if there are params
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+
+    const response = await apiClient.get(`/institute/attendance/class-history/${classId}${queryString}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch class attendance history' };
+  }
+};
