@@ -204,3 +204,50 @@ export const getAssignedTutors = async (searchQuery = '', page = 1, pageSize = 1
     throw error.response?.data || { message: 'Failed to fetch assigned tutors' };
   }
 };
+
+// --- Attendance Management ---
+
+export const getStudentClassesForAttendance = async (studentId) => {
+  try {
+    const response = await apiClient.get(`/institute/attendance/student-classes/${studentId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch student classes' };
+  }
+};
+
+export const markAttendance = async (studentId, classId) => {
+  try {
+    const response = await apiClient.post('/institute/attendance/mark', { studentId, classId });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to mark attendance' };
+  }
+};
+
+export const getInstituteClassesToday = async () => {
+  try {
+    const response = await apiClient.get('/institute/attendance/classes-today');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch today\'s classes' };
+  }
+};
+
+export const getAllInstituteClasses = async () => {
+  try {
+    const response = await apiClient.get('/institute/attendance/all-classes');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch all classes' };
+  }
+};
+
+export const assignStudentToClass = async (studentId, classId) => {
+  try {
+    const response = await apiClient.post('/institute/attendance/assign-class', { studentId, classId });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to assign student to class' };
+  }
+};
