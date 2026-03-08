@@ -26,3 +26,4 @@ dev-dist
 *.sw?
 
 package-lock.json
+dist.zip

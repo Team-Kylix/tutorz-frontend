@@ -23,7 +23,11 @@ const loadUserFromStorage = () => {
 };
 
 // 2. Initialize state using the helper
-const initialState = loadUserFromStorage();
+const initialState = {
+  ...loadUserFromStorage(),
+  loading: false,
+  error: null
+};
 
 const authSlice = createSlice({
   name: 'auth',
