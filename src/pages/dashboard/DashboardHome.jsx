@@ -20,6 +20,7 @@ import InstituteRequestsPage from './InstituteRequestsPage';
 import TutorRequestsPage from './TutorRequestsPage';
 import StudentRequestsPage from './StudentRequestsPage';
 import AttendancePage from './AttendancePage';
+import SettingsPage from './SettingsPage';
 
 const DashboardHome = ({ activePage, setActivePage }) => {
   const { user } = useAuth();
@@ -65,6 +66,10 @@ const DashboardHome = ({ activePage, setActivePage }) => {
 
   if (activePage === 'attendance') {
     return <AttendancePage />;
+  }
+
+  if (activePage === 'settings') {
+    return <SettingsPage user={user} />;
   }
 
   // --- DASHBOARD RENDERING ---

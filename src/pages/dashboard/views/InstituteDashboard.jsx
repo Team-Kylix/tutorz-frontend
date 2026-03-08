@@ -15,9 +15,11 @@ import QuickActionCard from '../../../components/molecules/QuickActionCard';
 import ConfirmationModal from '../../../components/molecules/ConfirmationModal';
 import InstituteSearchAssignModal from '../../../components/organisms/InstituteSearchAssignModal';
 import MarkAttendanceModal from '../../../components/organisms/MarkAttendanceModal';
+import DuplicateUserModal from '../../../components/organisms/DuplicateUserModal';
+import OtpVerificationModal from '../../../components/organisms/OtpVerificationModal';
 
 // --- Services ---
-import { checkUserStatus, register } from '../../../services/auth/authService';
+import { checkUserStatus, register, sendOtp, verifyOtp, registerSibling } from '../../../services/auth/authService';
 import { getInstituteProfile, searchStudents, searchTutors, assignStudent, assignTutor, getAssignedStudents, getAssignedTutors } from '../../../services/api/instituteService';
 import { validatePhoneNumber } from '../../../utils/validators';
 
@@ -51,6 +53,8 @@ const InstituteDashboard = ({ user }) => {
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
     const [isTutorRegisterModalOpen, setIsTutorRegisterModalOpen] = useState(false);
     const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+    const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+    const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
 
     // NEW: Success Modal State
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -64,6 +68,8 @@ const InstituteDashboard = ({ user }) => {
     const [existingUser, setExistingUser] = useState(null);
     const [instituteProfile, setInstituteProfile] = useState(null);
     const [addingRole, setAddingRole] = useState(null); // 'Student' or 'Tutor'
+    const [isSiblingRegistration, setIsSiblingRegistration] = useState(false);
+    const [siblingVerificationToken, setSiblingVerificationToken] = useState(null);
 
     // NEW: Real Stats States
     const [studentCount, setStudentCount] = useState('...');
@@ -155,6 +161,8 @@ const InstituteDashboard = ({ user }) => {
         setCheckData({ email: '', mobile: '' });
         setCheckError('');
         setIsChecking(false);
+        setIsSiblingRegistration(false);
+        setSiblingVerificationToken(null);
         setIsCheckModalOpen(true);
     };
 
@@ -189,7 +197,12 @@ const InstituteDashboard = ({ user }) => {
 
             if (result.exists) {
                 setExistingUser(result);
-                setIsExistingUserModalOpen(true);
+                // Sibling flow intercept for Students
+                if (addingRole === 'Student' && result.role === 'Student') {
+                    setIsDuplicateModalOpen(true);
+                } else {
+                    setIsExistingUserModalOpen(true);
+                }
             } else {
                 // Reset appropriate form based on role
                 if (addingRole === 'Student') {
@@ -207,7 +220,44 @@ const InstituteDashboard = ({ user }) => {
         }
     };
 
-    // Final Register (Student)
+    // Modal Actions: Sibling Verification
+    const handleItsMe = () => {
+        setIsDuplicateModalOpen(false);
+        alert("Instruct the parent/student to log into their existing profile to modify it.");
+    };
+
+    const handleItsParent = async () => {
+        setIsChecking(true);
+        try {
+            const identifierToUse = checkData.email || checkData.mobile;
+            await sendOtp(identifierToUse);
+            setIsDuplicateModalOpen(false);
+            setIsOtpModalOpen(true);
+        } catch (error) {
+            alert(error.message || "Failed to send verification code.");
+        } finally {
+            setIsChecking(false);
+        }
+    };
+
+    const handleVerifyOtp = async (otpCode) => {
+        try {
+            const identifierToUse = checkData.email || checkData.mobile;
+            const response = await verifyOtp(identifierToUse, otpCode);
+            setIsOtpModalOpen(false);
+
+            // Setup for sibling registration
+            setIsSiblingRegistration(true);
+            setSiblingVerificationToken(otpCode);
+            setFormData({ firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
+            setIsRegisterModalOpen(true);
+        } catch (error) {
+            console.error("OTP Error", error);
+            throw error;
+        }
+    };
+
+    // Final Register (Student or Sibling)
     const handleRegister = async (e) => {
         e.preventDefault();
         setIsRegistering(true);
@@ -218,28 +268,44 @@ const InstituteDashboard = ({ user }) => {
                 ? mobileStr.slice(-6)
                 : "123456";
 
-            const payload = {
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                grade: formData.grade,
-                role: "Student",
-                email: checkData.email || `student.${mobileStr}@tutorz.lk`,
-                phoneNumber: mobileStr,
-                password: generatedPassword,
-                schoolName: "Not Provided",
-                parentName: "Not Provided",
-                dateOfBirth: new Date().toISOString(),
-                cityId: instituteProfile?.cityId,
-                instituteId: instituteProfile?.instituteId || user?.instituteId
-            };
-
-            await register(payload);
+            if (isSiblingRegistration) {
+                const payload = {
+                    identifier: checkData.email || checkData.mobile,
+                    verificationToken: siblingVerificationToken,
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    grade: formData.grade,
+                    schoolName: "Not Provided",
+                    parentName: "Not Provided",
+                    dateOfBirth: new Date().toISOString(),
+                    instituteId: instituteProfile?.instituteId || user?.instituteId
+                };
+                await registerSibling(payload);
+            } else {
+                const payload = {
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    grade: formData.grade,
+                    role: "Student",
+                    email: checkData.email || `student.${mobileStr}@tutorz.lk`,
+                    phoneNumber: mobileStr,
+                    password: generatedPassword,
+                    schoolName: "Not Provided",
+                    parentName: "Not Provided",
+                    dateOfBirth: new Date().toISOString(),
+                    cityId: instituteProfile?.cityId,
+                    instituteId: instituteProfile?.instituteId || user?.instituteId
+                };
+                await register(payload);
+            }
 
             setIsRegisterModalOpen(false);
 
             setSuccessMessage({
-                title: "Registration Successful!",
-                message: `Student account created successfully.\n\nDefault Password: ${generatedPassword}`
+                title: isSiblingRegistration ? "Sibling Sucsessfully Registered!" : "Registration Successful!",
+                message: isSiblingRegistration
+                    ? `Sibling account created securely under their parent's profile.`
+                    : `Student account created successfully.\n\nDefault Password: ${generatedPassword}`
             });
             setIsSuccessModalOpen(true);
 
@@ -630,6 +696,24 @@ const InstituteDashboard = ({ user }) => {
             <MarkAttendanceModal
                 isOpen={isAttendanceModalOpen}
                 onClose={() => setIsAttendanceModalOpen(false)}
+            />
+
+            {/* Sibling Modals */}
+            <DuplicateUserModal
+                isOpen={isDuplicateModalOpen}
+                onClose={() => setIsDuplicateModalOpen(false)}
+                existingUser={existingUser}
+                onItsMe={handleItsMe}
+                onItsParent={handleItsParent}
+                loading={isChecking}
+                isInstituteView={true}
+            />
+
+            <OtpVerificationModal
+                isOpen={isOtpModalOpen}
+                onClose={() => setIsOtpModalOpen(false)}
+                onVerify={handleVerifyOtp}
+                identifier={checkData.email || checkData.mobile}
             />
 
         </div>

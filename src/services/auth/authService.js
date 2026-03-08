@@ -1,26 +1,26 @@
 import apiClient from '../api/apiClient';
-import { store } from '../../store'; 
+import { store } from '../../store';
 
 /**Calls the backend API to register a new user.
  * @param {object} registrationData - The complete data object from the multi-step form.
  * @returns {Promise<object>} The AuthResponse object from the backend.
  */
 export const register = async (registrationData) => {
-  try {
-    // This sends a POST request to 'https://localhost:7010/api/auth/register'
-    // The body (registrationData) must match your RegisterRequest.cs DTO
-    
-    // We pass the whole object directly
-    const response = await apiClient.post('/auth/register', registrationData);
-    
-    // response.data will be the AuthResponse object from your C# backend
-    // { userId, email, role, token }
-    return response.data;
+    try {
+        // This sends a POST request to 'https://localhost:7010/api/auth/register'
+        // The body (registrationData) must match your RegisterRequest.cs DTO
 
-  } catch (err) {
-    // If the API returns an error, throw it
-    throw new Error(err.response?.data?.message || 'Registration failed. Please try again.');
-  }
+        // We pass the whole object directly
+        const response = await apiClient.post('/auth/register', registrationData);
+
+        // response.data will be the AuthResponse object from your C# backend
+        // { userId, email, role, token }
+        return response.data;
+
+    } catch (err) {
+        // If the API returns an error, throw it
+        throw new Error(err.response?.data?.message || 'Registration failed. Please try again.');
+    }
 };
 
 export const checkEmailExists = async (email) => {
@@ -29,7 +29,7 @@ export const checkEmailExists = async (email) => {
         return response.data.exists;
     } catch (err) {
         console.error("Email check failed", err);
-        return false; 
+        return false;
     }
 };
 
@@ -41,15 +41,15 @@ export const checkEmailExists = async (email) => {
  * @returns {Promise<object>} The AuthResponse object from the backend.
  */
 export const login = async (identifier, password) => {
-  try {
-    const response = await apiClient.post('/auth/login', {
-      identifier: identifier, 
-      password
-    });
-    return response.data;
-  } catch (err) {
-    throw new Error(err.response?.data?.message || 'Login failed. Please try again.');
-  }
+    try {
+        const response = await apiClient.post('/auth/login', {
+            identifier: identifier,
+            password
+        });
+        return response.data;
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Login failed. Please try again.');
+    }
 };
 
 /**
@@ -74,9 +74,9 @@ export const checkUserStatus = async (data) => {
     try {
         // Backend now expects { email, phoneNumber } in the body
         // Ensure keys match what the Backend DTO expects
-        const response = await apiClient.post('/auth/check-status', { 
-            email: data.email, 
-            phoneNumber: data.phoneNumber 
+        const response = await apiClient.post('/auth/check-status', {
+            email: data.email,
+            phoneNumber: data.phoneNumber
         });
         return response.data;
     } catch (err) {
@@ -108,9 +108,9 @@ export const verifyOtp = async (identifier, otp) => {
     }
 };
 
-export const forgotPassword = async (email) => {
+export const forgotPassword = async (identifier) => {
     try {
-        const response = await apiClient.post('/auth/forgot-password', { email });
+        const response = await apiClient.post('/auth/forgot-password', { identifier });
         return response.data;
     } catch (err) {
         throw new Error(err.response?.data?.message || 'Failed to send request.');
