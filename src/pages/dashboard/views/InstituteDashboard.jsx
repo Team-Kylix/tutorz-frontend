@@ -622,7 +622,7 @@ const InstituteDashboard = ({ user }) => {
                 confirmLabel="Done"
                 cancelLabel="Add Another"
                 onConfirm={() => setIsSuccessModalOpen(false)}
-                onCancel={addingRole === 'Student' ? handleSelectStudent : handleSelectTutor}
+                onCancel={() => { setIsSuccessModalOpen(false); handleChooseRegister(); }}
                 variant="success"
             />
 

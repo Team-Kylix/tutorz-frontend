@@ -24,6 +24,9 @@ const AttendanceTable = ({ students = [], classDates = [], onMarkAttendance }) =
         );
     }
 
+    // Sort dates from newest to oldest
+    const sortedDates = [...classDates].sort((a, b) => new Date(b) - new Date(a));
+
     return (
         <div className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto relative">
@@ -36,14 +39,16 @@ const AttendanceTable = ({ students = [], classDates = [], onMarkAttendance }) =
                             </th>
 
                             {/* Scrollable Dates Header */}
-                            {classDates.map((dateString, index) => {
+                            {sortedDates.map((dateString, index) => {
                                 const dateObj = new Date(dateString);
                                 const day = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+                                const year = dateObj.getFullYear();
 
                                 return (
                                     <th key={`header-date-${index}`} scope="col" className="px-2 py-3 md:px-4 md:py-4 font-medium text-center min-w-[60px] md:min-w-[80px]">
                                         <div className="flex flex-col items-center">
                                             <span className="text-[10px] md:text-xs">{day}</span>
+                                            <span className="text-[8px] md:text-[10px] text-gray-400 font-normal">{year}</span>
                                         </div>
                                     </th>
                                 );
@@ -68,7 +73,7 @@ const AttendanceTable = ({ students = [], classDates = [], onMarkAttendance }) =
                                 </td>
 
                                 {/* Scrollable Attendance Squares */}
-                                {classDates.map((dateString, index) => {
+                                {sortedDates.map((dateString, index) => {
                                     const isPresent = !!(student.attendance && student.attendance[dateString]);
 
                                     return (

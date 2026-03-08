@@ -117,12 +117,9 @@ const AttendancePage = () => {
         setError(null);
 
         try {
-            // Optional: you can add a month/year selector later, currently passing undefined
-            const currentMonth = new Date().getMonth() + 1;
-            const currentYear = new Date().getFullYear();
-
-            // Expected response: { data: { conductedDates: [...], students: [...] } } or { conductedDates, students }
-            let response = await getClassAttendanceHistory(selectedClassId, currentMonth, currentYear, debouncedSearchQuery);
+            // We pass undefined for month and year to fetch the complete history for the class
+            // The table is already configured to sort these dates newest-first.
+            let response = await getClassAttendanceHistory(selectedClassId, undefined, undefined, debouncedSearchQuery);
 
             // Handle if serviceResponse is wrapped in 'data'
             if (response.data && response.success !== false) {

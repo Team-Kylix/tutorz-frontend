@@ -156,20 +156,30 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
 
         try {
             if (showAllTodayClasses) {
-                // 1-Click: Assign to Institute & Class, THEN Mark Attendance
+                // 1. Assign Flow ONLY
                 await assignStudentToClass(selectedStudent.roleSpecificId, selectedClassId);
-                await markAttendance(selectedStudent.roleSpecificId, selectedClassId);
 
-                triggerSuccessToast(`Assigned & Marked Present!`);
+                triggerSuccessToast(`Assigned to Class!`);
                 setIsSuccess(true);
 
-                // Instantly reset the flow for the next student in line
-                setTimeout(() => {
-                    resetFlow();
+                // Switch to Mark Attendance view with the class now available & pre-selected
+                setTimeout(async () => {
+                    setIsSuccess(false);
+                    setShowAllTodayClasses(false);
+                    setIsFetchingClasses(true);
+                    setIsSubmitting(false); // Reset submitting immediately after transition starts
+                    try {
+                        const res = await getStudentClassesForAttendance(selectedStudent.roleSpecificId);
+                        setStudentClasses(res.data || []);
+                    } catch (err) {
+                        console.error("Failed to refresh classes", err);
+                    } finally {
+                        setIsFetchingClasses(false);
+                    }
                 }, 800);
 
             } else {
-                // Normal Mark Attendance Flow
+                // 2. Mark Attendance Flow ONLY
                 await markAttendance(selectedStudent.roleSpecificId, selectedClassId);
 
                 triggerSuccessToast(`Present: ${selectedStudent.name}`);
@@ -402,7 +412,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                 <><CheckCircle2 size={18} className="mr-2" /> Success!</>
                             ) : (
                                 showAllTodayClasses ? (
-                                    <><UserPlus size={18} className="mr-2" /> Assign & Mark Present</> // Updated Label
+                                    <><UserPlus size={18} className="mr-2" /> Assign Class</>
                                 ) : (
                                     <><CheckCircle2 size={18} className="mr-2" /> Mark Present</>
                                 )
