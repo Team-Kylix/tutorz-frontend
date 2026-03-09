@@ -34,6 +34,9 @@ const ClassesPage = () => {
 
   const [pendingFormData, setPendingFormData] = useState(null);
 
+  // For showing backend conflict/error message inline in the class modal
+  const [classFormError, setClassFormError] = useState('');
+
   // API Hooks
   const { request: fetchClasses, loading: isLoading } = useApi();
   const { request: saveClass, loading: isSaving } = useApi();
@@ -114,6 +117,7 @@ const ClassesPage = () => {
   };
 
   const handleClassSubmit = (formData) => {
+    setClassFormError('');
     setPendingFormData(formData);
     setIsConfirmOpen(true);
   };
@@ -142,6 +146,7 @@ const ClassesPage = () => {
       // Close the Confirmation Modal & Form
       setIsConfirmOpen(false);
       setClassModalOpen(false);
+      setClassFormError('');
 
       // Clear Form Data
       setPendingFormData(null);
@@ -154,6 +159,10 @@ const ClassesPage = () => {
       setSuccessMessage(msg);
       setIsSuccessOpen(true);
     } else {
+      // Show backend error (including hall conflict message) inline in the form
+      const errMsg = result?.error?.message || result?.error || 'Failed to save class. Please try again.';
+      setIsConfirmOpen(false);
+      setClassFormError(typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg));
       console.error("5. Save failed or no data returned", result);
     }
   };
@@ -281,13 +290,14 @@ const ClassesPage = () => {
 
       <ClassFormModal
         isOpen={isClassModalOpen}
-        onClose={() => setClassModalOpen(false)}
+        onClose={() => { setClassModalOpen(false); setClassFormError(''); }}
         onSubmit={handleClassSubmit}
         onDelete={handleDeleteClick}
         onStatusChange={handleStatusChangeRequest}
         initialData={editingClass}
         isSubmitting={isSaving}
         existingClasses={classes}
+        backendError={classFormError}
       />
 
       <AddStudentModal

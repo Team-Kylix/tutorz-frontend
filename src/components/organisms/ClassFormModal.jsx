@@ -16,7 +16,8 @@ const ClassFormModal = ({
   isSubmitting,
   isInstituteMode = false,
   instituteProfile = null,
-  existingClasses = [],   // ← NEW: all classes already in this institute
+  existingClasses = [],   // ← all classes already in this institute
+  backendError = '',      // ← error message from backend (e.g. hall conflict)
 }) => {
 
   const [formData, setFormData] = useState({
@@ -280,8 +281,8 @@ const ClassFormModal = ({
 
   // ─── Hall Conflict Checker ───────────────────────────────────────────────
   const checkHallConflict = () => {
-    // Only check if a real hall is selected and time is complete
-    if (!formData.hallId || formData.hallId === '' || !formData.startTime || !formData.endTime) {
+    // Only check if a real hall name is set and time is complete
+    if (!formData.hallName || formData.hallName === 'N/A' || !formData.startTime || !formData.endTime) {
       return null;
     }
 
@@ -292,6 +293,7 @@ const ClassFormModal = ({
 
     const newStart = toMinutes(formData.startTime);
     const newEnd = toMinutes(formData.endTime);
+    const newHallName = formData.hallName.toLowerCase().trim();
 
     // Determine the schedule key for matching (dayOfWeek for recurring, date for one-off)
     const isRecurringNew = ['Class', 'Course'].includes(formData.classType);
@@ -301,8 +303,13 @@ const ClassFormModal = ({
     for (const cls of existingClasses) {
       // Skip the class being edited
       if (initialData && cls.classId === initialData.classId) continue;
-      // Must be the same hall
-      if ((cls.hallId ?? cls.hall?.hallId) !== formData.hallId) continue;
+
+      // Skip inactive classes — they don't hold the time slot
+      if (cls.isActive === false) continue;
+
+      // Must be the same hall (compare by name, case-insensitive)
+      const clsHallName = (cls.hallName || '').toLowerCase().trim();
+      if (!clsHallName || clsHallName !== newHallName) continue;
 
       // Check day/date match
       const existingDayKey = cls.dayOfWeek?.toLowerCase() ?? null;
@@ -314,7 +321,6 @@ const ClassFormModal = ({
       } else if (newDateKey && existingDateKey) {
         dayMatch = newDateKey === existingDateKey;
       } else if (newDayKey && existingDateKey) {
-        // recurring vs one-off: compare day-of-week name
         const existingDayName = new Date(existingDateKey).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' }).toLowerCase();
         dayMatch = newDayKey === existingDayName;
       } else if (newDateKey && existingDayKey) {
@@ -337,6 +343,7 @@ const ClassFormModal = ({
     }
     return null;
   };
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -648,9 +655,9 @@ const ClassFormModal = ({
             </div>
           </div>
 
-          {timeError && (
+          {(timeError || backendError) && (
             <div className="text-sm text-red-500 mt-1 mb-2 font-medium">
-              {timeError}
+              {timeError || backendError}
             </div>
           )}
 

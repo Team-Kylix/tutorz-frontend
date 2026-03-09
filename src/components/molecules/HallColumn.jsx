@@ -1,6 +1,6 @@
 import React from 'react';
 import { MapPin } from 'lucide-react';
-import { HOUR_HEIGHT } from '../../data/timetableMockData';
+import { HOUR_HEIGHT } from '../organisms/ScheduleGrid';
 import ClassCard from '../atoms/ClassCard';
 
 /**
