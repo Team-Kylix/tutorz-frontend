@@ -14,8 +14,9 @@ import { getInstituteProfile, updateInstituteProfile } from '../../services/api/
 import InfoCard from '../../components/molecules/InfoCard';
 import BankingCard from '../../components/organisms/BankingCard';
 import ProfileTemplate from '../../components/templates/ProfileTemplate';
-import Button from '../../components/atoms/Button'; 
+import Button from '../../components/atoms/Button';
 import EditProfileModal from '../../components/organisms/EditProfileModal';
+import StudentQRCode from '../../components/common/StudentQRCode';
 
 const UserProfile = () => {
     const { user } = useAuth(); // Get current logged in user & role
@@ -83,12 +84,12 @@ const UserProfile = () => {
         return (
             <div className="flex flex-col gap-4">
                 <InfoCard icon={Mail} label="Email Address" value={profile?.email} />
-                
+
                 {/* Phone: Different field name for Institute */}
-                <InfoCard 
-                    icon={Phone} 
-                    label={role === ROLES.INSTITUTE ? "Contact Number" : "Phone Number"} 
-                    value={role === ROLES.INSTITUTE ? profile?.contactNumber : profile?.phoneNumber} 
+                <InfoCard
+                    icon={Phone}
+                    label={role === ROLES.INSTITUTE ? "Contact Number" : "Phone Number"}
+                    value={role === ROLES.INSTITUTE ? profile?.contactNumber : profile?.phoneNumber}
                 />
 
                 {/* Institute Specific */}
@@ -130,12 +131,12 @@ const UserProfile = () => {
 
     // B. Right Column (Financial / Academic / Location)
     const renderRightColumn = () => {
-        if (role === ROLES.TUTOR) {
-            return <BankingCard bankName={profile?.bankName} accountNumber={profile?.bankAccountNumber} />;
-        }
+        let specificContent = null;
 
-        if (role === ROLES.STUDENT) {
-            return (
+        if (role === ROLES.TUTOR) {
+            specificContent = <BankingCard bankName={profile?.bankName} accountNumber={profile?.bankAccountNumber} />;
+        } else if (role === ROLES.STUDENT) {
+            specificContent = (
                 <div className="flex flex-col gap-4">
                     <InfoCard icon={School} label="School Name" value={profile?.schoolName || "Not provided"} />
                     <InfoCard icon={GraduationCap} label="Grade / Year" value={profile?.grade || "Not provided"} />
@@ -145,10 +146,8 @@ const UserProfile = () => {
                     </div>
                 </div>
             );
-        }
-
-        if (role === ROLES.INSTITUTE) {
-            return (
+        } else if (role === ROLES.INSTITUTE) {
+            specificContent = (
                 <div className="flex flex-col gap-4">
                     <InfoCard icon={MapPin} label="Address" value={profile?.address || "No address provided"} />
                     <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800 mt-2">
@@ -161,7 +160,21 @@ const UserProfile = () => {
                 </div>
             );
         }
-        return null;
+
+        return (
+            <div className="flex flex-col gap-6">
+                {specificContent}
+
+                {profile?.registrationNumber && (
+                    <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <StudentQRCode
+                            value={profile.registrationNumber}
+                            studentName={getHeaderName().first}
+                        />
+                    </div>
+                )}
+            </div>
+        );
     };
 
     // Helper to get Right Column Title
@@ -196,17 +209,17 @@ const UserProfile = () => {
                     <Button variant="outline" size="small" onClick={() => setIsEditModalOpen(true)}>
                         <Pencil size={16} className="mr-2" /> Edit Profile
                     </Button>
-                }     
+                }
             />
-            
+
             {/* The Unified Edit Modal handles fields based on 'role' prop */}
-            <EditProfileModal 
-                isOpen={isEditModalOpen} 
-                onClose={() => setIsEditModalOpen(false)} 
-                initialData={profile} 
-                onSave={handleSaveChanges} 
+            <EditProfileModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                initialData={profile}
+                onSave={handleSaveChanges}
                 isSaving={isSaving}
-                role={role} 
+                role={role}
             />
         </>
     );
