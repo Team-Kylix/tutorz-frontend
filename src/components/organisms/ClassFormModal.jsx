@@ -37,6 +37,8 @@ const ClassFormModal = ({
     isActive: true
   });
 
+  const [timeError, setTimeError] = useState('');
+
   const [institutes, setInstitutes] = useState([]);
   const [halls, setHalls] = useState([]);
   const [isLoadingInstitutes, setIsLoadingInstitutes] = useState(false);
@@ -236,6 +238,10 @@ const ClassFormModal = ({
       return { ...prev, ...updates };
     });
 
+    if (name === 'startTime' || name === 'endTime') {
+      setTimeError(''); // Clear error when user changes time
+    }
+
     if (name === 'subject') {
       if (value.length > 0) {
         setFilteredSubjects(
@@ -286,6 +292,11 @@ const ClassFormModal = ({
 
     if (isInstituteMode && !formData.tutorId) {
       alert('Please select an assigned tutor.');
+      return;
+    }
+
+    if (formData.startTime && formData.endTime && formData.startTime >= formData.endTime) {
+      setTimeError('End Time must be later than Start Time.');
       return;
     }
 
@@ -568,6 +579,12 @@ const ClassFormModal = ({
               />
             </div>
           </div>
+
+          {timeError && (
+            <div className="text-sm text-red-500 mt-1 mb-2 font-medium">
+              {timeError}
+            </div>
+          )}
 
           {/* 4. Hall & Fee */}
           <div className="grid grid-cols-2 gap-4">
