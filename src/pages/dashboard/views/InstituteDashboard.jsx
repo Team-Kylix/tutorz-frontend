@@ -17,10 +17,11 @@ import InstituteSearchAssignModal from '../../../components/organisms/InstituteS
 import MarkAttendanceModal from '../../../components/organisms/MarkAttendanceModal';
 import DuplicateUserModal from '../../../components/organisms/DuplicateUserModal';
 import OtpVerificationModal from '../../../components/organisms/OtpVerificationModal';
+import UpcomingClasses from '../../../components/organisms/UpcomingClasses';
 
 // --- Services ---
 import { checkUserStatus, register, sendOtp, verifyOtp, registerSibling } from '../../../services/auth/authService';
-import { getInstituteProfile, searchStudents, searchTutors, assignStudent, assignTutor, getAssignedStudents, getAssignedTutors } from '../../../services/api/instituteService';
+import { getInstituteProfile, searchStudents, searchTutors, assignStudent, assignTutor, getAssignedStudents, getAssignedTutors, getInstituteClassesToday } from '../../../services/api/instituteService';
 import { validatePhoneNumber } from '../../../utils/validators';
 
 // --- Constants ---
@@ -43,7 +44,7 @@ const GRADE_GROUPS = [
     { label: "Other", options: ['Course', 'Seminar', 'Workshop'] }
 ];
 
-const InstituteDashboard = ({ user }) => {
+const InstituteDashboard = ({ user, setActivePage }) => {
     // --- Modal States ---
     const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
     const [isSubOptionModalOpen, setIsSubOptionModalOpen] = useState(false); // Search vs Register sub-option
@@ -74,6 +75,8 @@ const InstituteDashboard = ({ user }) => {
     // NEW: Real Stats States
     const [studentCount, setStudentCount] = useState('...');
     const [tutorCount, setTutorCount] = useState('...');
+    const [todayClasses, setTodayClasses] = useState([]);
+    const [isClassesLoading, setIsClassesLoading] = useState(true);
 
     // --- Registration Form State ---
     const [formData, setFormData] = useState({
@@ -109,9 +112,10 @@ const InstituteDashboard = ({ user }) => {
         const fetchStats = async () => {
             // we don't strictly need instituteProfile.instituteId because the services use the auth token
             try {
-                const [studentsRes, tutorsRes] = await Promise.all([
+                const [studentsRes, tutorsRes, classesRes] = await Promise.all([
                     getAssignedStudents(),
-                    getAssignedTutors()
+                    getAssignedTutors(),
+                    getInstituteClassesToday()
                 ]);
 
                 // Ensure correct stats are derived whether data is paginated or not
@@ -120,10 +124,18 @@ const InstituteDashboard = ({ user }) => {
 
                 setStudentCount(studentTotal.toString());
                 setTutorCount(tutorTotal.toString());
+                let extractedClasses = [];
+                if (Array.isArray(classesRes)) extractedClasses = classesRes;
+                else if (classesRes?.items && Array.isArray(classesRes.items)) extractedClasses = classesRes.items;
+                else if (classesRes?.data && Array.isArray(classesRes.data)) extractedClasses = classesRes.data;
+
+                setTodayClasses(extractedClasses);
             } catch (err) {
                 console.error("Failed to fetch real counts:", err);
                 setStudentCount('Err');
                 setTutorCount('Err');
+            } finally {
+                setIsClassesLoading(false);
             }
         };
 
@@ -383,17 +395,23 @@ const InstituteDashboard = ({ user }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard label="Total Tutors" value={tutorCount} change="Latest active" icon={Users} color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
                 <StatCard label="Active Students" value={studentCount} change="Currently enrolled" icon={GraduationCap} color="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
-                <StatCard {...MOCK_STATS[2]} />
+                <StatCard
+                    label="Classes Today"
+                    value={isClassesLoading ? '...' : todayClasses.length.toString()}
+                    change={todayClasses.length > 0 ? `${todayClasses.length} Scheduled` : 'None Scheduled'}
+                    icon={Calendar}
+                    color="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
+                />
                 <StatCard {...MOCK_STATS[3]} />
             </div>
 
             {/* Main Content */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                        <SectionTitle title="Today's Classes" />
-                        <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">No classes scheduled right now.</div>
-                    </div>
+                <div className="lg:col-span-2">
+                    <UpcomingClasses
+                        onNavigate={() => setActivePage('classes')}
+                        fetchClassesApi={getInstituteClassesToday}
+                    />
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 h-fit">
                     <div className="p-4 border-b border-gray-100 dark:border-gray-700">
