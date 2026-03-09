@@ -1,22 +1,28 @@
 import React from 'react';
-import logoIcon from '../../assets/Images/learning-school-svgrepo-com.svg';
+import iconImg from '../../assets/Images/Icon.png';
+import fullLogoImg from '../../assets/Images/Full Logo.png';
+import logoIcon from '../../assets/Images/Icon.png';
 
 const Logo = ({ size = 'large', collapsed = false, className = '' }) => {
-    
+
     // Sidebar Variant (Small, Flex Row)
     if (size === 'small') {
         return (
-            <div className={`flex items-center gap-2 font-bold text-xl text-blue-700 dark:text-blue-400 tracking-wide transition-all duration-300 ${className}`}>
-                <img 
-                    src={logoIcon} 
-                    alt="Tutorz" 
-                    className="h-8 w-8" 
+            <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} transition-all duration-300 ${className}`}>
+                <img
+                    src={iconImg}
+                    alt="Tutorz"
+                    className={`rounded-full object-cover bg-white shrink-0 transition-all duration-300 ${collapsed ? 'h-10 w-10' : 'h-11 w-11'}`}
                 />
-                {/* Only render text if NOT collapsed */}
                 {!collapsed && (
-                    <span className="whitespace-nowrap animate-in fade-in duration-200">
-                        Tutorz
-                    </span>
+                    <div className="flex flex-col justify-center animate-in fade-in duration-200 overflow-hidden whitespace-nowrap">
+                        <span className="font-bold text-xl text-gray-800 dark:text-white tracking-wide leading-tight">
+                            Tutorz
+                        </span>
+                        <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                            Tution Management Platform
+                        </span>
+                    </div>
                 )}
             </div>
         );
@@ -26,14 +32,14 @@ const Logo = ({ size = 'large', collapsed = false, className = '' }) => {
     return (
         <div className={`text-center mb-4 ${className}`}>
             <h1 className="text-4xl font-bold text-gray-800 dark:text-white tracking-wider flex justify-center items-center">
-                <img 
-                    src={logoIcon} 
-                    alt="Tutorz logo" 
-                    className="h-9 w-9 mr-2" 
+                <img
+                    src={logoIcon}
+                    alt="Tutorz logo"
+                    className="rounded-full object-cover bg-white h-11 w-11 mr-1"
                 />
                 Tutorz
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Your Learning Partner</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Tution Management Platform</p>
         </div>
     );
 };
