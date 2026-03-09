@@ -12,6 +12,7 @@ import HallManagement from './views/HallManagement';
 // Import Pages for Navigation Switching
 import ClassesPage from './ClassesPage';
 import InstituteClassesPage from './InstituteClassesPage';
+import TimetablePage from './TimetablePage';
 // Import only the unified profile page
 import UserProfile from './UserProfile';
 import InstituteStudentsPage from './InstituteStudentsPage';
@@ -32,6 +33,10 @@ const DashboardHome = ({ activePage, setActivePage }) => {
       return <InstituteClassesPage />;
     }
     return <ClassesPage />;
+  }
+
+  if (activePage === 'timetable') {
+    return <TimetablePage />;
   }
 
   if (activePage === 'hall-management') {

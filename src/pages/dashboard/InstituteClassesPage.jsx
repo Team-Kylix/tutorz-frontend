@@ -360,6 +360,7 @@ const InstituteClassesPage = () => {
                 isSubmitting={isSaving}
                 isInstituteMode={true}
                 instituteProfile={instituteProfile}
+                existingClasses={classes}
             />
 
             <ConfirmationModal

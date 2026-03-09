@@ -15,7 +15,8 @@ const ClassFormModal = ({
   initialData = null,
   isSubmitting,
   isInstituteMode = false,
-  instituteProfile = null
+  instituteProfile = null,
+  existingClasses = [],   // ← NEW: all classes already in this institute
 }) => {
 
   const [formData, setFormData] = useState({
@@ -277,6 +278,66 @@ const ClassFormModal = ({
     else setFormData((prev) => ({ ...prev, isActive: !prev.isActive }));
   };
 
+  // ─── Hall Conflict Checker ───────────────────────────────────────────────
+  const checkHallConflict = () => {
+    // Only check if a real hall is selected and time is complete
+    if (!formData.hallId || formData.hallId === '' || !formData.startTime || !formData.endTime) {
+      return null;
+    }
+
+    const toMinutes = (hhmm) => {
+      const [h, m] = hhmm.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const newStart = toMinutes(formData.startTime);
+    const newEnd = toMinutes(formData.endTime);
+
+    // Determine the schedule key for matching (dayOfWeek for recurring, date for one-off)
+    const isRecurringNew = ['Class', 'Course'].includes(formData.classType);
+    const newDayKey = isRecurringNew ? formData.dayOfWeek?.toLowerCase() : null;
+    const newDateKey = !isRecurringNew ? formData.date : null;
+
+    for (const cls of existingClasses) {
+      // Skip the class being edited
+      if (initialData && cls.classId === initialData.classId) continue;
+      // Must be the same hall
+      if ((cls.hallId ?? cls.hall?.hallId) !== formData.hallId) continue;
+
+      // Check day/date match
+      const existingDayKey = cls.dayOfWeek?.toLowerCase() ?? null;
+      const existingDateKey = cls.date ? cls.date.split('T')[0] : null;
+
+      let dayMatch = false;
+      if (newDayKey && existingDayKey) {
+        dayMatch = newDayKey === existingDayKey;
+      } else if (newDateKey && existingDateKey) {
+        dayMatch = newDateKey === existingDateKey;
+      } else if (newDayKey && existingDateKey) {
+        // recurring vs one-off: compare day-of-week name
+        const existingDayName = new Date(existingDateKey).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' }).toLowerCase();
+        dayMatch = newDayKey === existingDayName;
+      } else if (newDateKey && existingDayKey) {
+        const newDayName = new Date(newDateKey).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' }).toLowerCase();
+        dayMatch = newDayName === existingDayKey;
+      }
+
+      if (!dayMatch) continue;
+
+      // Check time overlap
+      if (!cls.startTime || !cls.endTime) continue;
+      const exStart = toMinutes(cls.startTime);
+      const exEnd = toMinutes(cls.endTime);
+
+      if (newStart < exEnd && newEnd > exStart) {
+        const tutorLabel = cls.tutorName || 'Another tutor';
+        const hallLabel = formData.hallName || 'this hall';
+        return `Cannot create class — ${tutorLabel}'s class already occupies ${hallLabel} from ${cls.startTime} to ${cls.endTime} on this day.`;
+      }
+    }
+    return null;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -297,6 +358,13 @@ const ClassFormModal = ({
 
     if (formData.startTime && formData.endTime && formData.startTime >= formData.endTime) {
       setTimeError('End Time must be later than Start Time.');
+      return;
+    }
+
+    // ── Hall conflict check ──────────────────────────────────────────────────
+    const conflictMessage = checkHallConflict();
+    if (conflictMessage) {
+      setTimeError(conflictMessage);
       return;
     }
 

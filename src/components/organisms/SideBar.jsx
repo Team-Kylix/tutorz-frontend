@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   LayoutDashboard, Users, BookOpen, Calendar, DollarSign,
   FileText, QrCode, Settings, ChevronRight, ChevronLeft, LogOut,
-  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus
+  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus, Clock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SidebarItem from '../molecules/SidebarItem';
@@ -36,6 +36,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const tutorMenu = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
+    { id: 'timetable', label: 'Timetable', icon: Clock },
     { id: 'student-requests', label: 'Student Requests', icon: Users },
     { id: 'tutor-requests', label: 'Institute Requests', icon: Building },
     { id: 'students', label: 'Students & Medals', icon: GraduationCap },
@@ -50,6 +51,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const studentMenu = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
+    { id: 'timetable', label: 'Timetable', icon: Clock },
     { id: 'attendance', label: 'My Attendance', icon: Calendar },
     { id: 'profile', label: 'My Profile', icon: QrCode },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -59,6 +61,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const instituteMenu = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
+    { id: 'timetable', label: 'Timetable', icon: Clock },
     { id: 'hall-management', label: 'Hall Management', icon: Building },
     { id: 'institute-requests', label: 'Requests', icon: UserPlus },
     { id: 'institute-students', label: 'Students', icon: GraduationCap },

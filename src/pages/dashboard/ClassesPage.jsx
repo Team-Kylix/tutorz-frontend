@@ -287,6 +287,7 @@ const ClassesPage = () => {
         onStatusChange={handleStatusChangeRequest}
         initialData={editingClass}
         isSubmitting={isSaving}
+        existingClasses={classes}
       />
 
       <AddStudentModal
