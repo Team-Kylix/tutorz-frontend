@@ -9,6 +9,7 @@ import Button from '../../../components/atoms/Button';
 import SectionTitle from '../../../components/atoms/SectionTitle';
 import Select from '../../../components/atoms/Select';
 import StatCard from '../../../components/molecules/StatCard';
+import RevenueStatusCard from '../../../components/molecules/RevenueStatusCard';
 import Modal from '../../../components/molecules/Modal';
 import FormField from '../../../components/molecules/FormField';
 import QuickActionCard from '../../../components/molecules/QuickActionCard';
@@ -21,7 +22,7 @@ import UpcomingClasses from '../../../components/organisms/UpcomingClasses';
 
 // --- Services ---
 import { checkUserStatus, register, sendOtp, verifyOtp, registerSibling } from '../../../services/auth/authService';
-import { getInstituteProfile, searchStudents, searchTutors, assignStudent, assignTutor, getAssignedStudents, getAssignedTutors, getInstituteClassesToday } from '../../../services/api/instituteService';
+import { getInstituteProfile, searchStudents, searchTutors, assignStudent, assignTutor, getAssignedStudents, getAssignedTutors, getInstituteClassesToday, getRevenueSummary } from '../../../services/api/instituteService';
 import { validatePhoneNumber } from '../../../utils/validators';
 
 // --- Constants ---
@@ -77,6 +78,8 @@ const InstituteDashboard = ({ user, setActivePage }) => {
     const [tutorCount, setTutorCount] = useState('...');
     const [todayClasses, setTodayClasses] = useState([]);
     const [isClassesLoading, setIsClassesLoading] = useState(true);
+    const [revenueSummary, setRevenueSummary] = useState(null);
+    const [isRevenueLoading, setIsRevenueLoading] = useState(true);
 
     // --- Registration Form State ---
     const [formData, setFormData] = useState({
@@ -139,7 +142,19 @@ const InstituteDashboard = ({ user, setActivePage }) => {
             }
         };
 
+        const fetchRevenue = async () => {
+            try {
+                const res = await getRevenueSummary();
+                if (res?.success) setRevenueSummary(res.data);
+            } catch (err) {
+                console.error('Failed to fetch revenue summary:', err);
+            } finally {
+                setIsRevenueLoading(false);
+            }
+        };
+
         fetchStats();
+        fetchRevenue();
     }, []);
 
     // Open Selection (role picker)
@@ -402,7 +417,7 @@ const InstituteDashboard = ({ user, setActivePage }) => {
                     icon={Calendar}
                     color="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
                 />
-                <StatCard {...MOCK_STATS[3]} />
+                <RevenueStatusCard summary={revenueSummary} isLoading={isRevenueLoading} />
             </div>
 
             {/* Main Content */}

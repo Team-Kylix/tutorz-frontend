@@ -298,3 +298,23 @@ export const getClassAttendanceHistory = async (classId, month, year, searchQuer
     throw error.response?.data || { message: 'Failed to fetch class attendance history' };
   }
 };
+
+// --- Revenue & Commission ---
+
+export const getRevenueSummary = async () => {
+  try {
+    const response = await apiClient.get('/institute/revenue');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch revenue summary' };
+  }
+};
+
+export const updateCommission = async (data) => {
+  try {
+    const response = await apiClient.put('/institute/settings/commission', data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to update commission percentage' };
+  }
+};
