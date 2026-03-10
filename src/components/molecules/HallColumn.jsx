@@ -13,7 +13,7 @@ import ClassCard from '../atoms/ClassCard';
  *  classes   {Array}    – All class sessions filtered for this hall.
  *  hallIndex {number}   – Index used for unique grid-line keys.
  */
-const HallColumn = ({ hallName, classes, hallIndex }) => {
+const HallColumn = ({ hallName, classes, hallIndex, onClassClick }) => {
     return (
         <div className="w-[180px] sm:w-[220px] border-r border-gray-200 dark:border-gray-700 flex flex-col relative shrink-0">
 
@@ -45,7 +45,11 @@ const HallColumn = ({ hallName, classes, hallIndex }) => {
 
                 {/* Class cards */}
                 {classes.map((cls) => (
-                    <ClassCard key={cls.id} cls={cls} />
+                    <ClassCard
+                        key={cls.id}
+                        cls={cls}
+                        onClick={() => onClassClick && onClassClick(cls)}
+                    />
                 ))}
             </div>
         </div>
@@ -53,3 +57,4 @@ const HallColumn = ({ hallName, classes, hallIndex }) => {
 };
 
 export default HallColumn;
+

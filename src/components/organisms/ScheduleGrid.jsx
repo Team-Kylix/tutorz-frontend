@@ -3,6 +3,7 @@ import { format, isSameDay } from 'date-fns';
 import { ArrowLeft, CalendarDays, RefreshCw } from 'lucide-react';
 import { getTimetableByDate } from '../../services/api/instituteService';
 import HallColumn from '../molecules/HallColumn';
+import ClassFormModal from './ClassFormModal';
 
 const HOUR_HEIGHT = 80; // px per hour
 
@@ -65,9 +66,11 @@ const mapClassToCard = (cls) => {
 const ScheduleGrid = ({ selectedDate, onBack }) => {
     const [viewDate, setViewDate] = useState(selectedDate);
     const [classes, setClasses] = useState([]);
+    const [rawClasses, setRawClasses] = useState([]);  // raw API DTOs for view modal
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [currentTimeOffset, setCurrentTimeOffset] = useState(0);
+    const [selectedClass, setSelectedClass] = useState(null); // class to view in modal
     const scrollContainerRef = useRef(null);
 
     const scrollToNow = () => {
@@ -85,6 +88,7 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
             try {
                 const res = await getTimetableByDate(viewDate);
                 const rawClasses = res?.data || [];
+                setRawClasses(rawClasses);
                 setClasses(rawClasses.map(mapClassToCard));
             } catch (err) {
                 console.error('Failed to load timetable:', err);
@@ -97,6 +101,16 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
         fetchClasses();
     }, [viewDate]);
 
+    // Scroll to current time after classes render (grid only shows when classes.length > 0)
+    useEffect(() => {
+        if (classes.length > 0) {
+            // Allow two animation frames so React finishes painting the grid before we scroll
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => scrollToNow());
+            });
+        }
+    }, [classes]);
+
     // Keep the current-time line updated every minute
     useEffect(() => {
         const tick = () => {
@@ -108,8 +122,6 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
         return () => clearInterval(id);
     }, []);
 
-    // Auto-scroll to 1 hour before current time on first mount
-    useEffect(() => { scrollToNow(); }, []);
 
     // Derive distinct hall names from loaded classes — sorted alphabetically
     const halls = [...new Set(classes.map(c => c.hallName))].sort();
@@ -212,10 +224,25 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
                                 hallName={hallName}
                                 hallIndex={hallIndex}
                                 classes={classes.filter(c => c.hallName === hallName)}
+                                onClassClick={(cardCls) => {
+                                    // Find the matching raw DTO by id to pass to the modal
+                                    const raw = rawClasses.find(r => r.classId === cardCls.id);
+                                    setSelectedClass(raw || cardCls);
+                                }}
                             />
                         ))}
                     </div>
                 </div>
+            )}
+
+            {/* ── View-Only Class Detail Modal ── */}
+            {selectedClass && (
+                <ClassFormModal
+                    isOpen={!!selectedClass}
+                    onClose={() => setSelectedClass(null)}
+                    initialData={selectedClass}
+                    viewOnly={true}
+                />
             )}
         </div>
     );

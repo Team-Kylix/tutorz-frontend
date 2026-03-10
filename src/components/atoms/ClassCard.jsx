@@ -6,19 +6,21 @@ import { HOUR_HEIGHT } from '../organisms/ScheduleGrid';
  * Atom — A visually positioned class session card inside a Hall column.
  *
  * Props:
- *  cls {Object} – A mapped class object:
- *    { id, name, teacher, timeString, colors, startHour, durationHours, grade, classType }
+ *  cls     {Object}   – Mapped class object
+ *  onClick {Function} – Called when card is clicked (for view-only modal)
  */
-const ClassCard = ({ cls }) => {
+const ClassCard = ({ cls, onClick }) => {
     return (
         <div
-            className="absolute w-full px-1.5 py-1 z-[2] transition-transform duration-200 hover:z-[8] hover:scale-[1.02]"
+            className="absolute w-full px-1.5 py-1 z-[2] transition-transform duration-200 hover:z-[8] hover:scale-[1.02] cursor-pointer"
             style={{
                 top: `${cls.startHour * HOUR_HEIGHT}px`,
                 height: `${cls.durationHours * HOUR_HEIGHT}px`,
             }}
+            onClick={onClick}
+            title={`${cls.name} — click to view details`}
         >
-            <div className={`h-full w-full rounded-lg border ${cls.colors} p-3 shadow-sm flex flex-col justify-between overflow-hidden group`}>
+            <div className={`h-full w-full rounded-lg border ${cls.colors} p-3 shadow-sm flex flex-col justify-between overflow-hidden group hover:ring-2 hover:ring-offset-1 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all`}>
                 <div>
                     <div className="font-bold text-sm tracking-tight mb-1 truncate group-hover:whitespace-normal group-hover:break-words line-clamp-2">
                         {cls.name}
