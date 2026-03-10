@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, QrCode, AlertCircle, ChevronLeft, CheckCircle2, UserPlus } from 'lucide-react';
+import { Search, Loader2, QrCode, AlertCircle, ChevronLeft, CheckCircle2, UserPlus, CreditCard } from 'lucide-react';
 import Modal from '../molecules/Modal';
 import Button from '../atoms/Button';
 import StudentSelectionCard from '../molecules/StudentSelectionCard';
 import ClassSelectionCard from '../molecules/ClassSelectionCard';
+import PaymentModal from './PaymentModal';
 import {
     searchStudents,
     getStudentClassesForAttendance,
@@ -43,6 +44,10 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
     const [isSuccess, setIsSuccess] = useState(false); // New state for button success
     const [successToast, setSuccessToast] = useState(null);
     const [errorMsg, setErrorMsg] = useState('');
+
+    // Payment Modal State
+    const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+    const [paymentClass, setPaymentClass] = useState(null);
 
     // --- On Mount: Fetch Today's Classes ---
     useEffect(() => {
@@ -87,6 +92,8 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setSuccessToast(null);
         setIsSuccess(false); // Reset button success
         setIsSubmitting(false); // Reset submission state
+        setIsPaymentOpen(false);
+        setPaymentClass(null);
     };
 
     // --- Search Logic ---
@@ -342,7 +349,10 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                             </h4>
                             {!showAllTodayClasses && (
                                 <button
-                                    onClick={() => setShowAllTodayClasses(true)}
+                                    onClick={() => {
+                                        setShowAllTodayClasses(true);
+                                        setErrorMsg('');
+                                    }}
                                     className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors"
                                 >
                                     Assign to new class
@@ -355,14 +365,26 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                 {classesToList.map((cls, index) => {
                                     const classIdentifier = cls.id || cls._id || cls.classId || index;
                                     return (
-                                        <ClassSelectionCard
-                                            key={classIdentifier}
-                                            cls={cls}
-                                            isSelected={selectedClassId === classIdentifier}
-                                            onSelect={() => setSelectedClassId(classIdentifier)}
-                                            statusText={showAllTodayClasses ? 'Available' : 'Happening Now'}
-                                            statusType={showAllTodayClasses ? 'normal' : 'active'}
-                                        />
+                                        <div key={classIdentifier} className="space-y-1">
+                                            <ClassSelectionCard
+                                                cls={cls}
+                                                isSelected={selectedClassId === classIdentifier}
+                                                onSelect={() => {
+                                                    setSelectedClassId(classIdentifier);
+                                                    setErrorMsg(''); // Clear error on new selection
+                                                }}
+                                                statusText={showAllTodayClasses ? 'Available' : 'Happening Now'}
+                                                statusType={showAllTodayClasses ? 'normal' : 'active'}
+                                            />
+                                            {!showAllTodayClasses && selectedClassId === classIdentifier && errorMsg?.includes("already marked") && (
+                                                
+                                                    
+                                                    <span className="text-[14px]  font-normal dark:text-red-300">
+                                                        {errorMsg}
+                                                    </span>
+                                                
+                                            )}
+                                        </div>
                                     );
                                 })}
                             </div>
@@ -377,7 +399,10 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                         variant="outline"
                                         size="small"
                                         className="mt-3"
-                                        onClick={() => setShowAllTodayClasses(true)}
+                                        onClick={() => {
+                                            setShowAllTodayClasses(true);
+                                            setErrorMsg('');
+                                        }}
                                     >
                                         Browse all today's classes
                                     </Button>
@@ -388,7 +413,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                 )}
 
                 {/* Error Feedback */}
-                {errorMsg && (
+                {errorMsg && !errorMsg.includes("already marked") && (
                     <div className="p-3 bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 rounded-lg text-sm flex items-center gap-2 animate-in slide-in-from-bottom-2">
                         <AlertCircle size={16} />
                         {errorMsg}
@@ -397,7 +422,8 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
 
                 {/* Action Area */}
                 {classesToList.length > 0 && (
-                    <div className="pt-2 sticky bottom-0 bg-white dark:bg-gray-900 pb-2">
+                    <div className="pt-2 sticky bottom-0 bg-white dark:bg-gray-900 pb-2 space-y-2">
+                        {/* Mark Present */}
                         <Button
                             variant="primary"
                             fullWidth
@@ -407,17 +433,39 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                 }`}
                         >
                             {isSubmitting ? (
-                                <><Loader2 size={18} className="animate-spin mr-2" /> Processing...</>
+                                <><Loader2 size={18} className="animate-spin mr-2" />Processing...</>
                             ) : isSuccess ? (
-                                <><CheckCircle2 size={18} className="mr-2" /> Success!</>
+                                <><CheckCircle2 size={18} className="mr-2" />Success!</>
                             ) : (
                                 showAllTodayClasses ? (
-                                    <><UserPlus size={18} className="mr-2" /> Assign Class</>
+                                    <><UserPlus size={18} className="mr-2" />Assign Class</>
                                 ) : (
-                                    <><CheckCircle2 size={18} className="mr-2" /> Mark Present</>
+                                    <><CheckCircle2 size={18} className="mr-2" />Mark Present</>
                                 )
                             )}
                         </Button>
+
+                        {/* Make Payment — only shown in enrolled-class mode */}
+                        {!showAllTodayClasses && (
+                            <Button
+                                variant="primary"
+                                fullWidth
+                                disabled={!selectedClassId}
+                                onClick={() => {
+                                    const found = classesToList.find(c =>
+                                        (c.id || c.classId) === selectedClassId
+                                    );
+                                    if (found) {
+                                        setPaymentClass(found);
+                                        setIsPaymentOpen(true);
+                                    }
+                                }}
+                                className="py-3.5 bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-500/20 text-base transition-colors"
+                            >
+                                <CreditCard size={18} className="mr-2" />
+                                Make Payment
+                            </Button>
+                        )}
                     </div>
                 )}
             </div>
@@ -425,22 +473,33 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
     };
 
     return (
-        <Modal
-            isOpen={isOpen}
-            onClose={onClose}
-            title={
-                <div className="flex items-center gap-2">
-                    {step === 1 ? "Rapid Attendance" : "Smart Class Confirm"}
-                    {successToast && step === 1 && (
-                        <span className="ml-auto text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full animate-in slide-in-from-top">
-                            {successToast}
-                        </span>
-                    )}
-                </div>
-            }
-        >
-            {step === 1 ? renderStep1() : renderStep2()}
-        </Modal>
+        <>
+            {/* FIX: Temporarily hide this modal if the payment modal is active */}
+            <Modal
+                isOpen={isOpen && !isPaymentOpen}
+                onClose={onClose}
+                title={
+                    <div className="flex items-center gap-2">
+                        {step === 1 ? "Rapid Attendance" : "Smart Class Confirm"}
+                        {successToast && step === 1 && (
+                            <span className="ml-auto text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full animate-in slide-in-from-top">
+                                {successToast}
+                            </span>
+                        )}
+                    </div>
+                }
+            >
+                {step === 1 ? renderStep1() : renderStep2()}
+            </Modal>
+
+            {/* Payment Modal will now take full focus without overlapping */}
+            <PaymentModal
+                isOpen={isPaymentOpen}
+                onClose={() => setIsPaymentOpen(false)}
+                student={selectedStudent}
+                cls={paymentClass}
+            />
+        </>
     );
 };
 
