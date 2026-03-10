@@ -15,7 +15,10 @@ const ClassFormModal = ({
   initialData = null,
   isSubmitting,
   isInstituteMode = false,
-  instituteProfile = null
+  instituteProfile = null,
+  existingClasses = [],   // ← all classes already in this institute
+  backendError = '',      // ← error message from backend (e.g. hall conflict)
+  viewOnly = false,       // ← read-only timetable view — no edit/delete
 }) => {
 
   const [formData, setFormData] = useState({
@@ -37,6 +40,8 @@ const ClassFormModal = ({
     isActive: true
   });
 
+  const [timeError, setTimeError] = useState('');
+
   const [institutes, setInstitutes] = useState([]);
   const [halls, setHalls] = useState([]);
   const [isLoadingInstitutes, setIsLoadingInstitutes] = useState(false);
@@ -53,7 +58,7 @@ const ClassFormModal = ({
 
   // Fetch Institutes (Only for Tutors)
   useEffect(() => {
-    if (!isOpen || isInstituteMode) return;
+    if (!isOpen || isInstituteMode || viewOnly) return;
 
     const fetchInstitutes = async () => {
       setIsLoadingInstitutes(true);
@@ -89,7 +94,7 @@ const ClassFormModal = ({
 
   // Fetch Halls when instituteId changes
   useEffect(() => {
-    if (!isOpen || !formData.instituteId) {
+    if (!isOpen || !formData.instituteId || viewOnly) {
       setHalls([]);
       return;
     }
@@ -236,6 +241,10 @@ const ClassFormModal = ({
       return { ...prev, ...updates };
     });
 
+    if (name === 'startTime' || name === 'endTime') {
+      setTimeError(''); // Clear error when user changes time
+    }
+
     if (name === 'subject') {
       if (value.length > 0) {
         setFilteredSubjects(
@@ -271,6 +280,72 @@ const ClassFormModal = ({
     else setFormData((prev) => ({ ...prev, isActive: !prev.isActive }));
   };
 
+  // ─── Hall Conflict Checker ───────────────────────────────────────────────
+  const checkHallConflict = () => {
+    // Only check if a real hall name is set and time is complete
+    if (!formData.hallName || formData.hallName === 'N/A' || !formData.startTime || !formData.endTime) {
+      return null;
+    }
+
+    const toMinutes = (hhmm) => {
+      const [h, m] = hhmm.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const newStart = toMinutes(formData.startTime);
+    const newEnd = toMinutes(formData.endTime);
+    const newHallName = formData.hallName.toLowerCase().trim();
+
+    // Determine the schedule key for matching (dayOfWeek for recurring, date for one-off)
+    const isRecurringNew = ['Class', 'Course'].includes(formData.classType);
+    const newDayKey = isRecurringNew ? formData.dayOfWeek?.toLowerCase() : null;
+    const newDateKey = !isRecurringNew ? formData.date : null;
+
+    for (const cls of existingClasses) {
+      // Skip the class being edited
+      if (initialData && cls.classId === initialData.classId) continue;
+
+      // Skip inactive classes — they don't hold the time slot
+      if (cls.isActive === false) continue;
+
+      // Must be the same hall (compare by name, case-insensitive)
+      const clsHallName = (cls.hallName || '').toLowerCase().trim();
+      if (!clsHallName || clsHallName !== newHallName) continue;
+
+      // Check day/date match
+      const existingDayKey = cls.dayOfWeek?.toLowerCase() ?? null;
+      const existingDateKey = cls.date ? cls.date.split('T')[0] : null;
+
+      let dayMatch = false;
+      if (newDayKey && existingDayKey) {
+        dayMatch = newDayKey === existingDayKey;
+      } else if (newDateKey && existingDateKey) {
+        dayMatch = newDateKey === existingDateKey;
+      } else if (newDayKey && existingDateKey) {
+        const existingDayName = new Date(existingDateKey).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' }).toLowerCase();
+        dayMatch = newDayKey === existingDayName;
+      } else if (newDateKey && existingDayKey) {
+        const newDayName = new Date(newDateKey).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' }).toLowerCase();
+        dayMatch = newDayName === existingDayKey;
+      }
+
+      if (!dayMatch) continue;
+
+      // Check time overlap
+      if (!cls.startTime || !cls.endTime) continue;
+      const exStart = toMinutes(cls.startTime);
+      const exEnd = toMinutes(cls.endTime);
+
+      if (newStart < exEnd && newEnd > exStart) {
+        const tutorLabel = cls.tutorName || 'Another tutor';
+        const hallLabel = formData.hallName || 'this hall';
+        return `Cannot create class — ${tutorLabel}'s class already occupies ${hallLabel} from ${cls.startTime} to ${cls.endTime} on this day.`;
+      }
+    }
+    return null;
+  };
+
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -286,6 +361,18 @@ const ClassFormModal = ({
 
     if (isInstituteMode && !formData.tutorId) {
       alert('Please select an assigned tutor.');
+      return;
+    }
+
+    if (formData.startTime && formData.endTime && formData.startTime >= formData.endTime) {
+      setTimeError('End Time must be later than Start Time.');
+      return;
+    }
+
+    // ── Hall conflict check ──────────────────────────────────────────────────
+    const conflictMessage = checkHallConflict();
+    if (conflictMessage) {
+      setTimeError(conflictMessage);
       return;
     }
 
@@ -332,7 +419,7 @@ const ClassFormModal = ({
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-            {initialData ? 'Edit Details' : 'Create New Session'}
+            {viewOnly ? 'Class Details' : initialData ? 'Edit Details' : 'Create New Session'}
           </h2>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
             <X className="text-gray-500 dark:text-gray-400" size={20} />
@@ -340,377 +427,394 @@ const ClassFormModal = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
+          <fieldset disabled={viewOnly} className="contents">
 
-          {/* 1. Institute & Type */}
-          <div className="flex flex-col gap-1">
-            <label className={labelClass}>
-              Institute <span className="text-red-500">*</span>
-            </label>
-            {isInstituteMode ? (
-              <div className={readOnlyBoxClass}>
-                {formData.instituteName || 'Loading...'}
+            {/* 1. Institute & Type */}
+            <div className="flex flex-col gap-1">
+              <label className={labelClass}>
+                Institute <span className="text-red-500">*</span>
+              </label>
+              {isInstituteMode ? (
+                <div className={readOnlyBoxClass}>
+                  {formData.instituteName || 'Loading...'}
+                </div>
+              ) : (
+                <select
+                  name="instituteId"
+                  value={formData.instituteId || ''}
+                  onChange={handleChange}
+                  className={inputClass}
+                  disabled={isLoadingInstitutes}
+                >
+                  <option value="OWN_PLACE">My Own Place</option>
+                  {isLoadingInstitutes ? (
+                    <option value="" disabled>Loading...</option>
+                  ) : (
+                    institutes.map((inst) => (
+                      <option key={inst.instituteId || inst.id} value={inst.instituteId || inst.id}>
+                        {inst.name} {inst.city ? `- ${inst.city}` : ''}
+                      </option>
+                    ))
+                  )}
+                </select>
+              )}
+            </div>
+
+            {isInstituteMode && (
+              <div className="relative flex flex-col gap-1">
+                <label className={labelClass}>
+                  Assigned Tutor <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    className={`${inputClass} pl-10`}
+                    placeholder="Search tutor by name..."
+                    value={tutorQuery}
+                    onChange={(e) => {
+                      setTutorQuery(e.target.value);
+                      if (formData.tutorId) {
+                        setFormData(prev => ({ ...prev, tutorId: '', tutorName: '' })); // Reset if typing
+                      }
+                    }}
+                    onFocus={() => {
+                      if (tutorQuery.trim() && filteredTutors.length > 0) setShowTutorSuggestions(true);
+                    }}
+                  />
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Search size={16} />
+                  </div>
+                </div>
+
+                {showTutorSuggestions && (
+                  <ul className="absolute z-20 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto mt-1 top-full">
+                    {isSearchingTutors && filteredTutors.length === 0 ? (
+                      <li className="px-4 py-3 text-sm text-gray-500 text-center">Searching...</li>
+                    ) : filteredTutors.length > 0 ? (
+                      filteredTutors.map((tutor) => (
+                        <li
+                          key={tutor.tutorId}
+                          onMouseDown={() => handleTutorSelect(tutor)}
+                          className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 transition-colors flex justify-between items-center"
+                        >
+                          <span>{tutor.firstName} {tutor.lastName}</span>
+                          <span className="text-xs text-gray-400">{tutor.registrationNumber}</span>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="px-4 py-3 text-sm text-gray-500 text-center">No assigned tutors found</li>
+                    )}
+                  </ul>
+                )}
               </div>
-            ) : (
+            )}
+
+            <div className="flex flex-col gap-1">
+              <label className={labelClass}>
+                Type <span className="text-red-500">*</span>
+              </label>
               <select
-                name="instituteId"
-                value={formData.instituteId || ''}
+                name="classType"
+                value={formData.classType}
                 onChange={handleChange}
                 className={inputClass}
-                disabled={isLoadingInstitutes}
               >
-                <option value="OWN_PLACE">My Own Place</option>
-                {isLoadingInstitutes ? (
-                  <option value="" disabled>Loading...</option>
-                ) : (
-                  institutes.map((inst) => (
-                    <option key={inst.instituteId || inst.id} value={inst.instituteId || inst.id}>
-                      {inst.name} {inst.city ? `- ${inst.city}` : ''}
-                    </option>
-                  ))
-                )}
+                <option value="Class">Class (Weekly)</option>
+                <option value="Seminar">Seminar</option>
+                <option value="Workshop">Workshop</option>
+                <option value="Course">Course</option>
               </select>
-            )}
-          </div>
+            </div>
 
-          {isInstituteMode && (
-            <div className="relative flex flex-col gap-1">
-              <label className={labelClass}>
-                Assigned Tutor <span className="text-red-500">*</span>
-              </label>
+            {/* 2. Grade & Subject */}
+            {isRecurring ? (
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>
+                  Grade <span className="text-red-500">*</span>
+                </label>
+                <select
+                  name="grade"
+                  value={formData.grade}
+                  onChange={handleChange}
+                  className={inputClass}
+                  required
+                >
+                  <option value="">Select Grade</option>
+                  {[
+                    'Preschool', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4',
+                    'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9',
+                    'Grade 10', 'Grade 11 (O/L)', 'Grade 12 (A/L)', 'Grade 13 (A/L)'
+                  ].map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <FormField
+                id="grade"
+                label="Audience"
+                placeholder="e.g. O/L Students"
+                value={formData.grade}
+                onChange={handleChange}
+              />
+            )}
+
+            <div className="relative flex flex-col justify-end">
               <div className="relative">
-                <input
-                  type="text"
-                  className={`${inputClass} pl-10`}
-                  placeholder="Search tutor by name..."
-                  value={tutorQuery}
-                  onChange={(e) => {
-                    setTutorQuery(e.target.value);
-                    if (formData.tutorId) {
-                      setFormData(prev => ({ ...prev, tutorId: '', tutorName: '' })); // Reset if typing
-                    }
-                  }}
-                  onFocus={() => {
-                    if (tutorQuery.trim() && filteredTutors.length > 0) setShowTutorSuggestions(true);
-                  }}
+                <FormField
+                  id="subject"
+                  label="Subject"
+                  value={formData.subject}
+                  onChange={handleChange}
+                  placeholder="Search subject..."
+                  autoComplete="off"
+                  required
                 />
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <div className="absolute right-3 top-9 text-gray-400 pointer-events-none">
                   <Search size={16} />
                 </div>
               </div>
 
-              {showTutorSuggestions && (
-                <ul className="absolute z-20 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto mt-1 top-full">
-                  {isSearchingTutors && filteredTutors.length === 0 ? (
-                    <li className="px-4 py-3 text-sm text-gray-500 text-center">Searching...</li>
-                  ) : filteredTutors.length > 0 ? (
-                    filteredTutors.map((tutor) => (
-                      <li
-                        key={tutor.tutorId}
-                        onMouseDown={() => handleTutorSelect(tutor)}
-                        className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 transition-colors flex justify-between items-center"
-                      >
-                        <span>{tutor.firstName} {tutor.lastName}</span>
-                        <span className="text-xs text-gray-400">{tutor.registrationNumber}</span>
-                      </li>
-                    ))
-                  ) : (
-                    <li className="px-4 py-3 text-sm text-gray-500 text-center">No assigned tutors found</li>
-                  )}
+              {showSubjectSuggestions && filteredSubjects.length > 0 && (
+                <ul className="absolute z-20 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto mt-1">
+                  {filteredSubjects.map((s) => (
+                    <li
+                      key={s}
+                      onMouseDown={() => handleSubjectSelect(s)}
+                      className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 transition-colors"
+                    >
+                      {s}
+                    </li>
+                  ))}
                 </ul>
               )}
             </div>
-          )}
 
-          <div className="flex flex-col gap-1">
-            <label className={labelClass}>
-              Type <span className="text-red-500">*</span>
-            </label>
-            <select
-              name="classType"
-              value={formData.classType}
-              onChange={handleChange}
-              className={inputClass}
-            >
-              <option value="Class">Class (Weekly)</option>
-              <option value="Seminar">Seminar</option>
-              <option value="Workshop">Workshop</option>
-              <option value="Course">Course</option>
-            </select>
-          </div>
-
-          {/* 2. Grade & Subject */}
-          {isRecurring ? (
+            {/* 3. Day / Date & Time */}
             <div className="flex flex-col gap-1">
               <label className={labelClass}>
-                Grade <span className="text-red-500">*</span>
+                {isRecurring ? 'Day' : 'Date'}{' '}
+                <span className="text-red-500">*</span>
               </label>
-              <select
-                name="grade"
-                value={formData.grade}
-                onChange={handleChange}
-                className={inputClass}
-                required
-              >
-                <option value="">Select Grade</option>
-                {[
-                  'Preschool', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4',
-                  'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9',
-                  'Grade 10', 'Grade 11 (O/L)', 'Grade 12 (A/L)', 'Grade 13 (A/L)'
-                ].map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <FormField
-              id="grade"
-              label="Audience"
-              placeholder="e.g. O/L Students"
-              value={formData.grade}
-              onChange={handleChange}
-            />
-          )}
 
-          <div className="relative flex flex-col justify-end">
-            <div className="relative">
-              <FormField
-                id="subject"
-                label="Subject"
-                value={formData.subject}
-                onChange={handleChange}
-                placeholder="Search subject..."
-                autoComplete="off"
-                required
-              />
-              <div className="absolute right-3 top-9 text-gray-400 pointer-events-none">
-                <Search size={16} />
+              {isRecurring ? (
+                <select
+                  name="dayOfWeek"
+                  value={formData.dayOfWeek}
+                  onChange={handleChange}
+                  className={inputClass}
+                >
+                  {[
+                    'Monday', 'Tuesday', 'Wednesday', 'Thursday',
+                    'Friday', 'Saturday', 'Sunday'
+                  ].map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="date"
+                  name="date"
+                  value={formData.date}
+                  onChange={handleChange}
+                  required
+                  className={inputClass}
+                />
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>
+                  Start Time <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="time"
+                  name="startTime"
+                  value={formData.startTime}
+                  onChange={handleChange}
+                  required
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>
+                  End Time <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="time"
+                  name="endTime"
+                  value={formData.endTime}
+                  onChange={handleChange}
+                  required
+                  className={inputClass}
+                />
               </div>
             </div>
 
-            {showSubjectSuggestions && filteredSubjects.length > 0 && (
-              <ul className="absolute z-20 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto mt-1">
-                {filteredSubjects.map((s) => (
-                  <li
-                    key={s}
-                    onMouseDown={() => handleSubjectSelect(s)}
-                    className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 transition-colors"
-                  >
-                    {s}
-                  </li>
-                ))}
-              </ul>
+            {(timeError || backendError) && (
+              <div className="text-sm text-red-500 mt-1 mb-2 font-medium">
+                {timeError || backendError}
+              </div>
             )}
-          </div>
 
-          {/* 3. Day / Date & Time */}
-          <div className="flex flex-col gap-1">
-            <label className={labelClass}>
-              {isRecurring ? 'Day' : 'Date'}{' '}
-              <span className="text-red-500">*</span>
-            </label>
+            {/* 4. Hall & Fee */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>
+                  Hall <span className="text-red-500">*</span>
+                </label>
+                <select
+                  name="hallId"
+                  value={formData.hallId || ''}
+                  onChange={handleChange}
+                  className={inputClass}
+                  disabled={isLoadingHalls || !formData.instituteId || formData.instituteId === 'OWN_PLACE'}
+                  required={formData.instituteId !== 'OWN_PLACE'}
+                >
+                  <option value="">Select Hall</option>
+                  {formData.instituteId === 'OWN_PLACE' ? (
+                    <option value="" disabled>Not Applicable</option>
+                  ) : isLoadingHalls ? (
+                    <option value="" disabled>Loading halls...</option>
+                  ) : halls.length === 0 ? (
+                    <option value="" disabled>No halls available</option>
+                  ) : (
+                    halls.map((hall) => (
+                      <option key={hall.hallId || hall.id} value={hall.hallId || hall.id}>
+                        {hall.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
 
-            {isRecurring ? (
-              <select
-                name="dayOfWeek"
-                value={formData.dayOfWeek}
-                onChange={handleChange}
-                className={inputClass}
-              >
-                {[
-                  'Monday', 'Tuesday', 'Wednesday', 'Thursday',
-                  'Friday', 'Saturday', 'Sunday'
-                ].map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="date"
-                name="date"
-                value={formData.date}
-                onChange={handleChange}
-                required
-                className={inputClass}
-              />
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className={labelClass}>
-                Start Time <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="time"
-                name="startTime"
-                value={formData.startTime}
+              <FormField
+                id="fee"
+                label="Fee (LKR)"
+                type="number"
+                value={formData.fee}
                 onChange={handleChange}
                 required
-                className={inputClass}
               />
             </div>
 
-            <div className="flex flex-col gap-1">
+            {/* 5. Auto-generated Name (Read Only) */}
+            <div className="flex flex-col gap-1 pt-2">
               <label className={labelClass}>
-                End Time <span className="text-red-500">*</span>
+                {isRecurring ? 'Auto-generated Name' : 'Auto-generated Title'}
               </label>
-              <input
-                type="time"
-                name="endTime"
-                value={formData.endTime}
-                onChange={handleChange}
-                required
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          {/* 4. Hall & Fee */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className={labelClass}>
-                Hall <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="hallId"
-                value={formData.hallId || ''}
-                onChange={handleChange}
-                className={inputClass}
-                disabled={isLoadingHalls || !formData.instituteId || formData.instituteId === 'OWN_PLACE'}
-                required={formData.instituteId !== 'OWN_PLACE'}
-              >
-                <option value="">Select Hall</option>
-                {formData.instituteId === 'OWN_PLACE' ? (
-                  <option value="" disabled>Not Applicable</option>
-                ) : isLoadingHalls ? (
-                  <option value="" disabled>Loading halls...</option>
-                ) : halls.length === 0 ? (
-                  <option value="" disabled>No halls available</option>
-                ) : (
-                  halls.map((hall) => (
-                    <option key={hall.hallId || hall.id} value={hall.hallId || hall.id}>
-                      {hall.name}
-                    </option>
-                  ))
-                )}
-              </select>
+              <div className={readOnlyBoxClass}>
+                {formData.className || <span className="text-gray-400 font-normal italic">Select Subject, Grade & Day</span>}
+              </div>
             </div>
 
-            <FormField
-              id="fee"
-              label="Fee (LKR)"
-              type="number"
-              value={formData.fee}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          {/* 5. Auto-generated Name (Read Only) */}
-          <div className="flex flex-col gap-1 pt-2">
-            <label className={labelClass}>
-              {isRecurring ? 'Auto-generated Name' : 'Auto-generated Title'}
-            </label>
-            <div className={readOnlyBoxClass}>
-              {formData.className || <span className="text-gray-400 font-normal italic">Select Subject, Grade & Day</span>}
-            </div>
-          </div>
+          </fieldset>{/* end disabled fieldset — buttons below are outside it */}
 
           {/* Footer */}
           <div className="pt-6 border-t border-gray-100 dark:border-gray-700 mt-4 flex flex-col gap-6 sm:flex-row sm:justify-between sm:items-center">
-            <div className="order-3 sm:order-1 w-full sm:w-auto flex justify-center sm:justify-start">
-              {initialData && (
-                <button
-                  type="button"
-                  onClick={() => onDelete(initialData.classId)}
-                  className="flex items-center gap-2 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                >
-                  <Trash2 size={16} /> Delete
-                </button>
-              )}
-            </div>
 
-            <div className="order-2 sm:order-2 w-full sm:w-auto flex justify-center py-2 sm:py-0">
-              {initialData && (
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={toggleStatus}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.isActive ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
-                      }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.isActive
-                        ? 'translate-x-6'
-                        : 'translate-x-1'
-                        }`}
-                    />
-                  </button>
-                  <span className="text-xs font-semibold w-14 inline-block">
-                    {formData.isActive ? (
-                      <span className="text-green-600 dark:text-green-400">Active</span>
-                    ) : (
-                      <span className="text-gray-500 dark:text-gray-400">Inactive</span>
-                    )}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div className="order-1 sm:order-3 w-full sm:w-auto flex gap-3">
-              <Button variant="secondary" onClick={onClose} fullWidth>
-                Cancel
-              </Button>
-
-              {initialData ? (
-                <button
-                  type="submit"
-                  disabled={isSubmitting || (
-                    initialData.instituteName === formData.instituteName &&
-                    initialData.classType === formData.classType &&
-                    initialData.subject === formData.subject &&
-                    initialData.grade === formData.grade &&
-                    initialData.className === formData.className &&
-                    (initialData.date ? initialData.date.split('T')[0] : '') === formData.date &&
-                    (initialData.dayOfWeek || 'Monday') === formData.dayOfWeek &&
-                    initialData.startTime === formData.startTime &&
-                    initialData.endTime === formData.endTime &&
-                    initialData.hallName === formData.hallName &&
-                    initialData.fee == formData.fee &&
-                    (initialData.isActive ?? true) === formData.isActive &&
-                    (!isInstituteMode || initialData.tutorId === formData.tutorId)
-                  )}
-                  className={`w-full sm:w-auto px-6 py-2 rounded-lg text-sm font-medium transition-colors ${isSubmitting || (
-                    initialData.instituteName === formData.instituteName &&
-                    initialData.classType === formData.classType &&
-                    initialData.subject === formData.subject &&
-                    initialData.grade === formData.grade &&
-                    initialData.className === formData.className &&
-                    (initialData.date ? initialData.date.split('T')[0] : '') === formData.date &&
-                    (initialData.dayOfWeek || 'Monday') === formData.dayOfWeek &&
-                    initialData.startTime === formData.startTime &&
-                    initialData.endTime === formData.endTime &&
-                    initialData.hallName === formData.hallName &&
-                    initialData.fee == formData.fee &&
-                    (initialData.isActive ?? true) === formData.isActive &&
-                    (!isInstituteMode || initialData.tutorId === formData.tutorId)
-                  )
-                    ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200 dark:shadow-none'
-                    }`}
-                >
-                  {isSubmitting ? 'Updating...' : 'Update'}
-                </button>
-              ) : (
-                <Button type="submit" disabled={isSubmitting} fullWidth variant="primary">
-                  {isSubmitting ? 'Saving...' : 'Create'}
+            {/* ── View-Only mode: just a Close button ── */}
+            {viewOnly ? (
+              <div className="w-full flex justify-end">
+                <Button variant="secondary" onClick={onClose}>
+                  Close
                 </Button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <>
+                <div className="order-3 sm:order-1 w-full sm:w-auto flex justify-center sm:justify-start">
+                  {initialData && (
+                    <button
+                      type="button"
+                      onClick={() => onDelete(initialData.classId)}
+                      className="flex items-center gap-2 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      <Trash2 size={16} /> Delete
+                    </button>
+                  )}
+                </div>
+
+                <div className="order-2 sm:order-2 w-full sm:w-auto flex justify-center py-2 sm:py-0">
+                  {initialData && (
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={toggleStatus}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.isActive ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.isActive ? 'translate-x-6' : 'translate-x-1'}`}
+                        />
+                      </button>
+                      <span className="text-xs font-semibold w-14 inline-block">
+                        {formData.isActive ? (
+                          <span className="text-green-600 dark:text-green-400">Active</span>
+                        ) : (
+                          <span className="text-gray-500 dark:text-gray-400">Inactive</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="order-1 sm:order-3 w-full sm:w-auto flex gap-3">
+                  <Button variant="secondary" onClick={onClose} fullWidth>
+                    Cancel
+                  </Button>
+
+                  {initialData ? (
+                    <button
+                      type="submit"
+                      disabled={isSubmitting || (
+                        initialData.instituteName === formData.instituteName &&
+                        initialData.classType === formData.classType &&
+                        initialData.subject === formData.subject &&
+                        initialData.grade === formData.grade &&
+                        initialData.className === formData.className &&
+                        (initialData.date ? initialData.date.split('T')[0] : '') === formData.date &&
+                        (initialData.dayOfWeek || 'Monday') === formData.dayOfWeek &&
+                        initialData.startTime === formData.startTime &&
+                        initialData.endTime === formData.endTime &&
+                        initialData.hallName === formData.hallName &&
+                        initialData.fee == formData.fee &&
+                        (initialData.isActive ?? true) === formData.isActive &&
+                        (!isInstituteMode || initialData.tutorId === formData.tutorId)
+                      )}
+                      className={`w-full sm:w-auto px-6 py-2 rounded-lg text-sm font-medium transition-colors ${isSubmitting || (
+                        initialData.instituteName === formData.instituteName &&
+                        initialData.classType === formData.classType &&
+                        initialData.subject === formData.subject &&
+                        initialData.grade === formData.grade &&
+                        initialData.className === formData.className &&
+                        (initialData.date ? initialData.date.split('T')[0] : '') === formData.date &&
+                        (initialData.dayOfWeek || 'Monday') === formData.dayOfWeek &&
+                        initialData.startTime === formData.startTime &&
+                        initialData.endTime === formData.endTime &&
+                        initialData.hallName === formData.hallName &&
+                        initialData.fee == formData.fee &&
+                        (initialData.isActive ?? true) === formData.isActive &&
+                        (!isInstituteMode || initialData.tutorId === formData.tutorId)
+                      )
+                        ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
+                        : 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200 dark:shadow-none'
+                        }`}
+                    >
+                      {isSubmitting ? 'Updating...' : 'Update'}
+                    </button>
+                  ) : (
+                    <Button type="submit" disabled={isSubmitting} fullWidth variant="primary">
+                      {isSubmitting ? 'Saving...' : 'Create'}
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </form>
       </div>

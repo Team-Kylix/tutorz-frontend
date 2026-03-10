@@ -24,6 +24,7 @@ const InstituteClassesPage = () => {
     const [isSuccessOpen, setIsSuccessOpen] = useState(false);
     const [successMessage, setSuccessMessage] = useState("");
     const [pendingFormData, setPendingFormData] = useState(null);
+    const [classFormError, setClassFormError] = useState('');
 
     // Delete States
     const [classToDelete, setClassToDelete] = useState(null);
@@ -154,6 +155,7 @@ const InstituteClassesPage = () => {
     };
 
     const handleClassSubmit = (formData) => {
+        setClassFormError('');
         setPendingFormData(formData);
         setIsConfirmOpen(true);
     };
@@ -171,14 +173,17 @@ const InstituteClassesPage = () => {
         if (result && result.data) {
             setIsConfirmOpen(false);
             setClassModalOpen(false);
+            setClassFormError('');
             setPendingFormData(null);
             loadClasses(true);
             const msg = editingClass ? "Class updated successfully!" : "Class assigned successfully!";
             setSuccessMessage(msg);
             setIsSuccessOpen(true);
-        } else if (!editingClass) {
-            alert('Failed to create class.');
+        } else {
+            // Show backend error (including hall conflict) inline in the form
+            const errMsg = result?.error?.message || result?.error || 'Failed to save class. Please try again.';
             setIsConfirmOpen(false);
+            setClassFormError(typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg));
         }
     };
 
@@ -352,7 +357,7 @@ const InstituteClassesPage = () => {
             {/* --- MODALS --- */}
             <ClassFormModal
                 isOpen={isClassModalOpen}
-                onClose={() => setClassModalOpen(false)}
+                onClose={() => { setClassModalOpen(false); setClassFormError(''); }}
                 onSubmit={handleClassSubmit}
                 onDelete={handleDeleteClick}
                 onStatusChange={handleStatusChangeRequest}
@@ -360,6 +365,8 @@ const InstituteClassesPage = () => {
                 isSubmitting={isSaving}
                 isInstituteMode={true}
                 instituteProfile={instituteProfile}
+                existingClasses={classes}
+                backendError={classFormError}
             />
 
             <ConfirmationModal

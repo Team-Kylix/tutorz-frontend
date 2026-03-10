@@ -5,10 +5,40 @@ export const getInstituteProfile = async () => {
   return response.data;
 };
 
-
 export const updateInstituteProfile = async (data) => {
   const response = await apiClient.put('/institute/profile', data);
   return response.data;
+};
+
+// --- Timetable ---
+
+export const getTimetableByDate = async (date) => {
+  try {
+    // Use local date parts to avoid UTC offset shifting the date (e.g. UTC+5:30 midnight = prev-day UTC)
+    let iso;
+    if (date instanceof Date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      iso = `${y}-${m}-${d}`;
+    } else {
+      iso = date;
+    }
+    const response = await apiClient.get(`/institute/timetable?date=${iso}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch timetable' };
+  }
+};
+
+// Fetch ALL institute classes without pagination (for conflict checking)
+export const getAllInstituteClassesUnpaged = async () => {
+  try {
+    const response = await apiClient.get('/institute/classes?page=1&pageSize=9999');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch all classes' };
+  }
 };
 
 // --- Classes Management ---

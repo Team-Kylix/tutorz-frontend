@@ -16,27 +16,34 @@ const calculateDuration = (start, end) => {
   return `${mins}m`;
 };
 
-const UpcomingClasses = ({ onNavigate }) => {
+const UpcomingClasses = ({ onNavigate, fetchClassesApi }) => {
   const [classes, setClasses] = useState([]);
   const [displayList, setDisplayList] = useState([]);
   const { request: fetchClasses, loading } = useApi();
-  
+
   const getTypeIcon = (type) => {
-      switch(type) {
-          case 'Seminar': return <Presentation size={14} className="text-purple-500 dark:text-purple-400" />;
-          case 'Workshop': return <PenTool size={14} className="text-orange-500 dark:text-orange-400" />;
-          case 'Course': return <GraduationCap size={14} className="text-emerald-500 dark:text-emerald-400" />;
-          default: return <BookOpen size={14} className="text-blue-500 dark:text-blue-400" />;
-      }
+    switch (type) {
+      case 'Seminar': return <Presentation size={14} className="text-purple-500 dark:text-purple-400" />;
+      case 'Workshop': return <PenTool size={14} className="text-orange-500 dark:text-orange-400" />;
+      case 'Course': return <GraduationCap size={14} className="text-emerald-500 dark:text-emerald-400" />;
+      default: return <BookOpen size={14} className="text-blue-500 dark:text-blue-400" />;
+    }
   };
 
   useEffect(() => {
     const loadData = async () => {
-      const { data } = await fetchClasses(tutorService.getClasses);
-      if (data) setClasses(data);
+      const apiMethod = fetchClassesApi || tutorService.getClasses;
+      const { data } = await fetchClasses(apiMethod);
+      if (data) {
+        let classesArray = [];
+        if (Array.isArray(data)) classesArray = data;
+        else if (data.items && Array.isArray(data.items)) classesArray = data.items;
+        else if (data.data && Array.isArray(data.data)) classesArray = data.data;
+        setClasses(classesArray);
+      }
     };
     loadData();
-  }, []);
+  }, [fetchClassesApi]);
 
   useEffect(() => {
     if (classes.length === 0) return;
@@ -46,12 +53,12 @@ const UpcomingClasses = ({ onNavigate }) => {
       const processed = classes.map(cls => {
         const status = getClassStatus(cls);
         const dayIndex = getDayIndex(cls.dayOfWeek);
-        
-        let priority = 3; 
+
+        let priority = 3;
         if (status === 'in-progress') priority = 0;
         else if (status === 'next') priority = 1;
         else if (status === 'completed') priority = 2;
-        
+
         if (dayIndex !== todayIndex) priority = 3;
 
         return { ...cls, status, priority };
@@ -59,15 +66,15 @@ const UpcomingClasses = ({ onNavigate }) => {
 
       const sorted = processed.sort((a, b) => {
         if (a.priority !== b.priority) return a.priority - b.priority;
-        return a.startTime.localeCompare(b.startTime);
+        return (a.startTime || "").localeCompare(b.startTime || "");
       });
 
       setDisplayList(sorted.slice(0, 4));
     };
 
-    updateSchedule(); 
-    const interval = setInterval(updateSchedule, 60000); 
-    return () => clearInterval(interval); 
+    updateSchedule();
+    const interval = setInterval(updateSchedule, 60000);
+    return () => clearInterval(interval);
   }, [classes]);
 
   const getStatusBadge = (status) => {
@@ -93,25 +100,25 @@ const UpcomingClasses = ({ onNavigate }) => {
 
       <div className="p-5 flex-1 overflow-y-auto custom-scrollbar">
         {loading ? (
-           <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-4">Loading schedule...</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-4">Loading schedule...</p>
         ) : displayList.length === 0 ? (
-           <div className="text-center py-6 text-gray-500 dark:text-gray-400">
-             <Calendar size={32} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />
-             <p>No classes scheduled.</p>
-           </div>
+          <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+            <Calendar size={32} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+            <p>No classes scheduled.</p>
+          </div>
         ) : (
           <div className="space-y-4">
-            {displayList.map((cls) => (
-              <div key={cls.classId} className={`flex items-center gap-4 p-3 rounded-lg transition-colors border cursor-pointer 
-                ${cls.status === 'in-progress' 
-                    ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-900/30' 
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-700 border-transparent hover:border-gray-100 dark:hover:border-gray-600'}`}>
-                
+            {displayList.map((cls, idx) => (
+              <div key={cls.classId || cls.id || idx} className={`flex items-center gap-4 p-3 rounded-lg transition-colors border cursor-pointer 
+                ${cls.status === 'in-progress'
+                  ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-900/30'
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700 border-transparent hover:border-gray-100 dark:hover:border-gray-600'}`}>
+
                 {/* Time Box */}
                 <div className={`flex-shrink-0 w-16 h-16 rounded-lg flex flex-col items-center justify-center 
-                    ${cls.status === 'in-progress' 
-                        ? 'bg-white dark:bg-red-900/40 text-red-600 dark:text-red-400 shadow-sm' 
-                        : 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'}`}>
+                    ${cls.status === 'in-progress'
+                    ? 'bg-white dark:bg-red-900/40 text-red-600 dark:text-red-400 shadow-sm'
+                    : 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'}`}>
                   <span className="text-xs font-bold uppercase mb-1">
                     {cls.dayOfWeek ? cls.dayOfWeek.substring(0, 3) : 'Date'}
                   </span>
@@ -122,18 +129,18 @@ const UpcomingClasses = ({ onNavigate }) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start mb-1">
                     <div className="flex items-center gap-2 truncate pr-2">
-                        {getTypeIcon(cls.classType)}
-                        <h4 className="font-bold text-gray-900 dark:text-white truncate">
-                            {cls.className || cls.subject}
-                        </h4>
+                      {getTypeIcon(cls.classType || cls.type)}
+                      <h4 className="font-bold text-gray-900 dark:text-white truncate">
+                        {cls.className || cls.subject || 'Unnamed Class'}
+                      </h4>
                     </div>
                     {getStatusBadge(cls.status)}
                   </div>
-                  
+
                   <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-3">
                     <span className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
-                        <Clock size={10} /> 
-                        {calculateDuration(cls.startTime, cls.endTime)}
+                      <Clock size={10} />
+                      {calculateDuration(cls.startTime, cls.endTime)}
                     </span>
                     <span className="truncate">{cls.hallName || 'Main Hall'}</span>
                   </div>
