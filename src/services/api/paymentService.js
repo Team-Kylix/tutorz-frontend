@@ -19,11 +19,28 @@ export const getPaymentStatus = async (classId, studentId) => {
  * POST /api/payment/record
  * Records a class fee payment.
  */
-export const recordPayment = async (data) => {
+export const recordPayment = async (payload) => {
     try {
-        const response = await apiClient.post('/payment/record', data);
+        const response = await apiClient.post('/payment/record', payload);
         return response.data;
     } catch (error) {
         throw error.response?.data || { message: 'Failed to record payment' };
+    }
+};
+
+export const getClassPaymentHistory = async (tutorId, classId, searchQuery = '', page = 1, pageSize = 10) => {
+    try {
+        const response = await apiClient.get(`/payment/class/history`, {
+            params: {
+                tutorId,
+                classId: classId === 'all' ? null : classId,
+                searchQuery,
+                page,
+                pageSize
+            }
+        });
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || { message: 'Failed to fetch payment history' };
     }
 };

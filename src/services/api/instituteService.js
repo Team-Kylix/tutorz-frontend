@@ -282,17 +282,20 @@ export const assignStudentToClass = async (studentId, classId) => {
   }
 };
 
-export const getClassAttendanceHistory = async (classId, month, year, searchQuery = '') => {
+export const getClassAttendanceHistory = async (tutorId, classId, month, year, searchQuery = '', page = 1, pageSize = 10) => {
   try {
     const params = new URLSearchParams();
+    if (tutorId) params.append('tutorId', tutorId);
+    if (classId && classId !== 'all') params.append('classId', classId);
     if (month) params.append('month', month);
     if (year) params.append('year', year);
     if (searchQuery) params.append('searchQuery', searchQuery);
+    params.append('page', page);
+    params.append('pageSize', pageSize);
 
-    // Convert to string and prefix with ? if there are params
     const queryString = params.toString() ? `?${params.toString()}` : '';
 
-    const response = await apiClient.get(`/institute/attendance/class-history/${classId}${queryString}`);
+    const response = await apiClient.get(`/institute/attendance/history${queryString}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to fetch class attendance history' };
