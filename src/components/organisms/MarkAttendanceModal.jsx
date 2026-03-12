@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, QrCode, AlertCircle, ChevronLeft, CheckCircle2, UserPlus, CreditCard } from 'lucide-react';
+import { Search, Loader2, QrCode, AlertCircle, ChevronLeft, CheckCircle2, UserPlus, CreditCard, X } from 'lucide-react';
 import Modal from '../molecules/Modal';
 import Button from '../atoms/Button';
 import StudentSelectionCard from '../molecules/StudentSelectionCard';
 import ClassSelectionCard from '../molecules/ClassSelectionCard';
 import PaymentModal from './PaymentModal';
+import QrScanner from './QrScanner';
 import {
     searchStudents,
     getStudentClassesForAttendance,
@@ -29,6 +30,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);
     const debounceTimer = useRef(null);
     const searchInputRef = useRef(null);
 
@@ -94,6 +96,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setIsSubmitting(false); // Reset submission state
         setIsPaymentOpen(false);
         setPaymentClass(null);
+        setIsScanning(false);
     };
 
     // --- Search Logic ---
@@ -107,7 +110,13 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
             setIsSearching(true);
             try {
                 const res = await searchStudents(query.trim());
-                setResults(res.data || []);
+                const data = res.data || [];
+                setResults(data);
+                
+                // Auto-select if exact STU code match
+                if (data.length === 1 && data[0].registrationNumber && data[0].registrationNumber.toUpperCase() === query.trim().toUpperCase()) {
+                    handleSelectStudent(data[0]);
+                }
             } catch (err) {
                 setResults([]);
             } finally {
@@ -218,16 +227,36 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         !studentClasses.some(sc => (sc.id || sc.classId) === (tc.id || tc.classId))
     );
 
+    // --- QR Scanner Handling ---
+    const handleScanSuccess = (decodedText) => {
+        setIsScanning(false);
+        setQuery(decodedText.trim());
+        triggerSuccessToast("QR successfully scanned!");
+    };
+
     // --- Renderers ---
     const renderStep1 = () => (
         <div className="space-y-4 animate-in fade-in zoom-in-95 duration-150">
             {/* Action Bar */}
             <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => alert("Scanner placeholder")}>
-                    <QrCode size={18} className="mr-2" />
-                    Scan QR
+                <Button 
+                    variant={isScanning ? "danger" : "outline"} 
+                    className="flex-1" 
+                    onClick={() => setIsScanning(!isScanning)}
+                >
+                    {isScanning ? <X size={18} className="mr-2" /> : <QrCode size={18} className="mr-2" />}
+                    {isScanning ? "Cancel Scan" : "Scan QR"}
                 </Button>
             </div>
+
+            {isScanning && (
+                <div className="mt-2 animate-in fade-in slide-in-from-top-4">
+                    <QrScanner 
+                        onScanSuccess={handleScanSuccess} 
+                        onScanError={(err) => { /* Suppress noisy scanner logs */ }} 
+                    />
+                </div>
+            )}
 
             <div className="relative flex items-center">
                 <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
