@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useDispatch } from 'react-redux'; // Added Redux Dispatch
 import {
   LayoutDashboard, Users, BookOpen, Calendar, DollarSign,
   FileText, QrCode, Settings, ChevronRight, ChevronLeft, LogOut,
@@ -10,9 +11,17 @@ import ConfirmationModal from '../molecules/ConfirmationModal';
 import Logo from '../atoms/Logo';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLES } from '../../utils/constants';
+import { BASE_URL } from '../../services/api/apiClient';
+
+// Added API and Redux actions to fetch data on load
+import { updateUser } from '../../store/authSlice';
+import { getTutorProfile } from '../../services/api/tutorService';
+import { getStudentProfile } from '../../services/api/studentService';
+import { getInstituteProfile } from '../../services/api/instituteService';
 
 const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { user, logout } = useAuth();
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -24,6 +33,40 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const displayRole = user?.role || "Member";
   const displayId = user?.registrationNumber || user?.userId || "";
 
+  // Look for Small, then Large, then any profile picture URL available in Redux
+  const profileImage = user?.profileImageUrlSmall || user?.profileImageUrlLarge || user?.profilePictureUrl;
+
+  // --- CRITICAL FIX: Fetch profile quietly on Dashboard load ---
+  useEffect(() => {
+    const initProfileData = async () => {
+      if (!user?.role) return;
+      try {
+        let result;
+        switch (user.role) {
+          case ROLES.TUTOR: result = await getTutorProfile(); break;
+          case ROLES.STUDENT: result = await getStudentProfile(); break;
+          case ROLES.INSTITUTE: result = await getInstituteProfile(); break;
+          default: return;
+        }
+
+        if (result?.success) {
+          // Send fresh data to Redux immediately so the Sidebar updates
+          dispatch(updateUser({
+            firstName: result.data.firstName || result.data.instituteName,
+            lastName: result.data.lastName || '',
+            profileImageUrlSmall: result.data.profileImageUrlSmall || result.data.profileImageUrlLarge || result.data.profilePictureUrl,
+            profileImageUrlLarge: result.data.profileImageUrlLarge || result.data.profilePictureUrl
+          }));
+        }
+      } catch (error) {
+        console.error("Sidebar failed to fetch fresh profile data:", error);
+      }
+    };
+
+    initProfileData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array ensures this runs exactly once when the Sidebar mounts
+
   const handleLogoutConfirm = () => {
     logout();
     setShowLogoutModal(false);
@@ -32,7 +75,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
 
   // --- 1. Define Menus for Different Roles ---
 
-  // Menu for Tutors and Institutes
   const tutorMenu = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
@@ -47,7 +89,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
-  // Menu for Students (ADDED THIS)
   const studentMenu = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
@@ -57,7 +98,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
-  // Menu for Institutes
   const instituteMenu = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
@@ -73,7 +113,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
-  // Menu for Admins
   const adminMenu = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'institutes', label: 'Institutes', icon: Building },
@@ -88,16 +127,11 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   // --- 2. Switch Logic ---
   const getMenuItems = () => {
     switch (user?.role) {
-      case ROLES.ADMIN:
-        return adminMenu;
-      case ROLES.TUTOR:
-        return tutorMenu;
-      case ROLES.INSTITUTE:
-        return instituteMenu;
-      case ROLES.STUDENT:
-        return studentMenu;
-      default:
-        return tutorMenu;
+      case ROLES.ADMIN: return adminMenu;
+      case ROLES.TUTOR: return tutorMenu;
+      case ROLES.INSTITUTE: return instituteMenu;
+      case ROLES.STUDENT: return studentMenu;
+      default: return tutorMenu;
     }
   };
 
@@ -106,10 +140,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   return (
     <>
       {!isCollapsed && (
-        <div
-          className="fixed inset-0 bg-black/20 z-20 md:hidden"
-          onClick={toggleSidebar}
-        ></div>
+        <div className="fixed inset-0 bg-black/20 z-20 md:hidden" onClick={toggleSidebar}></div>
       )}
 
       <ConfirmationModal
@@ -122,12 +153,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         variant="danger"
       />
 
-      <aside
-        className={`
-          bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen fixed left-0 top-0 z-30 transition-all duration-300 ease-in-out
-          ${isCollapsed ? '-translate-x-full md:translate-x-0 md:w-20' : 'w-64'}
-        `}
-      >
+      <aside className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen fixed left-0 top-0 z-30 transition-all duration-300 ease-in-out ${isCollapsed ? '-translate-x-full md:translate-x-0 md:w-20' : 'w-64'}`}>
         {/* Header */}
         <div className={`h-16 flex items-center px-4 border-b border-gray-100 dark:border-gray-700 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           <Logo size="small" collapsed={isCollapsed} />
@@ -136,7 +162,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
               <ChevronLeft size={20} />
             </button>
           )}
-
           <button onClick={toggleSidebar} className="md:hidden ml-auto p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300">
             <ChevronLeft size={20} />
           </button>
@@ -153,11 +178,23 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         {/* User Profile */}
         <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/50">
           <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
-            {/* Conditional Color for Admin Profile Icon */}
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0
-              ${user?.role === ROLES.ADMIN ? 'bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-300' : 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300'}`}>
-              {firstName.charAt(0)}
+            
+            {/* Avatar container */}
+            <div 
+              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 overflow-hidden
+                ${user?.role === ROLES.ADMIN ? 'bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-300' : 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300'}`}
+            >
+              {profileImage ? (
+                <img 
+                  src={profileImage.startsWith('http') ? profileImage : `${BASE_URL}${profileImage}`} 
+                  alt="Profile" 
+                  className="w-full h-full object-cover" 
+                />
+              ) : (
+                <span>{firstName.charAt(0)}</span>
+              )}
             </div>
+            
             {!isCollapsed && (
               <div className="overflow-hidden">
                 <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200 truncate" title={fullName}>
@@ -192,10 +229,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         <div className="absolute bottom-0 w-full p-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
           <button
             onClick={() => setShowLogoutModal(true)}
-            className={`
-              w-full flex items-center gap-3 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors
-              ${isCollapsed ? 'justify-center' : ''}
-            `}
+            className={`w-full flex items-center gap-3 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${isCollapsed ? 'justify-center' : ''}`}
           >
             <LogOut size={20} />
             {!isCollapsed && <span>Logout</span>}

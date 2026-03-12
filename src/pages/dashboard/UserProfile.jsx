@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useDispatch } from 'react-redux'; // Added Redux Dispatch
 import { Mail, Phone, FileText, Pencil, MapPin, Globe, Building, School, GraduationCap, Calendar, User } from 'lucide-react';
 
 // Hooks & Constants
 import { useAuth } from '../../hooks/useAuth';
 import { ROLES } from '../../utils/constants';
+import { updateUser } from '../../store/authSlice'; // Added Redux Action
 
-// Services (Import all of them)
+// Services
 import { getTutorProfile, updateTutorProfile } from '../../services/api/tutorService';
 import { getStudentProfile, updateStudentProfile } from '../../services/api/studentService';
 import { getInstituteProfile, updateInstituteProfile } from '../../services/api/instituteService';
@@ -19,8 +21,9 @@ import EditProfileModal from '../../components/organisms/EditProfileModal';
 import StudentQRCode from '../../components/common/StudentQRCode';
 
 const UserProfile = () => {
-    const { user } = useAuth(); // Get current logged in user & role
+    const { user } = useAuth(); 
     const role = user?.role;
+    const dispatch = useDispatch(); // Initialize Dispatch
 
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -44,6 +47,17 @@ const UserProfile = () => {
 
             if (result.success) {
                 setProfile(result.data);
+                
+                // --- SYNC WITH REDUX SO SIDEBAR UPDATES ---
+                dispatch(updateUser({
+                    firstName: result.data.firstName || result.data.instituteName,
+                    lastName: result.data.lastName || '',
+                    // Use fallbacks to ensure the Sidebar gets an image regardless of backend column names
+                    profileImageUrlSmall: result.data.profileImageUrlSmall || result.data.profileImageUrlLarge || result.data.profilePictureUrl,
+                    profileImageUrlLarge: result.data.profileImageUrlLarge || result.data.profilePictureUrl
+                }));
+                // --------------------------------------------------------
+
             } else {
                 setError(result.message || 'Failed to load profile.');
             }
@@ -53,7 +67,7 @@ const UserProfile = () => {
         } finally {
             setLoading(false);
         }
-    }, [role]);
+    }, [role, dispatch]);
 
     useEffect(() => {
         if (role) fetchProfileData();
@@ -68,7 +82,7 @@ const UserProfile = () => {
                 case ROLES.STUDENT: await updateStudentProfile(formData); break;
                 case ROLES.INSTITUTE: await updateInstituteProfile(formData); break;
             }
-            await fetchProfileData(); // Refresh UI
+            await fetchProfileData(); // Refresh UI and Redux
             setIsEditModalOpen(false);
         } catch (err) {
             console.error("Update failed", err);
@@ -201,6 +215,7 @@ const UserProfile = () => {
                     firstName: getHeaderName().first,
                     lastName: getHeaderName().last,
                     registrationNumber: profile?.registrationNumber,
+                    profileImageUrlLarge: profile?.profileImageUrlLarge || profile?.profilePictureUrl // Fallback here too
                 }}
                 leftColumnContent={renderPersonalContent()}
                 rightColumnTitle={getRightTitle()}

@@ -17,8 +17,10 @@ export const useAuth = () => {
           role: data.role,
           firstName: data.firstName,
           lastName: data.lastName,
-          // Added this mapping so Login gets the Reg No
-          registrationNumber: data.registrationNumber
+          // Login gets the Reg No
+          registrationNumber: data.registrationNumber,
+          profileImageUrlSmall: data.profileImageUrlSmall,
+          profileImageUrlLarge: data.profileImageUrlLarge
         },
         token: data.token
       }));
