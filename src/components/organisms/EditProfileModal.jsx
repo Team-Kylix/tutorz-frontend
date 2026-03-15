@@ -58,9 +58,17 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
     // Sync state when initialData changes or modal opens
     useEffect(() => {
         if (initialData) {
+            // Clean initialData: replace null with empty string to prevent React warnings
+            const safeData = { ...initialData };
+            Object.keys(safeData).forEach(key => {
+                if (safeData[key] === null) {
+                    safeData[key] = '';
+                }
+            });
+
             setFormData(prev => ({
                 ...prev,
-                ...initialData,
+                ...safeData,
                 // Ensure specific fields map correctly
                 dateOfBirth: initialData.dateOfBirth ? initialData.dateOfBirth.split('T')[0] : '',
                 contactNumber: initialData.contactNumber || initialData.phoneNumber || '',
