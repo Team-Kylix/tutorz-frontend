@@ -4,14 +4,15 @@ import AuthLayout from '../../components/templates/AuthLayout.jsx';
 import FormField from '../../components/molecules/FormField.jsx';
 import { ROLES } from '../../utils/constants';
 import { validatePhoneNumber } from '../../utils/validators';
-import { extractErrorMessage } from '../../utils/helpers';
 import useAuth from '../../hooks/useAuth';
-import { socialLogin } from '../../services/auth/authService.js'; 
-import Label from '../../components/atoms/Label.jsx'; 
+import { socialLogin } from '../../services/auth/authService.js';
+import Label from '../../components/atoms/Label.jsx';
+import LocationSelector from '../../components/molecules/LocationSelector';
+import { CheckCircle2 } from 'lucide-react';
 
 const GRADE_GROUPS = [
-    { label: "Primary Education", options: ['Preschool','Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'] },
-    { label: "Secondary Education", options: ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11 (O/L)','Grade 12 (A/L)', 'Grade 13 (A/L)'] },
+    { label: "Primary Education", options: ['Preschool', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'] },
+    { label: "Secondary Education", options: ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11 (O/L)', 'Grade 12 (A/L)', 'Grade 13 (A/L)'] },
     { label: "Other", options: ['Course', 'Seminar', 'Workshop'] }
 ];
 
@@ -58,16 +59,14 @@ const SelectField = ({ id, label, value, onChange, groups, placeholder, required
 const RegisterDetailsPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    
-    // Destructure specifically to get registerSibling
-    const auth = useAuth(); 
+
+    const auth = useAuth();
     const manualRegister = auth.register;
     const registerSibling = auth.registerSibling;
-    
+
     const stepOneData = location.state?.stepOneData;
     const socialProfile = location.state?.socialProfile;
-    
-    // Check flags
+
     const isLinkedAccount = stepOneData?.isLinkedAccount === true;
     const linkedPhoneNumber = stepOneData?.linkedPhoneNumber || '';
 
@@ -79,8 +78,7 @@ const RegisterDetailsPage = () => {
     const isSocial = stepOneData.isSocial === true;
 
     const [formData, setFormData] = useState({
-        // Ensure linkedPhoneNumber is set as initial state if present
-        phoneNumber: isLinkedAccount ? linkedPhoneNumber : (stepOneData.phoneNumber || ''), 
+        phoneNumber: isLinkedAccount ? linkedPhoneNumber : (stepOneData.phoneNumber || ''),
         firstName: socialProfile?.firstName || '',
         lastName: socialProfile?.lastName || '',
         bio: '',
@@ -91,12 +89,14 @@ const RegisterDetailsPage = () => {
         parentName: '',
         dateOfBirth: '',
         instituteName: '',
-        address: ''
+        address: '',
+        cityId: ''
     });
 
     const [errors, setErrors] = useState({});
     const [globalError, setGlobalError] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false);
 
     const handleChange = (e) => {
         const { id, value } = e.target;
@@ -104,8 +104,12 @@ const RegisterDetailsPage = () => {
         if (errors[id]) setErrors(prev => ({ ...prev, [id]: null }));
     };
 
+    const handleCityChange = (cityId) => {
+        setFormData(prev => ({ ...prev, cityId }));
+        if (errors.cityId) setErrors(prev => ({ ...prev, cityId: null }));
+    };
+
     const handlePhoneBlur = () => {
-        // Don't validate on blur if it's disabled/linked
         if (!isLinkedAccount) {
             const validation = validatePhoneNumber(formData.phoneNumber);
             if (!validation.isValid) setErrors(prev => ({ ...prev, phoneNumber: validation.message }));
@@ -116,7 +120,6 @@ const RegisterDetailsPage = () => {
         event.preventDefault();
         setGlobalError(null);
 
-        // Skip phone validation if it is a Linked Account or Social Login
         if (!isLinkedAccount && !isSocial) {
             const phoneValidation = validatePhoneNumber(formData.phoneNumber);
             if (!phoneValidation.isValid) {
@@ -125,32 +128,37 @@ const RegisterDetailsPage = () => {
             }
         }
 
+        if (!formData.cityId) {
+            setErrors(prev => ({ ...prev, cityId: "Please select your city." }));
+            return;
+        }
+
         setIsSubmitting(true);
         const cleanDateOfBirth = formData.dateOfBirth === '' ? null : formData.dateOfBirth;
 
         try {
-            // --- SIBLING REGISTRATION ---
             if (isLinkedAccount) {
                 const siblingPayload = {
-                    identifier: linkedPhoneNumber, 
+                    identifier: linkedPhoneNumber,
                     verificationToken: "VERIFIED",
                     firstName: formData.firstName,
                     lastName: formData.lastName,
                     schoolName: formData.school,
                     grade: formData.grade,
                     parentName: formData.parentName,
-                    dateOfBirth: cleanDateOfBirth || new Date().toISOString()
+                    dateOfBirth: cleanDateOfBirth || new Date().toISOString(),
+                    cityId: parseInt(formData.cityId)
                 };
 
                 const result = await registerSibling(siblingPayload);
-                
+
                 if (result.success) {
-                    navigate('/dashboard');
+                    setIsSuccess(true);
+                    setTimeout(() => navigate('/login'), 2000);
                 } else {
                     setGlobalError(result.error?.message || "Sibling registration failed.");
                 }
             }
-            // --- SOCIAL LOGIN ---
             else if (isSocial) {
                 const payload = {
                     provider: stepOneData.provider,
@@ -167,16 +175,18 @@ const RegisterDetailsPage = () => {
                     parentName: formData.parentName,
                     dateOfBirth: cleanDateOfBirth,
                     instituteName: formData.instituteName,
-                    address: formData.address
+                    address: formData.address,
+                    cityId: parseInt(formData.cityId)
                 };
                 await socialLogin(payload);
-                navigate('/dashboard'); 
-            } 
-            // --- MANUAL REGISTRATION ---
+                setIsSuccess(true);
+                setTimeout(() => navigate('/login'), 2000);
+            }
             else {
                 const fullRegistrationData = {
                     ...stepOneData,
                     ...formData,
+                    cityId: parseInt(formData.cityId),
                     schoolName: formData.school,
                     bankAccountNumber: formData.bankAccount,
                     dateOfBirth: cleanDateOfBirth,
@@ -184,12 +194,12 @@ const RegisterDetailsPage = () => {
                     instituteName: formData.instituteName,
                     address: formData.address
                 };
-                
+
                 const result = await manualRegister(fullRegistrationData);
                 if (result.success) {
-                    navigate('/dashboard');
+                    setIsSuccess(true);
+                    setTimeout(() => navigate('/login'), 2000);
                 } else {
-                    // Safe error extraction
                     setGlobalError(result.error?.message || "Registration failed.");
                 }
             }
@@ -207,30 +217,27 @@ const RegisterDetailsPage = () => {
                     <>
                         <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required />
                         <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required />
-                        <FormField id="bio" label="Bio" value={formData.bio} onChange={handleChange} />
-                        <FormField id="bankAccount" label="Bank Account" value={formData.bankAccount} onChange={handleChange} />
-                        <FormField id="bankName" label="Bank Name" value={formData.bankName} onChange={handleChange} />
                     </>
                 );
             case ROLES.STUDENT:
                 return (
-                <>
-                    <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required />
-                    <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required />
-                    <FormField id="school" label="School Name" value={formData.school} onChange={handleChange} />
-                    <SelectField 
-                        id="grade"
-                        label="Grade / Course ..."
-                        value={formData.grade}
-                        onChange={handleChange}
-                        groups={GRADE_GROUPS}      
-                        placeholder="Select Grade"         
-                        error={errors.grade}       
-                    />
-                    <FormField id="parentName" label="Parent Name" value={formData.parentName} onChange={handleChange} />
-                    <FormField id="dateOfBirth" label="Date of Birth" type="date" value={formData.dateOfBirth} onChange={handleChange} />
-                </>
-            );
+                    <>
+                        <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required />
+                        <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required />
+                        <FormField id="school" label="School Name" value={formData.school} onChange={handleChange} />
+                        <SelectField
+                            id="grade"
+                            label="Grade / Course ..."
+                            value={formData.grade}
+                            onChange={handleChange}
+                            groups={GRADE_GROUPS}
+                            placeholder="Select Grade"
+                            error={errors.grade}
+                        />
+                        <FormField id="parentName" label="Parent Name" value={formData.parentName} onChange={handleChange} />
+                        <FormField id="dateOfBirth" label="Date of Birth" type="date" value={formData.dateOfBirth} onChange={handleChange} />
+                    </>
+                );
             case ROLES.INSTITUTE:
                 return (
                     <>
@@ -242,6 +249,22 @@ const RegisterDetailsPage = () => {
                 return null;
         }
     };
+
+    if (isSuccess) {
+        return (
+            <AuthLayout>
+                <div className="flex flex-col items-center justify-center py-16 px-4 text-center animate-in fade-in zoom-in-95 duration-300">
+                    <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6 shadow-sm ring-4 ring-green-50 dark:ring-green-900/10">
+                        <CheckCircle2 size={40} className="text-green-500 dark:text-green-400" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Registration Successful!</h2>
+                    <p className="text-gray-500 dark:text-gray-400 max-w-sm text-sm leading-relaxed">
+                        Your account has been securely created. Redirecting you to the login page to access your new dashboard...
+                    </p>
+                </div>
+            </AuthLayout>
+        );
+    }
 
     return (
         <AuthLayout>
@@ -260,15 +283,23 @@ const RegisterDetailsPage = () => {
                         onChange={handleChange}
                         onBlur={handlePhoneBlur}
                         error={errors.phoneNumber}
-                        disabled={isLinkedAccount} 
+                        disabled={isLinkedAccount}
                     />
-                    
+
                     {isLinkedAccount && (
                         <p className="text-xs text-blue-600 dark:text-blue-400 -mt-3 mb-2">* Linked to parent account</p>
                     )}
 
+                    {/* Stacked Vertical Layout for better UI */}
+                    <div className="pt-2">
+                        <LocationSelector
+                            onCityChange={handleCityChange}
+                            error={errors.cityId}
+                        />
+                    </div>
+
                     {renderRoleFields()}
-                    
+
                     {globalError && <p className="text-xs text-red-500 dark:text-red-400 mt-1 text-center">{globalError}</p>}
 
                     <button
