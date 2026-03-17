@@ -10,17 +10,19 @@ export const useAuth = () => {
   const login = async (email, password) => {
     try {
       const data = await loginService(email, password);
-      dispatch(loginSuccess({ 
+      dispatch(loginSuccess({
         user: {
           userId: data.userId,
           email: data.email,
           role: data.role,
-          firstName: data.firstName, 
+          firstName: data.firstName,
           lastName: data.lastName,
-          // Added this mapping so Login gets the Reg No
-          registrationNumber: data.registrationNumber 
-        }, 
-        token: data.token 
+          // Login gets the Reg No
+          registrationNumber: data.registrationNumber,
+          profileImageUrlSmall: data.profileImageUrlSmall,
+          profileImageUrlLarge: data.profileImageUrlLarge
+        },
+        token: data.token
       }));
       return { success: true };
     } catch (error) {
@@ -32,19 +34,8 @@ export const useAuth = () => {
   const register = async (registrationData) => {
     try {
       const data = await registerService(registrationData);
-      
-      dispatch(loginSuccess({
-        user: { 
-          userId: data.userId, 
-          email: data.email, 
-          role: data.role,
-          firstName: data.firstName || registrationData.firstName,
-          lastName: data.lastName || registrationData.lastName,
-          // Added this mapping
-          registrationNumber: data.registrationNumber
-        },
-        token: data.token
-      }));
+
+      // Removed auto-login dispatch so user is forced to the login page
       return { success: true };
     } catch (error) {
       return { success: false, error };
@@ -56,37 +47,25 @@ export const useAuth = () => {
   };
 
   const registerSibling = async (siblingData) => {
-        try {
-            const data = await registerSiblingService(siblingData);
+    try {
+      const data = await registerSiblingService(siblingData);
 
-            // Automatically log the user in with the new profile
-            dispatch(loginSuccess({
-                user: {
-                    userId: data.userId,
-                    email: data.email,
-                    role: data.role,
-                    firstName: data.profiles[0]?.firstName, 
-                    lastName: "", 
-                    // Added this mapping
-                    registrationNumber: data.registrationNumber 
-                },
-                token: data.token
-            }));
-            return { success: true };
-        } catch (error) {
-            return { success: false, error };
-        }
-    };
+      // Removed auto-login dispatch so user is forced to the login page
+      return { success: true };
+    } catch (error) {
+      return { success: false, error };
+    }
+  };
 
-    return {
-        user,
-        token,
-        isAuthenticated,
-        login,
-        register,
-        registerSibling,
-        logout: logoutUser,
-    };
+  return {
+    user,
+    token,
+    isAuthenticated,
+    login,
+    register,
+    registerSibling,
+    logout: logoutUser,
+  };
 };
 
 export default useAuth;

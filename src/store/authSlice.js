@@ -23,7 +23,11 @@ const loadUserFromStorage = () => {
 };
 
 // 2. Initialize state using the helper
-const initialState = loadUserFromStorage();
+const initialState = {
+  ...loadUserFromStorage(),
+  loading: false,
+  error: null
+};
 
 const authSlice = createSlice({
   name: 'auth',
@@ -47,8 +51,14 @@ const authSlice = createSlice({
       localStorage.removeItem('user');
       localStorage.removeItem('token');
     },
+    updateUser: (state, action) => {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload };
+        localStorage.setItem('user', JSON.stringify(state.user));
+      }
+    },
   },
 });
 
-export const { loginSuccess, logout } = authSlice.actions;
+export const { loginSuccess, logout, updateUser } = authSlice.actions;
 export default authSlice.reducer;
