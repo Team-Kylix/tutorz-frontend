@@ -2,14 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { getProvinces, getDistricts, getCities } from '../../services/api/locationService';
 import Label from '../atoms/Label';
 
-const LocationSelector = ({ onCityChange, initialCityId, error }) => {
+const LocationSelector = ({ onCityChange, initialProvinceId, initialDistrictId, initialCityId, error }) => {
     const [provinces, setProvinces] = useState([]);
     const [districts, setDistricts] = useState([]);
     const [cities, setCities] = useState([]);
 
-    const [selectedProvince, setSelectedProvince] = useState('');
-    const [selectedDistrict, setSelectedDistrict] = useState('');
+    const [selectedProvince, setSelectedProvince] = useState(initialProvinceId || '');
+    const [selectedDistrict, setSelectedDistrict] = useState(initialDistrictId || '');
     const [selectedCity, setSelectedCity] = useState(initialCityId || '');
+
+    // Allow parent to reset or set initial values late
+    useEffect(() => {
+        if (initialProvinceId) setSelectedProvince(initialProvinceId);
+        if (initialDistrictId) setSelectedDistrict(initialDistrictId);
+        if (initialCityId) setSelectedCity(initialCityId);
+    }, [initialProvinceId, initialDistrictId, initialCityId]);
 
     // Load Provinces on Mount
     useEffect(() => {
@@ -22,34 +29,50 @@ const LocationSelector = ({ onCityChange, initialCityId, error }) => {
 
     // Load Districts when Province Changes
     useEffect(() => {
+        let isMounted = true;
         if (selectedProvince) {
             const loadDistricts = async () => {
                 const data = await getDistricts(selectedProvince);
-                setDistricts(data);
-                setCities([]);
-                setSelectedDistrict('');
-                setSelectedCity('');
+                if (isMounted) {
+                    setDistricts(data);
+                    setCities([]);
+                    
+                    // IF the user changed province manually, clear district.
+                    // IF it's the initial load and the selectedDistrict belongs to this province, keep it.
+                    if (selectedProvince != initialProvinceId) {
+                         setSelectedDistrict('');
+                         setSelectedCity('');
+                    }
+                }
             };
             loadDistricts();
         } else {
             setDistricts([]);
             setCities([]);
         }
-    }, [selectedProvince]);
+        return () => { isMounted = false; };
+    }, [selectedProvince, initialProvinceId]);
 
     // Load Cities when District Changes
     useEffect(() => {
+        let isMounted = true;
         if (selectedDistrict) {
             const loadCities = async () => {
                 const data = await getCities(selectedDistrict);
-                setCities(data);
-                setSelectedCity('');
+                if (isMounted) {
+                    setCities(data);
+                    
+                    if (selectedDistrict != initialDistrictId) {
+                        setSelectedCity('');
+                    }
+                }
             };
             loadCities();
         } else {
             setCities([]);
         }
-    }, [selectedDistrict]);
+        return () => { isMounted = false; };
+    }, [selectedDistrict, initialDistrictId]);
 
     // Notify Parent when City Changes
     const handleCityChange = (e) => {

@@ -126,10 +126,6 @@ export const resetPassword = async (token, newPassword) => {
     }
 };
 
-/**
- * Registers a new student under an existing parent account.
- * @param {object} siblingData - { identifier, firstName, lastName, grade, ... }
- */
 export const registerSibling = async (siblingData) => {
     try {
         // Matches Backend: [HttpPost("register-sibling")]
@@ -140,3 +136,71 @@ export const registerSibling = async (siblingData) => {
     }
 };
 
+/**
+ * Uploads a profile picture for a specific role and entity.
+ */
+export const uploadProfilePicture = async (entityId, registrationNumber, role, file) => {
+    try {
+        const formData = new FormData();
+        formData.append('entityId', entityId);
+        formData.append('registrationNumber', registrationNumber);
+        formData.append('role', role);
+        formData.append('file', file);
+
+        const response = await apiClient.post('/auth/profile-picture', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data; // { smallUrl, largeUrl, message }
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Failed to upload profile picture.');
+    }
+};
+
+// --- CREDENTIAL UPDATES ---
+
+export const requestEmailUpdate = async (newEmail) => {
+    try {
+        const response = await apiClient.post('/auth/request-email-update', { newIdentifier: newEmail });
+        return response.data;
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Failed to request email update.');
+    }
+};
+
+export const verifyEmailUpdate = async (newEmail, otp) => {
+    try {
+        const response = await apiClient.post('/auth/verify-email-update', { newIdentifier: newEmail, otp });
+        return response.data;
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Failed to verify email update.');
+    }
+};
+
+export const requestMobileUpdate = async (newMobile) => {
+    try {
+        const response = await apiClient.post('/auth/request-mobile-update', { newIdentifier: newMobile });
+        return response.data;
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Failed to request mobile update.');
+    }
+};
+
+export const verifyMobileUpdate = async (newMobile, otp) => {
+    try {
+        const response = await apiClient.post('/auth/verify-mobile-update', { newIdentifier: newMobile, otp });
+        return response.data;
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Failed to verify mobile update.');
+    }
+};
+
+export const changePassword = async (currentPassword, newPassword) => {
+    try {
+        const response = await apiClient.post('/auth/change-password', { currentPassword, newPassword });
+        return response.data;
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Failed to change password.');
+    }
+};

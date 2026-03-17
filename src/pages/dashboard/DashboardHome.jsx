@@ -21,6 +21,7 @@ import InstituteRequestsPage from './InstituteRequestsPage';
 import TutorRequestsPage from './TutorRequestsPage';
 import StudentRequestsPage from './StudentRequestsPage';
 import AttendancePage from './AttendancePage';
+import FinancialsPage from './FinancialsPage';
 import SettingsPage from './SettingsPage';
 
 const DashboardHome = ({ activePage, setActivePage }) => {
@@ -71,6 +72,10 @@ const DashboardHome = ({ activePage, setActivePage }) => {
 
   if (activePage === 'attendance') {
     return <AttendancePage />;
+  }
+
+  if (activePage === 'financials') {
+    return <FinancialsPage />;
   }
 
   if (activePage === 'settings') {

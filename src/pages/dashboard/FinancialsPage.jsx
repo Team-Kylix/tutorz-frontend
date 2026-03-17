@@ -2,16 +2,17 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 import Select from '../../components/atoms/Select';
 import Input from '../../components/atoms/Input';
-import AttendanceTable from '../../components/organisms/AttendanceTable';
-import { searchTutors, getInstituteClasses, getClassAttendanceHistory, markAttendance } from '../../services/api/instituteService';
+import FinancialsTable from '../../components/organisms/FinancialsTable';
+import { searchTutors, getInstituteClasses } from '../../services/api/instituteService';
+import { getClassPaymentHistory } from '../../services/api/paymentService'; // NEW
 
-// Fallback toast since react-toastify is not installed
+// Fallback toast
 const toast = {
     success: (msg) => console.log(msg),
     error: (msg) => console.error(msg)
 };
 
-const AttendancePage = () => {
+const FinancialsPage = () => {
     // Dropdown Data State
     const [classes, setClasses] = useState([]);
     const [isLoadingDropdowns, setIsLoadingDropdowns] = useState(true);
@@ -27,21 +28,21 @@ const AttendancePage = () => {
     const [isSearchingTutors, setIsSearchingTutors] = useState(false);
     const [showTutorDropdown, setShowTutorDropdown] = useState(false);
 
-    // Attendance Data State
+    // Financial Data State
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
 
-    const [students, setStudents] = useState([]);
-    const [classDates, setClassDates] = useState([]);
-    const [isLoadingAttendance, setIsLoadingAttendance] = useState(false);
+    const [payments, setPayments] = useState([]);
+    const [isLoadingFinancials, setIsLoadingFinancials] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [error, setError] = useState(null);
 
     // Summary Stats State
     const [stats, setStats] = useState({
         totalReceived: 0,
-        totalDue: 0,
-        totalStudentCount: 0
+        teacherShare: 0,
+        instituteShare: 0,
+        totalStudents: 0
     });
 
     // Pagination State
@@ -71,7 +72,7 @@ const AttendancePage = () => {
                 setTutorSuggestions([]);
                 return;
             }
-            // Skip search if we just selected a tutor (name is in the query)
+            // Skip search if we just selected a tutor
             if (selectedTutorId) return;
 
             setIsSearchingTutors(true);
@@ -113,76 +114,51 @@ const AttendancePage = () => {
     // Derived State: Filter classes by the selected tutor
     const availableClasses = useMemo(() => {
         if (!selectedTutorId) return [];
-        // Optional: filter classes by tutor. Fallback to all if property is missing.
         return classes.filter(cls => !cls.tutorId || cls.tutorId === selectedTutorId || cls.tutor?.tutorId === selectedTutorId);
     }, [selectedTutorId, classes]);
 
-    // Fetch Attendance History when Class, Search, or Page changes
-    const fetchAttendanceHistory = useCallback(async (currentPage = 1) => {
+    // Fetch Payment History when Class, Search, or Page changes
+    const fetchPaymentHistory = useCallback(async (currentPage = 1) => {
         if (!selectedClassId) {
-            setStudents([]);
-            setClassDates([]);
+            setPayments([]);
             return;
         }
 
-        if (currentPage === 1) setIsLoadingAttendance(true);
+        if (currentPage === 1) setIsLoadingFinancials(true);
         else setIsLoadingMore(true);
 
         setError(null);
 
         try {
-            let response = await getClassAttendanceHistory(selectedTutorId, selectedClassId, undefined, undefined, debouncedSearchQuery, currentPage, 10);
+            let response = await getClassPaymentHistory(selectedTutorId, selectedClassId, debouncedSearchQuery, currentPage, 10);
 
             if (response.data && response.success !== false) {
                 response = response.data;
             }
 
-            const normalizeDate = (isoString) => isoString.split('T')[0];
-
-            const normalizedDates = (response.conductedDates || []).map(normalizeDate);
-            // Replace columns on every fetch to ensure distinct array is current
-            setClassDates(normalizedDates);
-
-            const normalizedStudents = (response.students || []).map(student => {
-                const normalizedAttendance = {};
-                if (student.attendanceRecord) {
-                    Object.keys(student.attendanceRecord).forEach(isoDate => {
-                        normalizedAttendance[normalizeDate(isoDate)] = student.attendanceRecord[isoDate];
-                    });
-                }
-                return {
-                    ...student,
-                    id: student.studentId,
-                    name: student.name,
-                    regNo: student.registrationNumber,
-                    mobile: student.mobileNumber,
-                    attendance: normalizedAttendance
-                };
-            });
+            const items = response.paginatedPayments?.items || response.items || response || [];
 
             if (currentPage === 1) {
-                setStudents(normalizedStudents);
+                setPayments(items);
                 // Extract summary statistics
                 setStats({
                     totalReceived: response.totalReceived || 0,
-                    totalDue: response.totalDue || 0,
-                    totalStudentCount: response.totalStudentCount || 0
+                    teacherShare: response.teacherShare || 0,
+                    instituteShare: response.instituteShare || 0,
+                    totalStudents: response.totalStudents || 0
                 });
             } else {
-                setStudents(prev => [...prev, ...normalizedStudents]);
+                setPayments(prev => [...prev, ...items]);
             }
 
-            setHasMore(normalizedStudents.length === 10);
+            setHasMore(items.length === 10);
 
         } catch (err) {
-            console.error("Failed to fetch attendance history:", err);
-            setError("Failed to load attendance records.");
-            if (currentPage === 1) {
-                setStudents([]);
-                setClassDates([]);
-            }
+            console.error("Failed to fetch payment history:", err);
+            setError("Failed to load payment records.");
+            if (currentPage === 1) setPayments([]);
         } finally {
-            setIsLoadingAttendance(false);
+            setIsLoadingFinancials(false);
             setIsLoadingMore(false);
         }
     }, [selectedClassId, debouncedSearchQuery, selectedTutorId]);
@@ -191,24 +167,24 @@ const AttendancePage = () => {
     useEffect(() => {
         setPage(1);
         setHasMore(true);
-        fetchAttendanceHistory(1);
-    }, [selectedClassId, debouncedSearchQuery, fetchAttendanceHistory]);
+        fetchPaymentHistory(1);
+    }, [selectedClassId, debouncedSearchQuery, fetchPaymentHistory]);
 
     // Trigger fetch on page increment
     useEffect(() => {
         if (page > 1) {
-            fetchAttendanceHistory(page);
+            fetchPaymentHistory(page);
         }
-    }, [page, fetchAttendanceHistory]);
+    }, [page, fetchPaymentHistory]);
 
     // Infinite Scroll Listener
     const handleScroll = useCallback(() => {
         if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
-            if (hasMore && !isLoadingAttendance && !isLoadingMore && selectedClassId) {
+            if (hasMore && !isLoadingFinancials && !isLoadingMore && selectedClassId) {
                 setPage(prev => prev + 1);
             }
         }
-    }, [hasMore, isLoadingAttendance, isLoadingMore, selectedClassId]);
+    }, [hasMore, isLoadingFinancials, isLoadingMore, selectedClassId]);
 
     useEffect(() => {
         window.addEventListener('scroll', handleScroll);
@@ -225,56 +201,14 @@ const AttendancePage = () => {
         setSearchQuery(e.target.value);
     };
 
-    const handleMarkAttendance = async (studentId, dateString) => {
-        // UI Optimistic Update
-        setStudents(prevStudents => prevStudents.map(student => {
-            if (student.id === studentId) {
-                return {
-                    ...student,
-                    attendance: {
-                        ...student.attendance,
-                        [dateString]: true
-                    }
-                };
-            }
-            return student;
-        }));
-
-        try {
-            // The existing backend markAttendance asks for studentId and classId. 
-            // It inherently marks it for "now" or "today".
-            // Since this API was pre-existing (`instituteService.markAttendance(studentId, classId)`), we'll call it.
-            // If the user tries to mark old dates, the backend needs an explicit date param,
-            // but for now we'll assume the markAttendance endpoint handles it or we're marking today.
-            await markAttendance(studentId, selectedClassId);
-            toast?.success?.("Attendance marked successfully");
-        } catch (err) {
-            console.error(err);
-            toast?.error?.("Failed to mark attendance");
-            // Revert optimistic update
-            setStudents(prevStudents => prevStudents.map(student => {
-                if (student.id === studentId) {
-                    return {
-                        ...student,
-                        attendance: {
-                            ...student.attendance,
-                            [dateString]: false
-                        }
-                    };
-                }
-                return student;
-            }));
-        }
-    };
-
     // Render
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-2">
 
             {/* Page Header */}
             <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Attendance History</h1>
-                <p className="text-gray-500 dark:text-gray-400 mt-1">View and manage class attendance records.</p>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Class Financials</h1>
+                <p className="text-gray-500 dark:text-gray-400 mt-1">View class fee records and payment history.</p>
             </div>
 
             {/* Filter Controls Area */}
@@ -359,6 +293,7 @@ const AttendancePage = () => {
                         disabled={!selectedTutorId || isLoadingDropdowns}
                     >
                         <option value="">-- Choose a Class --</option>
+                        <option value="all">All Classes</option>
                         {availableClasses.map(cls => {
                             const cId = cls.classId || cls.id;
                             return (
@@ -393,19 +328,23 @@ const AttendancePage = () => {
             </div>
 
             {/* Summary Statistics Boxes */}
-            {selectedClassId && !isLoadingAttendance && !error && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
+            {selectedClassId && !isLoadingFinancials && !error && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Total Students</p>
-                        <p className="text-xl font-bold text-gray-900 dark:text-white">{stats.totalStudentCount}</p>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Total Children</p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white">{stats.totalStudents}</p>
                     </div>
                     <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Amount Received</p>
-                        <p className="text-xl font-bold text-green-600 dark:text-green-400">Rs. {stats.totalReceived.toLocaleString()}</p>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Total Received</p>
+                        <p className="text-xl font-bold text-blue-600 dark:text-blue-400">Rs. {stats.totalReceived.toLocaleString()}</p>
                     </div>
                     <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Amount Due</p>
-                        <p className="text-xl font-bold text-orange-600 dark:text-orange-400">Rs. {stats.totalDue.toLocaleString()}</p>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Teacher Share</p>
+                        <p className="text-xl font-bold text-green-600 dark:text-green-400">Rs. {stats.teacherShare.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Institute Share</p>
+                        <p className="text-xl font-bold text-purple-600 dark:text-purple-400">Rs. {stats.instituteShare.toLocaleString()}</p>
                     </div>
                 </div>
             )}
@@ -414,12 +353,12 @@ const AttendancePage = () => {
             <div className="mt-4">
                 {!selectedClassId ? (
                     <div className="bg-gray-50 dark:bg-gray-800/50 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-12 text-center">
-                        <p className="text-gray-500 dark:text-gray-400">Please select a tutor and a class to view attendance history.</p>
+                        <p className="text-gray-500 dark:text-gray-400">Please select a tutor and a class to view financial records.</p>
                     </div>
-                ) : isLoadingAttendance ? (
+                ) : isLoadingFinancials ? (
                     <div className="flex justify-center items-center p-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                         <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                        <span className="ml-3 text-gray-500 dark:text-gray-400">Loading attendance data...</span>
+                        <span className="ml-3 text-gray-500 dark:text-gray-400">Loading payment history...</span>
                     </div>
                 ) : error ? (
                     <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-xl p-6 text-center">
@@ -427,22 +366,19 @@ const AttendancePage = () => {
                     </div>
                 ) : (
                     <>
-                        <AttendanceTable
-                            students={students}
-                            classDates={classDates}
-                            onMarkAttendance={handleMarkAttendance}
-                        />
+                        <FinancialsTable payments={payments} />
                         {isLoadingMore && (
                             <div className="flex justify-center items-center py-6">
                                 <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                                <span className="ml-2 text-sm text-gray-500">Loading more students...</span>
+                                <span className="ml-2 text-sm text-gray-500">Loading more payments...</span>
                             </div>
                         )}
                     </>
                 )}
             </div>
+
         </div>
     );
 };
 
-export default AttendancePage;
+export default FinancialsPage;
