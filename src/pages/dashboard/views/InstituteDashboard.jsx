@@ -400,9 +400,21 @@ const InstituteDashboard = ({ user, setActivePage }) => {
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Institute Overview</h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Welcome back, {user?.firstName || 'Admin'}</p>
                 </div>
-                <div className="flex gap-3">
-                    <Button variant="outline" onClick={() => setIsAttendanceModalOpen(true)}><QrCode size={18} className="mr-2" /> Mark Attendance</Button>
-                    <Button variant="primary" onClick={openSelection}><Plus size={18} className="mr-2" /> Add New</Button>
+                <div className="flex gap-3 justify-center sm:justify-end">
+                    <Button
+                        variant="primary"
+                        onClick={() => setIsAttendanceModalOpen(true)}
+                        className="flex-1 sm:flex-none sm:min-w-[170px]"
+                    >
+                        <QrCode size={18} className="mr-2" /> Mark Attendance
+                    </Button>
+                    <Button
+                        variant="primary"
+                        onClick={openSelection}
+                        className="flex-1 sm:flex-none sm:min-w-[170px]"
+                    >
+                        <Plus size={18} className="mr-2" /> Add New
+                    </Button>
                 </div>
             </div>
 

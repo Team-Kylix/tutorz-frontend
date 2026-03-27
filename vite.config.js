@@ -39,11 +39,6 @@ export default defineConfig({
     })
   ],
   server: {
-    host: true,
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
-      'Cross-Origin-Embedder-Policy': 'credentialless',
-      'Referrer-Policy': 'no-referrer-when-downgrade'
-    }
+    host: true
   }
 })
