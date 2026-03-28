@@ -1,8 +1,11 @@
 import React, { useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useThemeContext } from '../../context/ThemeContext';
 
 const StudentQRCode = ({ value, studentName }) => {
     const qrRef = useRef();
+    const { theme } = useThemeContext();
+    const isDark = theme === 'dark';
 
     const downloadQRCode = () => {
         // Assuming the QRCode is the first child SVG element
@@ -16,7 +19,7 @@ const StudentQRCode = ({ value, studentName }) => {
             // Set canvas dimensions to match SVG or arbitrary large size for high quality
             canvas.width = img.width;
             canvas.height = img.height;
-            ctx.fillStyle = '#ffffff'; // Ensure white background
+            ctx.fillStyle = '#ffffff'; // Ensure white background for the downloaded file
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0);
 
@@ -31,21 +34,21 @@ const StudentQRCode = ({ value, studentName }) => {
     };
 
     return (
-        <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-md border border-gray-100 w-full max-w-sm mx-auto">
-            <h3 className="mb-4 font-bold text-gray-700">{studentName}'s ID</h3>
+        <div className="flex flex-col items-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 w-full max-w-sm mx-auto transition-colors">
+            <h3 className="mb-4 font-bold text-gray-700 dark:text-gray-200">{studentName}'s ID</h3>
 
-            <div ref={qrRef} className="p-4 bg-white border-2 border-dashed border-gray-200 rounded-lg">
+            <div ref={qrRef} className="p-4 bg-white dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg transition-colors">
                 <QRCodeSVG
                     value={value}
                     size={200}
-                    bgColor={"#ffffff"}
-                    fgColor={"#1e293b"}
+                    bgColor={isDark ? "#111827" : "#ffffff"} // Matches gray-900 in dark mode
+                    fgColor={isDark ? "#ffffff" : "#1e293b"} // White in dark mode, dark blue in light mode
                     level={"H"}
                     includeMargin={true}
                 />
             </div>
 
-            <p className="mt-4 text-xs text-gray-400 font-mono uppercase tracking-widest">
+            <p className="mt-4 text-xs text-gray-400 dark:text-gray-500 font-mono uppercase tracking-widest">
                 {value}
             </p>
 

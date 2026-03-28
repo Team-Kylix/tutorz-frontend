@@ -59,7 +59,7 @@ const ProfileTemplate = ({
 
                         {/* Action Button */}
                         {actionButton && (
-                            <div>{actionButton}</div>
+                            <div className="w-full md:w-auto">{actionButton}</div>
                         )}
                     </div>
                 </div>

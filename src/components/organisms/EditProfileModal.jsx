@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Upload, Save, Loader } from 'lucide-react';
+import { Camera, Upload, Save, Loader, Key, X } from 'lucide-react';
 
 // Atoms & Molecules
 import Button from '../atoms/Button';
@@ -183,11 +183,6 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                             <h3 className="text-sm font-bold text-gray-900 dark:text-white">
                                 Basic Information
                             </h3>
-                            {normalizedRole === 'institute' && (
-                                <Button type="button" variant="outline" size="sm" onClick={() => setShowPasswordModal(true)}>
-                                    Change Password
-                                </Button>
-                            )}
                         </div>
                         
                         {normalizedRole === 'institute' ? (
@@ -292,11 +287,35 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                 </div>
 
                 {/* --- Footer Buttons --- */}
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
-                    <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-                    <Button type="submit" variant="primary" disabled={isSaving}>
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                    {normalizedRole === 'institute' && (
+                        <Button 
+                            type="button" 
+                            variant="primary" 
+                            onClick={() => setShowPasswordModal(true)}
+                            className="w-full sm:w-auto order-2 sm:order-none"
+                        >
+                            <Key size={18} className="mr-2"/>
+                            Change Password
+                        </Button>
+                    )}
+                    <Button 
+                        type="submit" 
+                        variant="primary" 
+                        disabled={isSaving}
+                        className="w-full sm:w-auto order-1 sm:order-none"
+                    >
                         {isSaving ? <Loader size={18} className="animate-spin mr-2"/> : <Save size={18} className="mr-2"/>}
                         Save Changes
+                    </Button>
+                    <Button 
+                        type="button" 
+                        variant="secondary" 
+                        onClick={onClose}
+                        className="w-full sm:w-auto order-3 sm:order-none"
+                    >
+                        <X size={18} className="mr-2"/>
+                        Cancel
                     </Button>
                 </div>
 

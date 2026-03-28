@@ -164,13 +164,7 @@ const UserProfile = () => {
             specificContent = (
                 <div className="flex flex-col gap-4">
                     <InfoCard icon={MapPin} label="Address" value={profile?.address || "No address provided"} />
-                    <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800 mt-2">
-                        <p className="text-xs text-green-600 dark:text-green-400 font-semibold uppercase tracking-wide mb-1">Status</p>
-                        <div className="flex items-center gap-2">
-                            <Building size={18} className="text-green-500 dark:text-green-400" />
-                            <span className="text-gray-900 dark:text-white font-medium">Verified Institute</span>
-                        </div>
-                    </div>
+                    
                 </div>
             );
         }
@@ -221,7 +215,12 @@ const UserProfile = () => {
                 rightColumnTitle={getRightTitle()}
                 rightColumnContent={renderRightColumn()}
                 actionButton={
-                    <Button variant="outline" size="small" onClick={() => setIsEditModalOpen(true)}>
+                    <Button 
+                        variant="outline" 
+                        size="small" 
+                        onClick={() => setIsEditModalOpen(true)}
+                        className="w-full md:w-auto"
+                    >
                         <Pencil size={16} className="mr-2" /> Edit Profile
                     </Button>
                 }
