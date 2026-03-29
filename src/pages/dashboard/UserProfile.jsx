@@ -14,7 +14,7 @@ import { getInstituteProfile, updateInstituteProfile } from '../../services/api/
 
 // Components
 import InfoCard from '../../components/molecules/InfoCard';
-import BankingCard from '../../components/organisms/BankingCard';
+import FinancialsSection from '../../components/organisms/FinancialsSection';
 import ProfileTemplate from '../../components/templates/ProfileTemplate';
 import Button from '../../components/atoms/Button';
 import EditProfileModal from '../../components/organisms/EditProfileModal';
@@ -148,7 +148,7 @@ const UserProfile = () => {
         let specificContent = null;
 
         if (role === ROLES.TUTOR) {
-            specificContent = <BankingCard bankName={profile?.bankName} accountNumber={profile?.bankAccountNumber} />;
+            specificContent = <FinancialsSection role={role} />;
         } else if (role === ROLES.STUDENT) {
             specificContent = (
                 <div className="flex flex-col gap-4">
@@ -158,13 +158,21 @@ const UserProfile = () => {
                         <span className="text-sm text-gray-500 dark:text-gray-400">Account Status</span>
                         <span className="px-3 py-1 text-xs font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 rounded-full">Active Student</span>
                     </div>
+                    {/* Card payment for students */}
+                    <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Payment</p>
+                        <FinancialsSection role={role} />
+                    </div>
                 </div>
             );
         } else if (role === ROLES.INSTITUTE) {
             specificContent = (
                 <div className="flex flex-col gap-4">
                     <InfoCard icon={MapPin} label="Address" value={profile?.address || "No address provided"} />
-                    
+                    {/* Full financials for institutes */}
+                    <div className="mt-2">
+                        <FinancialsSection role={role} />
+                    </div>
                 </div>
             );
         }
@@ -188,8 +196,8 @@ const UserProfile = () => {
     // Helper to get Right Column Title
     const getRightTitle = () => {
         if (role === ROLES.TUTOR) return "Financial Information";
-        if (role === ROLES.STUDENT) return "Academic Information";
-        if (role === ROLES.INSTITUTE) return "Location Details";
+        if (role === ROLES.STUDENT) return "Academic & Payment";
+        if (role === ROLES.INSTITUTE) return "Location & Financials";
         return "Details";
     };
 

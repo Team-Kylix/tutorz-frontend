@@ -35,7 +35,23 @@ export default defineConfig({
             type: 'image/png'
           }
         ]
-      }
+      },
+      workbox: {
+        // Only use the offline fallback for actual page navigations (not API calls)
+        navigateFallbackAllowlist: [new RegExp('^(?!/api/).*')],
+        runtimeCaching: [
+          {
+            // Match ALL API requests by path — NetworkOnly (never cache)
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+            handler: 'NetworkOnly',
+            options: {
+              fetchOptions: {
+                mode: 'cors',
+              },
+            },
+          },
+        ],
+      },
     })
   ],
   server: {
