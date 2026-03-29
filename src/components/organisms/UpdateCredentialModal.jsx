@@ -3,7 +3,8 @@ import Modal from '../molecules/Modal';
 import FormField from '../molecules/FormField';
 import Button from '../atoms/Button';
 import { Loader } from 'lucide-react';
-import { requestEmailUpdate, verifyEmailUpdate, requestMobileUpdate, verifyMobileUpdate } from '../../services/auth/authService';
+import { requestEmailUpdate, verifyEmailUpdate, requestMobileUpdate, verifyMobileUpdate, checkUserStatus } from '../../services/auth/authService';
+import { validatePhoneNumber, validateEmail } from '../../utils/validators';
 
 const UpdateCredentialModal = ({ isOpen, onClose, type, currentIdentifier, onSuccess }) => {
     // type: 'email' or 'mobile'
@@ -24,8 +25,38 @@ const UpdateCredentialModal = ({ isOpen, onClose, type, currentIdentifier, onSuc
 
         try {
             if (type === 'email') {
+                const emailValidation = validateEmail(newIdentifier);
+                if (!emailValidation.isValid) {
+                    setError(emailValidation.message);
+                    setIsLoading(false);
+                    return;
+                }
+
+                // Check uniqueness first
+                const userStatus = await checkUserStatus({ email: newIdentifier });
+                if (userStatus.exists) {
+                    setError("This email address is already registered to an account.");
+                    setIsLoading(false);
+                    return;
+                }
+
                 await requestEmailUpdate(newIdentifier);
             } else {
+                const phoneValidation = validatePhoneNumber(newIdentifier);
+                if (!phoneValidation.isValid) {
+                    setError(phoneValidation.message);
+                    setIsLoading(false);
+                    return;
+                }
+
+                // Check uniqueness first
+                const userStatus = await checkUserStatus({ phoneNumber: newIdentifier });
+                if (userStatus.exists) {
+                    setError("This mobile number is already registered to an account.");
+                    setIsLoading(false);
+                    return;
+                }
+
                 await requestMobileUpdate(newIdentifier);
             }
             setStep(2);

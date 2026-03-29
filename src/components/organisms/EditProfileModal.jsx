@@ -10,6 +10,8 @@ import TextAreaField from '../molecules/TextAreaField';
 import UpdateCredentialModal from './UpdateCredentialModal';
 import ChangePasswordModal from './ChangePasswordModal';
 import LocationSelector from '../molecules/LocationSelector';
+import ConfirmationModal from '../molecules/ConfirmationModal';
+import { validatePhoneNumber } from '../../utils/validators';
 
 const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role = 'tutor' }) => {
     
@@ -54,6 +56,8 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [showMobileModal, setShowMobileModal] = useState(false);
     const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+    const [errors, setErrors] = useState({});
 
     // Sync state when initialData changes or modal opens
     useEffect(() => {
@@ -85,6 +89,16 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
         const { id, value } = e.target;
         const key = id || e.target.name; 
         setFormData(prev => ({ ...prev, [key]: value }));
+        if (errors[key]) setErrors(prev => ({ ...prev, [key]: null }));
+    };
+
+    const handlePhoneBlur = () => {
+        if (normalizedRole !== 'institute' && formData.phoneNumber) {
+            const validation = validatePhoneNumber(formData.phoneNumber);
+            if (!validation.isValid) {
+                setErrors(prev => ({ ...prev, phoneNumber: validation.message }));
+            }
+        }
     };
 
     const handleImageChange = (e) => {
@@ -95,8 +109,23 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleTriggerSave = (e) => {
         e.preventDefault();
+
+        // Validate phone number before showing confirmation dialog
+        if (normalizedRole !== 'institute') {
+            const phoneValidation = validatePhoneNumber(formData.phoneNumber);
+            if (!phoneValidation.isValid) {
+                setErrors(prev => ({ ...prev, phoneNumber: phoneValidation.message }));
+                return;
+            }
+        }
+
+        setShowSaveConfirm(true);
+    };
+
+    const executeSave = () => {
+        setShowSaveConfirm(false);
         
         // Ensure clean payload for Institute ([FromForm] backend validation)
         if (normalizedRole === 'institute') {
@@ -149,7 +178,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
     return (
         <>
             <Modal isOpen={isOpen} onClose={onClose} title={`Edit ${role.charAt(0).toUpperCase() + role.slice(1)} Profile`}>
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleTriggerSave} className="space-y-6">
                     
                     {/* --- SECTION 1: Profile Picture (Enabled for ALL Roles) --- */}
                     <div className="flex flex-col items-center gap-2 mb-4">
@@ -222,6 +251,8 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                                         label="Phone Number" 
                                         value={formData.phoneNumber} 
                                         onChange={handleChange} 
+                                        onBlur={handlePhoneBlur}
+                                        error={errors.phoneNumber}
                                     />
                                 </>
                             )}
@@ -274,6 +305,8 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                     {normalizedRole === 'institute' && (
                         <>
                             <LocationSelector 
+                                onProvinceChange={(provinceId) => setFormData(prev => ({ ...prev, provinceId }))}
+                                onDistrictChange={(districtId) => setFormData(prev => ({ ...prev, districtId }))}
                                 onCityChange={(cityId) => setFormData(prev => ({ ...prev, cityId }))}
                                 initialProvinceId={formData.provinceId}
                                 initialDistrictId={formData.districtId}
@@ -342,6 +375,15 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
         <ChangePasswordModal
             isOpen={showPasswordModal}
             onClose={() => setShowPasswordModal(false)}
+        />
+
+        <ConfirmationModal
+            isOpen={showSaveConfirm}
+            onClose={() => setShowSaveConfirm(false)}
+            onConfirm={executeSave}
+            title="Confirm Profile Update"
+            message={`Are you sure you want to save the changes to your profile?`}
+            confirmLabel={isSaving ? "Saving..." : "Save Changes"}
         />
     </>
     );
