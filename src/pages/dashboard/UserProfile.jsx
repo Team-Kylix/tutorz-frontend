@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch } from 'react-redux'; // Added Redux Dispatch
-import { Mail, Phone, FileText, Pencil, MapPin, Globe, Building, School, GraduationCap, Calendar, User } from 'lucide-react';
+import { Mail, Phone, FileText, Pencil, MapPin, Globe, Building, School, GraduationCap, Calendar, User, Building2, CreditCard } from 'lucide-react';
 
 // Hooks & Constants
 import { useAuth } from '../../hooks/useAuth';
@@ -11,6 +11,7 @@ import { updateUser } from '../../store/authSlice'; // Added Redux Action
 import { getTutorProfile, updateTutorProfile } from '../../services/api/tutorService';
 import { getStudentProfile, updateStudentProfile } from '../../services/api/studentService';
 import { getInstituteProfile, updateInstituteProfile } from '../../services/api/instituteService';
+import { getProvinces, getDistricts, getCities } from '../../services/api/locationService';
 
 // Components
 import InfoCard from '../../components/molecules/InfoCard';
@@ -30,6 +31,9 @@ const UserProfile = () => {
     const [error, setError] = useState('');
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+
+    // Location name resolution for address display (institute)
+    const [locationNames, setLocationNames] = useState({ province: '', district: '', city: '' });
 
     // --- 1. Dynamic API Logic ---
     const fetchProfileData = useCallback(async () => {
@@ -73,6 +77,41 @@ const UserProfile = () => {
         if (role) fetchProfileData();
     }, [fetchProfileData, role]);
 
+    // Resolve location names when institute profile loads
+    useEffect(() => {
+        if (role !== ROLES.INSTITUTE || !profile) return;
+
+        const resolveLocationNames = async () => {
+            try {
+                const names = { province: '', district: '', city: '' };
+
+                if (profile.provinceId) {
+                    const provinces = await getProvinces();
+                    const prov = provinces.find(p => p.id?.toString() === profile.provinceId?.toString());
+                    if (prov) names.province = prov.name;
+                }
+
+                if (profile.districtId) {
+                    const districts = await getDistricts(profile.provinceId);
+                    const dist = districts.find(d => d.id?.toString() === profile.districtId?.toString());
+                    if (dist) names.district = dist.name;
+                }
+
+                if (profile.cityId) {
+                    const cities = await getCities(profile.districtId);
+                    const city = cities.find(c => c.id?.toString() === profile.cityId?.toString());
+                    if (city) names.city = city.name;
+                }
+
+                setLocationNames(names);
+            } catch (err) {
+                console.error('Failed to resolve location names:', err);
+            }
+        };
+
+        resolveLocationNames();
+    }, [profile, role]);
+
     const handleSaveChanges = async (formData) => {
         setIsSaving(true);
         try {
@@ -93,6 +132,16 @@ const UserProfile = () => {
 
     // --- 2. Dynamic Content Rendering ---
 
+    // Helper: compose a full address string from location names + street address
+    const getFullAddress = () => {
+        const parts = [];
+        if (locationNames.province) parts.push(locationNames.province);
+        if (locationNames.district) parts.push(locationNames.district);
+        if (locationNames.city) parts.push(locationNames.city);
+        if (profile?.address) parts.push(profile.address);
+        return parts.length > 0 ? parts.join(', ') : 'No address provided';
+    };
+
     // A. Left Column (Personal / Contact)
     const renderPersonalContent = () => {
         return (
@@ -108,7 +157,41 @@ const UserProfile = () => {
 
                 {/* Institute Specific */}
                 {role === ROLES.INSTITUTE && (
-                    <InfoCard icon={Globe} label="Website" value={profile?.website || "No website"} />
+                    <>
+                        <InfoCard icon={Globe} label="Website" value={profile?.website || "No website"} />
+                        {/* Hierarchical Address: Province > District > City > Street */}
+                        <div className="group flex items-start gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700 transition-colors">
+                            <div className="p-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm text-blue-600 dark:text-blue-400">
+                                <MapPin size={20} />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1 uppercase tracking-wide">Address</p>
+                                <div className="space-y-1">
+                                    {locationNames.province && (
+                                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                                            <span className="font-medium text-gray-500 dark:text-gray-400">Province: </span>
+                                            {locationNames.province}
+                                        </p>
+                                    )}
+                                    {locationNames.district && (
+                                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                                            <span className="font-medium text-gray-500 dark:text-gray-400">District: </span>
+                                            {locationNames.district}
+                                        </p>
+                                    )}
+                                    {locationNames.city && (
+                                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                                            <span className="font-medium text-gray-500 dark:text-gray-400">City/Town: </span>
+                                            {locationNames.city}
+                                        </p>
+                                    )}
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                        {profile?.address || 'No street address'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </>
                 )}
 
                 {/* Student Specific: Guardian & DOB */}
@@ -148,7 +231,15 @@ const UserProfile = () => {
         let specificContent = null;
 
         if (role === ROLES.TUTOR) {
-            specificContent = <FinancialsSection role={role} />;
+            specificContent = (
+                <div className="flex flex-col gap-4">
+                    {/* Read-only bank & card display */}
+                    <div className="pb-1">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Payment & Banking</p>
+                        <FinancialsSection role={role} readOnly={true} />
+                    </div>
+                </div>
+            );
         } else if (role === ROLES.STUDENT) {
             specificContent = (
                 <div className="flex flex-col gap-4">
@@ -158,20 +249,20 @@ const UserProfile = () => {
                         <span className="text-sm text-gray-500 dark:text-gray-400">Account Status</span>
                         <span className="px-3 py-1 text-xs font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 rounded-full">Active Student</span>
                     </div>
-                    {/* Card payment for students */}
+                    {/* Read-only card display for students */}
                     <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
                         <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Payment</p>
-                        <FinancialsSection role={role} />
+                        <FinancialsSection role={role} readOnly={true} />
                     </div>
                 </div>
             );
         } else if (role === ROLES.INSTITUTE) {
             specificContent = (
                 <div className="flex flex-col gap-4">
-                    <InfoCard icon={MapPin} label="Address" value={profile?.address || "No address provided"} />
-                    {/* Full financials for institutes */}
-                    <div className="mt-2">
-                        <FinancialsSection role={role} />
+                    {/* Read-only bank & card display for institutes */}
+                    <div className="pb-1">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Payment & Banking</p>
+                        <FinancialsSection role={role} readOnly={true} />
                     </div>
                 </div>
             );
@@ -181,14 +272,7 @@ const UserProfile = () => {
             <div className="flex flex-col gap-6">
                 {specificContent}
 
-                {profile?.registrationNumber && (
-                    <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                        <StudentQRCode
-                            value={profile.registrationNumber}
-                            studentName={getHeaderName().first}
-                        />
-                    </div>
-                )}
+                {/* Registration Number is now handled in the header via qrCodeContent */}
             </div>
         );
     };
@@ -222,6 +306,15 @@ const UserProfile = () => {
                 leftColumnContent={renderPersonalContent()}
                 rightColumnTitle={getRightTitle()}
                 rightColumnContent={renderRightColumn()}
+                qrCodeContent={
+                    profile?.registrationNumber && (
+                        <StudentQRCode
+                            variant="compact"
+                            value={profile.registrationNumber}
+                            studentName={getHeaderName().first}
+                        />
+                    )
+                }
                 actionButton={
                     <Button 
                         variant="outline" 

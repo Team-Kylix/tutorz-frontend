@@ -11,6 +11,8 @@ import UpdateCredentialModal from './UpdateCredentialModal';
 import ChangePasswordModal from './ChangePasswordModal';
 import LocationSelector from '../molecules/LocationSelector';
 import ConfirmationModal from '../molecules/ConfirmationModal';
+import FinancialsSection from './FinancialsSection';
+import { ROLES } from '../../utils/constants';
 import { validatePhoneNumber } from '../../utils/validators';
 
 const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role = 'tutor' }) => {
@@ -178,7 +180,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
     return (
         <>
             <Modal isOpen={isOpen} onClose={onClose} title={`Edit ${role.charAt(0).toUpperCase() + role.slice(1)} Profile`}>
-                <form onSubmit={handleTriggerSave} className="space-y-6">
+                <div className="space-y-6">
                     
                     {/* --- SECTION 1: Profile Picture (Enabled for ALL Roles) --- */}
                     <div className="flex flex-col items-center gap-2 mb-4">
@@ -266,93 +268,105 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                             </div>
                         )}
 
-                    {/* Tutor Specific Bio */}
-                    {normalizedRole === 'tutor' && (
-                        <TextAreaField id="bio" label="Biography" value={formData.bio} onChange={handleChange} placeholder="Tell students about yourself..." />
-                    )}
-                </div>
+                        {/* Tutor Specific Bio */}
+                        {normalizedRole === 'tutor' && (
+                            <TextAreaField id="bio" label="Biography" value={formData.bio} onChange={handleChange} placeholder="Tell students about yourself..." />
+                        )}
+                    </div>
 
-                {/* --- SECTION 3: Role Specific Details --- */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">
-                        {normalizedRole === 'tutor' ? 'Financial Details' : normalizedRole === 'institute' ? 'Location & Web' : 'Academic Details'}
-                    </h3>
+                    {/* --- SECTION 3: Role Specific Details --- */}
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">
+                            {normalizedRole === 'tutor' ? 'Financial Details' : normalizedRole === 'institute' ? 'Location & Web' : 'Academic Details'}
+                        </h3>
 
-                    {/* A. TUTOR FIELDS */}
-                    {normalizedRole === 'tutor' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField id="bankName" label="Bank Name" value={formData.bankName} onChange={handleChange} placeholder="e.g. Bank of Ceylon" />
-                            <FormField id="bankAccountNumber" label="Account Number" value={formData.bankAccountNumber} onChange={handleChange} />
-                        </div>
-                    )}
-
-                    {/* B. STUDENT FIELDS */}
-                    {normalizedRole === 'student' && (
-                        <>
-                            <div className="grid grid-cols-1 gap-4">
-                                <FormField id="schoolName" label="School Name" value={formData.schoolName} onChange={handleChange} placeholder="e.g. Royal College" />
-                            </div>
+                        {/* A. TUTOR FIELDS */}
+                        {normalizedRole === 'tutor' && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField id="grade" label="Grade / Year" value={formData.grade} onChange={handleChange} placeholder="e.g. Grade 10" />
-                                {initialData?.registrationNumber && (
-                                    <FormField id="regNumber" label="Registration No" value={initialData.registrationNumber} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
-                                )}
+                                <FormField id="bankName" label="Bank Name" value={formData.bankName} onChange={handleChange} placeholder="e.g. Bank of Ceylon" />
+                                <FormField id="bankAccountNumber" label="Account Number" value={formData.bankAccountNumber} onChange={handleChange} />
                             </div>
-                        </>
-                    )}
+                        )}
 
-                    {/* C. INSTITUTE FIELDS */}
-                    {normalizedRole === 'institute' && (
-                        <>
-                            <LocationSelector 
-                                onProvinceChange={(provinceId) => setFormData(prev => ({ ...prev, provinceId }))}
-                                onDistrictChange={(districtId) => setFormData(prev => ({ ...prev, districtId }))}
-                                onCityChange={(cityId) => setFormData(prev => ({ ...prev, cityId }))}
-                                initialProvinceId={formData.provinceId}
-                                initialDistrictId={formData.districtId}
-                                initialCityId={formData.cityId}
-                                error={null} 
-                            />
-                            <FormField id="address" label="Street Address" value={formData.address} onChange={handleChange} placeholder="e.g. No 15, Main Street" />
-                            <FormField id="website" label="Website" value={formData.website} onChange={handleChange} placeholder="https://..." />
-                        </>
-                    )}
-                </div>
+                        {/* B. STUDENT FIELDS */}
+                        {normalizedRole === 'student' && (
+                            <>
+                                <div className="grid grid-cols-1 gap-4">
+                                    <FormField id="schoolName" label="School Name" value={formData.schoolName} onChange={handleChange} placeholder="e.g. Royal College" />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <FormField id="grade" label="Grade / Year" value={formData.grade} onChange={handleChange} placeholder="e.g. Grade 10" />
+                                    {initialData?.registrationNumber && (
+                                        <FormField id="regNumber" label="Registration No" value={initialData.registrationNumber} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
+                                    )}
+                                </div>
+                            </>
+                        )}
 
-                {/* --- Footer Buttons --- */}
-                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
-                    {normalizedRole === 'institute' && (
+                        {/* C. INSTITUTE FIELDS */}
+                        {normalizedRole === 'institute' && (
+                            <>
+                                <LocationSelector 
+                                    onProvinceChange={(provinceId) => setFormData(prev => ({ ...prev, provinceId }))}
+                                    onDistrictChange={(districtId) => setFormData(prev => ({ ...prev, districtId }))}
+                                    onCityChange={(cityId) => setFormData(prev => ({ ...prev, cityId }))}
+                                    initialProvinceId={formData.provinceId}
+                                    initialDistrictId={formData.districtId}
+                                    initialCityId={formData.cityId}
+                                    error={null} 
+                                />
+                                <FormField id="address" label="Street Address" value={formData.address} onChange={handleChange} placeholder="e.g. No 15, Main Street" />
+                                <FormField id="website" label="Website" value={formData.website} onChange={handleChange} placeholder="https://..." />
+                            </>
+                        )}
+                    </div>
+
+                    {/* --- SECTION 4: Payment & Banking --- */}
+                    <div className="space-y-4 border-t border-gray-100 dark:border-gray-700 pt-6">
+                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2">
+                            <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                                Payment &amp; Banking
+                            </h3>
+                            <span className="text-xs text-gray-400 dark:text-gray-500">Manage your saved accounts</span>
+                        </div>
+                        <FinancialsSection role={role} readOnly={false} />
+                    </div>
+
+                    {/* --- Footer Buttons --- */}
+                    <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                        {normalizedRole === 'institute' && (
+                            <Button 
+                                type="button" 
+                                variant="primary" 
+                                onClick={() => setShowPasswordModal(true)}
+                                className="w-full sm:w-auto order-2 sm:order-none"
+                            >
+                                <Key size={18} className="mr-2"/>
+                                Change Password
+                            </Button>
+                        )}
                         <Button 
                             type="button" 
                             variant="primary" 
-                            onClick={() => setShowPasswordModal(true)}
-                            className="w-full sm:w-auto order-2 sm:order-none"
+                            disabled={isSaving}
+                            onClick={handleTriggerSave}
+                            className="w-full sm:w-auto order-1 sm:order-none"
                         >
-                            <Key size={18} className="mr-2"/>
-                            Change Password
+                            {isSaving ? <Loader size={18} className="animate-spin mr-2"/> : <Save size={18} className="mr-2"/>}
+                            Save Changes
                         </Button>
-                    )}
-                    <Button 
-                        type="submit" 
-                        variant="primary" 
-                        disabled={isSaving}
-                        className="w-full sm:w-auto order-1 sm:order-none"
-                    >
-                        {isSaving ? <Loader size={18} className="animate-spin mr-2"/> : <Save size={18} className="mr-2"/>}
-                        Save Changes
-                    </Button>
-                    <Button 
-                        type="button" 
-                        variant="secondary" 
-                        onClick={onClose}
-                        className="w-full sm:w-auto order-3 sm:order-none"
-                    >
-                        <X size={18} className="mr-2"/>
-                        Cancel
-                    </Button>
+                        <Button 
+                            type="button" 
+                            variant="secondary" 
+                            onClick={onClose}
+                            className="w-full sm:w-auto order-3 sm:order-none"
+                        >
+                            <X size={18} className="mr-2"/>
+                            Cancel
+                        </Button>
+                    </div>
                 </div>
 
-            </form>
         </Modal>
 
         {/* --- Credential Update Modals --- */}

@@ -2,6 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, Building2, GitBranch, User, Hash, ChevronDown, Shield, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { getBanks, getBranchesByBank, saveBankDetails } from '../../services/api/financialService';
 
+// Keywords that identify non-bank financial institutions to exclude from the bank list.
+// Adjust this list to match what your API actually returns.
+const NON_BANK_KEYWORDS = [
+    'finance', 'leasing', 'insurance', 'micro', 'credit', 'cooperative',
+    'thrift', 'savings society', 'pawning', 'merchant bank'
+];
+
+const isBankOnly = (bankName = '') => {
+    const lower = bankName.toLowerCase();
+    return !NON_BANK_KEYWORDS.some(kw => lower.includes(kw));
+};
+
 const AddBankModal = ({ isOpen, onClose, onSuccess }) => {
     const [step, setStep] = useState(1); // 3 steps: Bank → Branch → Account
     const [banks, setBanks] = useState([]);
@@ -23,11 +35,14 @@ const AddBankModal = ({ isOpen, onClose, onSuccess }) => {
     const [bankSearch, setBankSearch] = useState('');
     const [branchSearch, setBranchSearch] = useState('');
 
+    const [hasBranches, setHasBranches] = useState(true); // track if the selected bank has any branches
+
     // Load banks on open
     useEffect(() => {
         if (!isOpen) return;
         setStep(1);
         setError('');
+        setHasBranches(true);
         setForm({ bankCode: '', bankName: '', branchCode: '', branchName: '', accountNumber: '', accountHolderName: '' });
         setBankSearch('');
         setBranchSearch('');
@@ -48,12 +63,25 @@ const AddBankModal = ({ isOpen, onClose, onSuccess }) => {
         setForm(f => ({ ...f, bankCode: bank.bankCode, bankName: bank.bankName, branchCode: '', branchName: '' }));
         setBranches([]);
         setLoadingBranches(true);
+        setStep(2); // show step 2 while loading so user sees the spinner
         try {
             const res = await getBranchesByBank(bank.bankCode);
-            if (res.success) setBranches(res.data || []);
-        } catch { /* handled silently */ }
-        finally { setLoadingBranches(false); }
-        setStep(2);
+            const branchList = res.success ? (res.data || []) : [];
+            setBranches(branchList);
+            if (branchList.length === 0) {
+                // Bank has no branches — skip the branch step
+                setHasBranches(false);
+                setStep(3);
+            } else {
+                setHasBranches(true);
+            }
+        } catch {
+            // On error, assume no branches and let user continue
+            setHasBranches(false);
+            setStep(3);
+        } finally {
+            setLoadingBranches(false);
+        }
     }, []);
 
     const handleSelectBranch = (branch) => {
@@ -62,15 +90,17 @@ const AddBankModal = ({ isOpen, onClose, onSuccess }) => {
     };
 
     const handleAccountInput = (e) => {
-        // Allow only digits and spaces, format as blocks
-        const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
+        // Allow only digits — no character limit so longer account numbers work fine
+        const raw = e.target.value.replace(/\D/g, '');
         setForm(f => ({ ...f, accountNumber: raw }));
     };
 
-    const displayAccountNumber = form.accountNumber.replace(/(\d{4})/g, '$1 ').trim();
+    // Display: group digits in blocks of 4 separated by spaces
+    const displayAccountNumber = form.accountNumber.replace(/(\d{4})(?=\d)/g, '$1 ');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        e.stopPropagation(); // Prevent bubbling to parent form (e.g. EditProfileModal)
         if (!form.accountNumber || form.accountNumber.length < 6) {
             setError('Please enter a valid account number.');
             return;
@@ -108,11 +138,12 @@ const AddBankModal = ({ isOpen, onClose, onSuccess }) => {
     if (!isOpen) return null;
 
     const filteredBanks = banks.filter(b =>
+        isBankOnly(b.bankName) &&
         b.bankName.toLowerCase().includes(bankSearch.toLowerCase())
     );
     const filteredBranches = branches.filter(b =>
         b.branchName.toLowerCase().includes(branchSearch.toLowerCase()) ||
-        b.district.toLowerCase().includes(branchSearch.toLowerCase())
+        b.district?.toLowerCase().includes(branchSearch.toLowerCase())
     );
 
     return (
@@ -135,7 +166,7 @@ const AddBankModal = ({ isOpen, onClose, onSuccess }) => {
                                 </p>
                             </div>
                         </div>
-                        <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
+                        <button type="button" onClick={onClose} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
                             <X size={20} />
                         </button>
                     </div>
@@ -183,6 +214,7 @@ const AddBankModal = ({ isOpen, onClose, onSuccess }) => {
                                         <p className="text-sm text-center py-6 text-gray-400">No banks found</p>
                                     ) : filteredBanks.map(bank => (
                                         <button
+                                            type="button"
                                             key={bank.bankCode}
                                             onClick={() => handleSelectBank(bank)}
                                             className="w-full text-left px-4 py-3 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-sm text-gray-800 dark:text-gray-200 transition-colors flex items-center justify-between group"
@@ -199,7 +231,7 @@ const AddBankModal = ({ isOpen, onClose, onSuccess }) => {
                     {/* ── Step 2: Select Branch ── */}
                     {step === 2 && (
                         <div>
-                            <button onClick={() => setStep(1)} className="text-xs text-emerald-600 dark:text-emerald-400 mb-3 flex items-center gap-1 hover:underline">
+                            <button type="button" onClick={() => setStep(1)} className="text-xs text-emerald-600 dark:text-emerald-400 mb-3 flex items-center gap-1 hover:underline">
                                 ← Back to banks
                             </button>
                             <div className="mb-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-sm font-medium text-emerald-800 dark:text-emerald-300">
@@ -224,6 +256,7 @@ const AddBankModal = ({ isOpen, onClose, onSuccess }) => {
                                         <p className="text-sm text-center py-6 text-gray-400">No branches found</p>
                                     ) : filteredBranches.map(branch => (
                                         <button
+                                            type="button"
                                             key={branch.branchId}
                                             onClick={() => handleSelectBranch(branch)}
                                             className="w-full text-left px-4 py-3 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-sm text-gray-800 dark:text-gray-200 transition-colors flex items-center justify-between group"
@@ -240,8 +273,8 @@ const AddBankModal = ({ isOpen, onClose, onSuccess }) => {
                     {/* ── Step 3: Account Details ── */}
                     {step === 3 && (
                         <form onSubmit={handleSubmit} autoComplete="off">
-                            <button type="button" onClick={() => setStep(2)} className="text-xs text-emerald-600 dark:text-emerald-400 mb-4 flex items-center gap-1 hover:underline">
-                                ← Back to branches
+                            <button type="button" onClick={() => setStep(hasBranches ? 2 : 1)} className="text-xs text-emerald-600 dark:text-emerald-400 mb-4 flex items-center gap-1 hover:underline">
+                                ← Back to {hasBranches ? 'branches' : 'banks'}
                             </button>
 
                             {/* Summary badges */}
@@ -252,7 +285,9 @@ const AddBankModal = ({ isOpen, onClose, onSuccess }) => {
                                 </div>
                                 <div className="p-2.5 bg-gray-50 dark:bg-gray-800 rounded-xl text-xs">
                                     <p className="text-gray-400 mb-0.5">Branch</p>
-                                    <p className="font-semibold text-gray-800 dark:text-gray-200 truncate">{form.branchName}</p>
+                                    <p className="font-semibold text-gray-800 dark:text-gray-200 truncate">
+                                        {form.branchName || <span className="italic text-gray-400">No branch (head office)</span>}
+                                    </p>
                                 </div>
                             </div>
 
@@ -268,9 +303,8 @@ const AddBankModal = ({ isOpen, onClose, onSuccess }) => {
                                         inputMode="numeric"
                                         value={displayAccountNumber}
                                         onChange={handleAccountInput}
-                                        placeholder="0000 0000 0000 0000"
+                                        placeholder="Enter account number"
                                         autoComplete="off"
-                                        maxLength={19} // 16 digits + 3 spaces
                                         className="w-full pl-9 pr-4 py-3 font-mono text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 tracking-wider"
                                     />
                                 </div>

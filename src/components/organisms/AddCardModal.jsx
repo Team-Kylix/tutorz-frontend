@@ -74,6 +74,7 @@ const AddCardModal = ({ isOpen, onClose, onSuccess }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        e.stopPropagation(); // Prevent bubbling to parent form (e.g. EditProfileModal)
         const validationError = validate();
         if (validationError) { setError(validationError); return; }
         setError('');
@@ -143,7 +144,7 @@ const AddCardModal = ({ isOpen, onClose, onSuccess }) => {
                                 <p className="text-xs text-violet-200">Secured via PayHere tokenization</p>
                             </div>
                         </div>
-                        <button onClick={handleClose} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
+                        <button type="button" onClick={handleClose} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
                             <X size={20} />
                         </button>
                     </div>
