@@ -241,7 +241,6 @@ const InstituteClassesPage = () => {
                         <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700">
                             <tr>
                                 <th className="px-6 py-4 font-semibold">Class Name</th>
-                                <th className="px-6 py-4 font-semibold">Tutor Name</th>
                                 <th className="px-6 py-4 font-semibold">Subject</th>
                                 <th className="px-6 py-4 font-semibold">Time</th>
                                 <th className="px-6 py-4 font-semibold">Date / Day</th>
@@ -267,14 +266,10 @@ const InstituteClassesPage = () => {
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
-                                                {cls.classType || 'Class'}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <User size={14} className="text-gray-400" />
-                                                <span>{cls.tutorName || '-'}</span>
+                                            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                <User size={12} />
+                                                <span className="font-medium">{cls.tutorName || '-'}</span>
+                                                <span className="text-blue-600 dark:text-blue-400 ml-1 opacity-75">• {cls.classType || 'Class'}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
@@ -315,7 +310,7 @@ const InstituteClassesPage = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-12 text-center">
+                                    <td colSpan={7} className="px-6 py-12 text-center">
                                         {isLoading ? (
                                             <div className="flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
                                                 <RefreshCw size={24} className="animate-spin text-blue-500 mb-3" />

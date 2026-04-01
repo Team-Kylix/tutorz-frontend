@@ -108,7 +108,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'institute-tutors', label: 'Tutors', icon: UserCheck },
     { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
     { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
-    { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'profile', label: 'Profile & QR', icon: QrCode },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
