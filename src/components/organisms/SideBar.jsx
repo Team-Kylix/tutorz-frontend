@@ -3,7 +3,7 @@ import { useDispatch } from 'react-redux'; // Added Redux Dispatch
 import {
   LayoutDashboard, Users, BookOpen, Calendar, DollarSign,
   FileText, QrCode, Settings, ChevronRight, ChevronLeft, LogOut,
-  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus, Clock
+  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus, Clock, Info
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SidebarItem from '../molecules/SidebarItem';
@@ -215,7 +215,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="p-3 pb-6 space-y-1 mt-2 flex-1 overflow-y-auto h-[calc(100vh-190px)] custom-scrollbar">
+        <nav className="p-3 pb-6 space-y-1 mt-2 flex-1 overflow-y-auto h-[calc(100vh-240px)] custom-scrollbar">
           {menuItems.map((item) => (
             <SidebarItem
               key={item.id}
@@ -231,8 +231,19 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
           ))}
         </nav>
 
-        {/* Logout Trigger */}
-        <div className="absolute bottom-0 w-full p-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+        {/* Footer Actions */}
+        <div className="absolute bottom-0 w-full p-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 space-y-2">
+          <button
+            onClick={() => {
+              setActivePage('about');
+              if (window.innerWidth < 768) toggleSidebar();
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors ${isCollapsed ? 'justify-center' : ''}`}
+          >
+            <Info size={20} />
+            {!isCollapsed && <span>About & Policies</span>}
+          </button>
+          
           <button
             onClick={() => setShowLogoutModal(true)}
             className={`w-full flex items-center gap-3 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${isCollapsed ? 'justify-center' : ''}`}

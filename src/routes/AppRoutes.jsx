@@ -9,6 +9,7 @@ import DashboardLayout from '../components/templates/DashboardLayout';
 import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute'; // Import the new component
 import NotFoundPage from '../pages/notfound/NotFoundPage';
+import AboutPage from '../pages/public/AboutPage';
 
 function AppRoutes() {
   return (
@@ -36,6 +37,9 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+        {/* --- STANDALONE PUBLIC ROUTES --- */}
+        <Route path="/about" element={<AboutPage />} />
 
         {/* --- 404 NOT FOUND --- */}
         <Route path="*" element={<NotFoundPage />} />

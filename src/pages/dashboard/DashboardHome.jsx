@@ -23,6 +23,7 @@ import StudentRequestsPage from './StudentRequestsPage';
 import AttendancePage from './AttendancePage';
 import FinancialsPage from './FinancialsPage';
 import SettingsPage from './SettingsPage';
+import AboutUsContent from '../../components/organisms/AboutUsContent';
 
 const DashboardHome = ({ activePage, setActivePage }) => {
   const { user } = useAuth();
@@ -80,6 +81,15 @@ const DashboardHome = ({ activePage, setActivePage }) => {
 
   if (activePage === 'settings') {
     return <SettingsPage user={user} />;
+  }
+
+  if (activePage === 'about') {
+    return (
+      <div className="max-w-6xl mx-auto w-full">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">About & Policies</h2>
+        <AboutUsContent />
+      </div>
+    );
   }
 
   // --- DASHBOARD RENDERING ---
