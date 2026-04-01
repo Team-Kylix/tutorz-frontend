@@ -50,15 +50,31 @@ const UserProfile = () => {
             }
 
             if (result.success) {
-                setProfile(result.data);
+                // Generate a cache-busting timestamp
+                const ts = `?t=${Date.now()}`;
+                
+                // Get raw URLs
+                let smallUrl = result.data.profileImageUrlSmall || result.data.profileImageUrlLarge || result.data.profilePictureUrl;
+                let largeUrl = result.data.profileImageUrlLarge || result.data.profilePictureUrl;
+                
+                // Append timestamp
+                if (smallUrl) smallUrl = `${smallUrl}${smallUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+                if (largeUrl) largeUrl = `${largeUrl}${largeUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+
+                const profileData = { ...result.data };
+                if (profileData.profileImageUrlSmall) profileData.profileImageUrlSmall = smallUrl;
+                if (profileData.profileImageUrlLarge) profileData.profileImageUrlLarge = largeUrl;
+                if (profileData.profilePictureUrl) profileData.profilePictureUrl = largeUrl;
+
+                setProfile(profileData);
                 
                 // --- SYNC WITH REDUX SO SIDEBAR UPDATES ---
                 dispatch(updateUser({
                     firstName: result.data.firstName || result.data.instituteName,
                     lastName: result.data.lastName || '',
                     // Use fallbacks to ensure the Sidebar gets an image regardless of backend column names
-                    profileImageUrlSmall: result.data.profileImageUrlSmall || result.data.profileImageUrlLarge || result.data.profilePictureUrl,
-                    profileImageUrlLarge: result.data.profileImageUrlLarge || result.data.profilePictureUrl
+                    profileImageUrlSmall: smallUrl,
+                    profileImageUrlLarge: largeUrl
                 }));
                 // --------------------------------------------------------
 
@@ -77,9 +93,9 @@ const UserProfile = () => {
         if (role) fetchProfileData();
     }, [fetchProfileData, role]);
 
-    // Resolve location names when institute profile loads
+    // Resolve location names when institute or student profile loads
     useEffect(() => {
-        if (role !== ROLES.INSTITUTE || !profile) return;
+        if ((role !== ROLES.INSTITUTE && role !== ROLES.STUDENT) || !profile) return;
 
         const resolveLocationNames = async () => {
             try {
@@ -157,41 +173,42 @@ const UserProfile = () => {
 
                 {/* Institute Specific */}
                 {role === ROLES.INSTITUTE && (
-                    <>
-                        <InfoCard icon={Globe} label="Website" value={profile?.website || "No website"} />
-                        {/* Hierarchical Address: Province > District > City > Street */}
-                        <div className="group flex items-start gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700 transition-colors">
-                            <div className="p-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm text-blue-600 dark:text-blue-400">
-                                <MapPin size={20} />
-                            </div>
-                            <div className="flex-1">
-                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1 uppercase tracking-wide">Address</p>
-                                <div className="space-y-1">
-                                    {locationNames.province && (
-                                        <p className="text-xs text-gray-400 dark:text-gray-500">
-                                            <span className="font-medium text-gray-500 dark:text-gray-400">Province: </span>
-                                            {locationNames.province}
-                                        </p>
-                                    )}
-                                    {locationNames.district && (
-                                        <p className="text-xs text-gray-400 dark:text-gray-500">
-                                            <span className="font-medium text-gray-500 dark:text-gray-400">District: </span>
-                                            {locationNames.district}
-                                        </p>
-                                    )}
-                                    {locationNames.city && (
-                                        <p className="text-xs text-gray-400 dark:text-gray-500">
-                                            <span className="font-medium text-gray-500 dark:text-gray-400">City/Town: </span>
-                                            {locationNames.city}
-                                        </p>
-                                    )}
-                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                                        {profile?.address || 'No street address'}
+                    <InfoCard icon={Globe} label="Website" value={profile?.website || "No website"} />
+                )}
+
+                {/* Shared Hierarchical Address (Institute & Student) */}
+                {(role === ROLES.INSTITUTE || role === ROLES.STUDENT) && (
+                    <div className="group flex items-start gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700 transition-colors">
+                        <div className="p-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm text-blue-600 dark:text-blue-400">
+                            <MapPin size={20} />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1 uppercase tracking-wide">Address</p>
+                            <div className="space-y-1">
+                                {locationNames.province && (
+                                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                                        <span className="font-medium text-gray-500 dark:text-gray-400">Province: </span>
+                                        {locationNames.province}
                                     </p>
-                                </div>
+                                )}
+                                {locationNames.district && (
+                                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                                        <span className="font-medium text-gray-500 dark:text-gray-400">District: </span>
+                                        {locationNames.district}
+                                    </p>
+                                )}
+                                {locationNames.city && (
+                                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                                        <span className="font-medium text-gray-500 dark:text-gray-400">City/Town: </span>
+                                        {locationNames.city}
+                                    </p>
+                                )}
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {profile?.address || 'No street address'}
+                                </p>
                             </div>
                         </div>
-                    </>
+                    </div>
                 )}
 
                 {/* Student Specific: Guardian & DOB */}

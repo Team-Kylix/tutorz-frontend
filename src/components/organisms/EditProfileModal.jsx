@@ -12,8 +12,48 @@ import ChangePasswordModal from './ChangePasswordModal';
 import LocationSelector from '../molecules/LocationSelector';
 import ConfirmationModal from '../molecules/ConfirmationModal';
 import FinancialsSection from './FinancialsSection';
-import { ROLES } from '../../utils/constants';
+import { ROLES, GRADE_GROUPS } from '../../utils/constants';
 import { validatePhoneNumber } from '../../utils/validators';
+
+const SelectField = ({ id, label, value, onChange, groups, placeholder, required = false, error }) => {
+    const isPlaceholder = value === "";
+    return (
+        <div className="w-full">
+            <Label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {label} {required && <span className="text-red-500">*</span>}
+            </Label>
+            <div className="relative">
+                <select
+                    id={id}
+                    value={value}
+                    onChange={onChange}
+                    required={required}
+                    className={`appearance-none w-full px-4 py-3 rounded-lg border bg-white dark:bg-gray-800
+                        text-sm font-medium transition-all duration-200 ease-in-out
+                        focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-200 dark:focus:ring-blue-900 focus:border-blue-500 dark:focus:border-blue-500
+                        ${error ? 'border-red-300 dark:border-red-500' : 'border-gray-300 dark:border-gray-700'}
+                        ${isPlaceholder ? 'text-gray-400' : 'text-gray-900 dark:text-white'}
+                    `}
+                >
+                    <option value="" disabled>{placeholder}</option>
+                    {groups.map((group, index) => (
+                        <optgroup key={index} label={group.label} className="font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">
+                            {group.options.map((opt) => (
+                                <option key={opt} value={opt} className="text-gray-900 dark:text-white font-normal bg-white dark:bg-gray-800">{opt}</option>
+                            ))}
+                        </optgroup>
+                    ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500 dark:text-gray-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+            </div>
+            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        </div>
+    );
+};
 
 const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role = 'tutor' }) => {
     
@@ -115,7 +155,8 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
         e.preventDefault();
 
         // Validate phone number before showing confirmation dialog
-        if (normalizedRole !== 'institute') {
+        // Skip for institute and student as they use the dedicated UpdateCredentialModal
+        if (normalizedRole !== 'institute' && normalizedRole !== 'student') {
             const phoneValidation = validatePhoneNumber(formData.phoneNumber);
             if (!phoneValidation.isValid) {
                 setErrors(prev => ({ ...prev, phoneNumber: phoneValidation.message }));
@@ -129,17 +170,15 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
     const executeSave = () => {
         setShowSaveConfirm(false);
         
-        // Ensure clean payload for Institute ([FromForm] backend validation)
-        if (normalizedRole === 'institute') {
+        // Ensure clean payload for Institute and Student ([FromForm] backend validation)
+        if (normalizedRole === 'institute' || normalizedRole === 'student') {
             const submitData = new FormData();
             
-            // Fields expected by UpdateInstituteProfileDto (backend)
-            const expectedInstituteFields = [
-                'instituteName', 'address', 'contactNumber', 'website', 
-                'isSmsEnabled', 'provinceId', 'districtId', 'cityId'
-            ];
+            const expectedFields = normalizedRole === 'institute'
+                ? ['instituteName', 'address', 'contactNumber', 'website', 'isSmsEnabled', 'provinceId', 'districtId', 'cityId']
+                : ['firstName', 'lastName', 'schoolName', 'grade', 'parentName', 'dateOfBirth', 'address', 'provinceId', 'districtId', 'cityId'];
 
-            expectedInstituteFields.forEach(key => {
+            expectedFields.forEach(key => {
                 const val = formData[key];
                 // Append only if value is present. IDs should be numbers or strings.
                 // FormData.append converts everything to string correctly.
@@ -149,7 +188,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
             });
             
             if (selectedFile) {
-                // Key name must match the property in UpdateInstituteProfileDto
+                // Key name must match the property in backend DTO
                 submitData.append('profilePicture', selectedFile);
             }
             
@@ -230,7 +269,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                         )}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {normalizedRole === 'institute' ? (
+                            {normalizedRole === 'institute' || normalizedRole === 'student' ? (
                                 <>
                                     <div className="flex items-end gap-2">
                                         <div className="flex-1">
@@ -240,7 +279,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                                     </div>
                                     <div className="flex items-end gap-2">
                                         <div className="flex-1">
-                                            <FormField id="contactNumber" label="Contact Number" value={formData.contactNumber} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
+                                            <FormField id="contactNumber" label={normalizedRole === 'student' ? "Phone Number" : "Contact Number"} value={formData.contactNumber} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
                                         </div>
                                         <Button type="button" variant="outline" className="mb-px" onClick={() => setShowMobileModal(true)}>Change</Button>
                                     </div>
@@ -295,11 +334,29 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                                     <FormField id="schoolName" label="School Name" value={formData.schoolName} onChange={handleChange} placeholder="e.g. Royal College" />
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <FormField id="grade" label="Grade / Year" value={formData.grade} onChange={handleChange} placeholder="e.g. Grade 10" />
+                                    <SelectField
+                                        id="grade"
+                                        label="Grade / Course ..."
+                                        value={formData.grade}
+                                        onChange={handleChange}
+                                        groups={GRADE_GROUPS}
+                                        placeholder="Select Grade"
+                                        error={errors.grade}
+                                    />
                                     {initialData?.registrationNumber && (
                                         <FormField id="regNumber" label="Registration No" value={initialData.registrationNumber} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
                                     )}
                                 </div>
+                                <LocationSelector 
+                                    onProvinceChange={(provinceId) => setFormData(prev => ({ ...prev, provinceId }))}
+                                    onDistrictChange={(districtId) => setFormData(prev => ({ ...prev, districtId }))}
+                                    onCityChange={(cityId) => setFormData(prev => ({ ...prev, cityId }))}
+                                    initialProvinceId={formData.provinceId}
+                                    initialDistrictId={formData.districtId}
+                                    initialCityId={formData.cityId}
+                                    error={null} 
+                                />
+                                <FormField id="address" label="Street Address" value={formData.address} onChange={handleChange} placeholder="e.g. No 15, Main Street" />
                             </>
                         )}
 
@@ -334,7 +391,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
 
                     {/* --- Footer Buttons --- */}
                     <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
-                        {normalizedRole === 'institute' && (
+                        {(normalizedRole === 'institute' || normalizedRole === 'student') && (
                             <Button 
                                 type="button" 
                                 variant="primary" 

@@ -50,12 +50,19 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         }
 
         if (result?.success) {
+          // Generate cache-busting timestamp
+          let smallUrl = result.data.profileImageUrlSmall || result.data.profileImageUrlLarge || result.data.profilePictureUrl;
+          let largeUrl = result.data.profileImageUrlLarge || result.data.profilePictureUrl;
+          
+          if (smallUrl) smallUrl = `${smallUrl}${smallUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+          if (largeUrl) largeUrl = `${largeUrl}${largeUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+
           // Send fresh data to Redux immediately so the Sidebar updates
           dispatch(updateUser({
             firstName: result.data.firstName || result.data.instituteName,
             lastName: result.data.lastName || '',
-            profileImageUrlSmall: result.data.profileImageUrlSmall || result.data.profileImageUrlLarge || result.data.profilePictureUrl,
-            profileImageUrlLarge: result.data.profileImageUrlLarge || result.data.profilePictureUrl
+            profileImageUrlSmall: smallUrl,
+            profileImageUrlLarge: largeUrl
           }));
         }
       } catch (error) {
