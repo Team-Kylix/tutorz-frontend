@@ -73,7 +73,7 @@ const RegisterDetailsPage = () => {
     const isSocial = stepOneData.isSocial === true;
 
     const [formData, setFormData] = useState({
-        phoneNumber: isLinkedAccount ? linkedPhoneNumber : (stepOneData.phoneNumber || ''),
+        phoneNumber: isLinkedAccount ? linkedPhoneNumber : (stepOneData.phoneNumber || (stepOneData.email && !stepOneData.email.includes('@') ? stepOneData.email : '')),
         firstName: socialProfile?.firstName || '',
         lastName: socialProfile?.lastName || '',
         bio: '',

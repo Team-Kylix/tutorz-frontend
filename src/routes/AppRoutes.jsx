@@ -7,9 +7,12 @@ import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
 import DashboardHome from '../pages/dashboard/DashboardHome';
 import DashboardLayout from '../components/templates/DashboardLayout';
 import ProtectedRoute from './ProtectedRoute';
-import PublicRoute from './PublicRoute'; // Import the new component
+import PublicRoute from './PublicRoute';
 import NotFoundPage from '../pages/notfound/NotFoundPage';
 import AboutPage from '../pages/public/AboutPage';
+import TermsPage from '../pages/public/TermsPage';
+import PrivacyPage from '../pages/public/PrivacyPage';
+import RefundPage from '../pages/public/RefundPage';
 
 function AppRoutes() {
   return (
@@ -40,6 +43,9 @@ function AppRoutes() {
 
         {/* --- STANDALONE PUBLIC ROUTES --- */}
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/refund" element={<RefundPage />} />
 
         {/* --- 404 NOT FOUND --- */}
         <Route path="*" element={<NotFoundPage />} />
