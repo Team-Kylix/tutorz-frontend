@@ -158,7 +158,13 @@ const RegisterForm = ({ onSwitchToLogin }) => {
             } 
             // User Not Found -> Proceed
             else {
-                const stepOneData = { email, password, role, isSocial: false };
+                const stepOneData = { 
+                    email: isEmail ? email : '', 
+                    phoneNumber: isPhone ? email : '',
+                    password, 
+                    role, 
+                    isSocial: false 
+                };
                 navigate('/register-details', { state: { stepOneData } });
             }
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AuthLayout from '../../components/templates/AuthLayout.jsx';
 import FormField from '../../components/molecules/FormField.jsx';
-import { ROLES } from '../../utils/constants';
+import { ROLES, GRADE_GROUPS } from '../../utils/constants';
 import { validatePhoneNumber } from '../../utils/validators';
 import useAuth from '../../hooks/useAuth';
 import { socialLogin } from '../../services/auth/authService.js';
@@ -10,11 +10,6 @@ import Label from '../../components/atoms/Label.jsx';
 import LocationSelector from '../../components/molecules/LocationSelector';
 import { CheckCircle2 } from 'lucide-react';
 
-const GRADE_GROUPS = [
-    { label: "Primary Education", options: ['Preschool', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'] },
-    { label: "Secondary Education", options: ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11 (O/L)', 'Grade 12 (A/L)', 'Grade 13 (A/L)'] },
-    { label: "Other", options: ['Course', 'Seminar', 'Workshop'] }
-];
 
 const SelectField = ({ id, label, value, onChange, groups, placeholder, required = false, error }) => {
     const isPlaceholder = value === "";
@@ -78,7 +73,7 @@ const RegisterDetailsPage = () => {
     const isSocial = stepOneData.isSocial === true;
 
     const [formData, setFormData] = useState({
-        phoneNumber: isLinkedAccount ? linkedPhoneNumber : (stepOneData.phoneNumber || ''),
+        phoneNumber: isLinkedAccount ? linkedPhoneNumber : (stepOneData.phoneNumber || (stepOneData.email && !stepOneData.email.includes('@') ? stepOneData.email : '')),
         firstName: socialProfile?.firstName || '',
         lastName: socialProfile?.lastName || '',
         bio: '',

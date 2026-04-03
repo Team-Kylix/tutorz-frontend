@@ -16,6 +16,7 @@ const ProfileTemplate = ({
     leftColumnContent, 
     rightColumnContent,
     rightColumnTitle = "Financial Information",
+    qrCodeContent,
     actionButton 
 }) => {
 
@@ -40,6 +41,7 @@ const ProfileTemplate = ({
                 <ProfileAvatarHeader 
                     firstName={headerInfo?.firstName} 
                     profileImageUrl={headerInfo?.profileImageUrlLarge} 
+                    qrCode={qrCodeContent}
                 />
 
                 <div className="pt-14 px-8 pb-6 border-b border-gray-100 dark:border-gray-700">
@@ -58,9 +60,11 @@ const ProfileTemplate = ({
                         </div>
 
                         {/* Action Button */}
-                        {actionButton && (
-                            <div>{actionButton}</div>
-                        )}
+                        <div className="flex items-center justify-end">
+                            {actionButton && (
+                                <div className="w-full md:w-auto mt-1">{actionButton}</div>
+                            )}
+                        </div>
                     </div>
                 </div>
 

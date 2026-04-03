@@ -25,3 +25,9 @@ export const ERROR_MESSAGES = {
   INVALID_EMAIL: 'Please enter a valid email address.',
   GENERIC_ERROR: 'Something went wrong. Please try again.',
 };
+
+export const GRADE_GROUPS = [
+  { label: "Primary Education", options: ['Preschool', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'] },
+  { label: "Secondary Education", options: ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11 (O/L)', 'Grade 12 (A/L)', 'Grade 13 (A/L)'] },
+  { label: "Other", options: ['Course', 'Seminar', 'Workshop'] }
+];

@@ -8,8 +8,10 @@ import Input from '../../components/atoms/Input';
 import StatCard from '../../components/molecules/StatCard';
 import InstituteSearchAssignModal from '../../components/organisms/InstituteSearchAssignModal';
 import { getAssignedTutors } from '../../services/api/instituteService';
+import { useAuth } from '../../hooks/useAuth';
 
 const InstituteTutorsPage = () => {
+    const { user } = useAuth();
     const [tutors, setTutors] = useState([]);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
@@ -234,6 +236,7 @@ const InstituteTutorsPage = () => {
                 onClose={() => setIsAssignModalOpen(false)}
                 type="Tutor"
                 onAssigned={handleAssigned}
+                user={user}
             />
         </div>
     );
