@@ -13,7 +13,7 @@ const DuplicateUserModal = ({ isOpen, onClose, existingUser, onItsMe, onItsParen
                         {isInstituteView ? (
                             <>The number <b>{existingUser?.identifier}</b> belongs to <b>{existingUser?.name || 'an existing student'}</b>. Would you like to add a sibling account to this parent's profile?</>
                         ) : (
-                            <>The number <b className="text-gray-900 dark:text-white">{existingUser?.identifier}</b> is already registered.</>
+                            <>The account with <b className="text-gray-900 dark:text-white">{existingUser?.identifier}</b> belongs to <b className="text-gray-900 dark:text-white">{existingUser?.name || 'an existing user'}</b> and is already registered.</>
                         )}
                     </p>
                 </div>

@@ -77,7 +77,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                     }
 
                     // Block other cases
-                    setEmailError('You are already registered. Please log in.');
+                    setEmailError(`This account belongs to ${response.name} and is already registered. Please log in.`);
                     return;
                 }
 
@@ -153,7 +153,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                     setShowDuplicateModal(true);
                 } else {
                     // Block Tutor/Institute re-registration or role mismatch
-                    setEmailError(`This account is already registered as a ${response.role}. Please log in.`);
+                    setEmailError(`This account belongs to ${response.name} and is already registered as a ${response.role}. Please log in.`);
                 }
             } 
             // User Not Found -> Proceed
