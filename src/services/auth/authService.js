@@ -137,6 +137,20 @@ export const registerSibling = async (siblingData) => {
 };
 
 /**
+ * Switches the active student profile (for sibling accounts under the same parent).
+ * @param {string} studentId - The target student's GUID.
+ * @returns {Promise<object>} Full AuthResponse with new JWT token and all profiles.
+ */
+export const switchProfile = async (studentId) => {
+    try {
+        const response = await apiClient.post('/auth/switch-profile', { studentId });
+        return response.data;
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Failed to switch profile.');
+    }
+};
+
+/**
  * Uploads a profile picture for a specific role and entity.
  */
 export const uploadProfilePicture = async (entityId, registrationNumber, role, file) => {
