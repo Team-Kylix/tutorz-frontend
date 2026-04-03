@@ -4,8 +4,12 @@ import PasswordInput from '../molecules/PasswordInput';
 import Button from '../atoms/Button';
 import { Loader } from 'lucide-react';
 import { changePassword } from '../../services/auth/authService';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 
 const ChangePasswordModal = ({ isOpen, onClose, onSuccess }) => {
+    const { logout } = useAuth();
+    const navigate = useNavigate();
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -53,6 +57,19 @@ const ChangePasswordModal = ({ isOpen, onClose, onSuccess }) => {
         onClose();
     };
 
+    const handleForgotPassword = () => {
+        // To avoid the 'flicker' where the ProtectedRoute instantly redirects to /login,
+        // we manually clear localStorage and use window.location.href. 
+        // This keeps the in-memory Redux state 'authenticated' for the split second 
+        // until the browser initiates the full-page navigation.
+        
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        
+        handleClose();
+        window.location.href = '/forgot-password';
+    };
+
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title="Change Password">
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -62,13 +79,24 @@ const ChangePasswordModal = ({ isOpen, onClose, onSuccess }) => {
                     </div>
                 )}
                 
-                <PasswordInput
-                    id="currentPassword"
-                    label="Current Password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    required
-                />
+                <div className="space-y-1">
+                    <PasswordInput
+                        id="currentPassword"
+                        label="Current Password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        required
+                    />
+                    <div className="flex justify-end">
+                        <button 
+                            type="button" 
+                            onClick={handleForgotPassword}
+                            className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                        >
+                            Forgot your password?
+                        </button>
+                    </div>
+                </div>
                 
                 <PasswordInput
                     id="newPassword"

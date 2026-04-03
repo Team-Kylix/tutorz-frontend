@@ -106,8 +106,29 @@ const ClassFormModal = ({
         setHalls(fetchedHalls);
 
         // Reset hall if the current hall is not in the new list, or auto-select if only one
-        if (fetchedHalls.length > 0 && !initialData?.hallId) {
-          setFormData(prev => ({ ...prev, hallId: fetchedHalls[0].hallId, hallName: fetchedHalls[0].name }));
+        if (fetchedHalls.length > 0) {
+          let selectedHallId = null;
+          let selectedHallName = '';
+
+          if (initialData?.hallId) {
+            // Already explicitly defined
+            selectedHallId = initialData.hallId;
+          } else if (initialData?.hallName) {
+            // Missing ID, try to match by name
+            const match = fetchedHalls.find(h => h.name.toLowerCase() === initialData.hallName.toLowerCase());
+            if (match) {
+              selectedHallId = match.hallId || match.id;
+              selectedHallName = match.name;
+            }
+          }
+
+          if (selectedHallId) {
+            setFormData(prev => ({ ...prev, hallId: selectedHallId, hallName: selectedHallName || prev.hallName }));
+          } else {
+            // Default to first if no match
+            const firstId = fetchedHalls[0].hallId || fetchedHalls[0].id;
+            setFormData(prev => ({ ...prev, hallId: firstId, hallName: fetchedHalls[0].name }));
+          }
         } else if (fetchedHalls.length === 0) {
           setFormData(prev => ({ ...prev, hallId: '', hallName: '' }));
         }
@@ -434,9 +455,9 @@ const ClassFormModal = ({
               <label className={labelClass}>
                 Institute <span className="text-red-500">*</span>
               </label>
-              {isInstituteMode ? (
+              {viewOnly || isInstituteMode ? (
                 <div className={readOnlyBoxClass}>
-                  {formData.instituteName || 'Loading...'}
+                  {formData.instituteName || 'Not Applicable'}
                 </div>
               ) : (
                 <select
@@ -460,51 +481,57 @@ const ClassFormModal = ({
               )}
             </div>
 
-            {isInstituteMode && (
+            {(isInstituteMode || viewOnly) && (
               <div className="relative flex flex-col gap-1">
                 <label className={labelClass}>
                   Assigned Tutor <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    className={`${inputClass} pl-10`}
-                    placeholder="Search tutor by name..."
-                    value={tutorQuery}
-                    onChange={(e) => {
-                      setTutorQuery(e.target.value);
-                      if (formData.tutorId) {
-                        setFormData(prev => ({ ...prev, tutorId: '', tutorName: '' })); // Reset if typing
-                      }
-                    }}
-                    onFocus={() => {
-                      if (tutorQuery.trim() && filteredTutors.length > 0) setShowTutorSuggestions(true);
-                    }}
-                  />
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                    <Search size={16} />
+                {viewOnly ? (
+                  <div className={readOnlyBoxClass}>
+                    {formData.tutorName || 'Not Assigned'}
                   </div>
-                </div>
+                ) : (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className={`${inputClass} pl-10`}
+                      placeholder="Search tutor by name..."
+                      value={tutorQuery}
+                      onChange={(e) => {
+                        setTutorQuery(e.target.value);
+                        if (formData.tutorId) {
+                          setFormData(prev => ({ ...prev, tutorId: '', tutorName: '' })); // Reset if typing
+                        }
+                      }}
+                      onFocus={() => {
+                        if (tutorQuery.trim() && filteredTutors.length > 0) setShowTutorSuggestions(true);
+                      }}
+                    />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      <Search size={16} />
+                    </div>
 
-                {showTutorSuggestions && (
-                  <ul className="absolute z-20 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto mt-1 top-full">
-                    {isSearchingTutors && filteredTutors.length === 0 ? (
-                      <li className="px-4 py-3 text-sm text-gray-500 text-center">Searching...</li>
-                    ) : filteredTutors.length > 0 ? (
-                      filteredTutors.map((tutor) => (
-                        <li
-                          key={tutor.tutorId}
-                          onMouseDown={() => handleTutorSelect(tutor)}
-                          className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 transition-colors flex justify-between items-center"
-                        >
-                          <span>{tutor.firstName} {tutor.lastName}</span>
-                          <span className="text-xs text-gray-400">{tutor.registrationNumber}</span>
-                        </li>
-                      ))
-                    ) : (
-                      <li className="px-4 py-3 text-sm text-gray-500 text-center">No assigned tutors found</li>
+                    {showTutorSuggestions && (
+                      <ul className="absolute z-20 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto mt-1 top-full">
+                        {isSearchingTutors && filteredTutors.length === 0 ? (
+                          <li className="px-4 py-3 text-sm text-gray-500 text-center">Searching...</li>
+                        ) : filteredTutors.length > 0 ? (
+                          filteredTutors.map((tutor) => (
+                            <li
+                              key={tutor.tutorId}
+                              onMouseDown={() => handleTutorSelect(tutor)}
+                              className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 transition-colors flex justify-between items-center"
+                            >
+                              <span>{tutor.firstName} {tutor.lastName}</span>
+                              <span className="text-xs text-gray-400">{tutor.registrationNumber}</span>
+                            </li>
+                          ))
+                        ) : (
+                          <li className="px-4 py-3 text-sm text-gray-500 text-center">No assigned tutors found</li>
+                        )}
+                      </ul>
                     )}
-                  </ul>
+                  </div>
                 )}
               </div>
             )}
@@ -669,29 +696,35 @@ const ClassFormModal = ({
                 <label className={labelClass}>
                   Hall <span className="text-red-500">*</span>
                 </label>
-                <select
-                  name="hallId"
-                  value={formData.hallId || ''}
-                  onChange={handleChange}
-                  className={inputClass}
-                  disabled={isLoadingHalls || !formData.instituteId || formData.instituteId === 'OWN_PLACE'}
-                  required={formData.instituteId !== 'OWN_PLACE'}
-                >
-                  <option value="">Select Hall</option>
-                  {formData.instituteId === 'OWN_PLACE' ? (
-                    <option value="" disabled>Not Applicable</option>
-                  ) : isLoadingHalls ? (
-                    <option value="" disabled>Loading halls...</option>
-                  ) : halls.length === 0 ? (
-                    <option value="" disabled>No halls available</option>
-                  ) : (
-                    halls.map((hall) => (
-                      <option key={hall.hallId || hall.id} value={hall.hallId || hall.id}>
-                        {hall.name}
-                      </option>
-                    ))
-                  )}
-                </select>
+                {viewOnly ? (
+                  <div className={readOnlyBoxClass}>
+                    {formData.hallName || 'Not Applicable'}
+                  </div>
+                ) : (
+                  <select
+                    name="hallId"
+                    value={formData.hallId || ''}
+                    onChange={handleChange}
+                    className={inputClass}
+                    disabled={isLoadingHalls || !formData.instituteId || formData.instituteId === 'OWN_PLACE'}
+                    required={formData.instituteId !== 'OWN_PLACE'}
+                  >
+                    <option value="">Select Hall</option>
+                    {formData.instituteId === 'OWN_PLACE' ? (
+                      <option value="" disabled>Not Applicable</option>
+                    ) : isLoadingHalls ? (
+                      <option value="" disabled>Loading halls...</option>
+                    ) : halls.length === 0 ? (
+                      <option value="" disabled>No halls available</option>
+                    ) : (
+                      halls.map((hall) => (
+                        <option key={hall.hallId || hall.id} value={hall.hallId || hall.id}>
+                          {hall.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                )}
               </div>
 
               <FormField

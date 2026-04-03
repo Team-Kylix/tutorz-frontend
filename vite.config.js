@@ -35,15 +35,26 @@ export default defineConfig({
             type: 'image/png'
           }
         ]
-      }
+      },
+      workbox: {
+        // Only use the offline fallback for actual page navigations (not API calls)
+        navigateFallbackAllowlist: [new RegExp('^(?!/api/).*')],
+        runtimeCaching: [
+          {
+            // Match ALL API requests by path — NetworkOnly (never cache)
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+            handler: 'NetworkOnly',
+            options: {
+              fetchOptions: {
+                mode: 'cors',
+              },
+            },
+          },
+        ],
+      },
     })
   ],
   server: {
-    host: true,
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
-      'Cross-Origin-Embedder-Policy': 'credentialless',
-      'Referrer-Policy': 'no-referrer-when-downgrade'
-    }
+    host: true
   }
 })

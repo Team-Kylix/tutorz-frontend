@@ -21,7 +21,7 @@ const SettingsPage = ({ user }) => {
 
     useEffect(() => {
         const fetchSettings = async () => {
-            if (user?.userId) {
+            if (user?.userId && user?.role?.toLowerCase() === 'institute') {
                 try {
                     const response = await getInstituteProfile(user.userId);
                     if (response.success && response.data) {
@@ -39,6 +39,8 @@ const SettingsPage = ({ user }) => {
                 } finally {
                     setIsLoading(false);
                 }
+            } else {
+                setIsLoading(false);
             }
         };
         fetchSettings();
@@ -102,6 +104,20 @@ const SettingsPage = ({ user }) => {
         return (
             <div className="flex justify-center items-center py-20">
                 <Loader2 className="animate-spin text-blue-500" size={32} />
+            </div>
+        );
+    }
+
+    if (user?.role?.toLowerCase() !== 'institute') {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-full mb-6 text-gray-400">
+                    <Settings size={64} />
+                </div>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Settings</h1>
+                <p className="text-gray-500 dark:text-gray-400 text-center max-w-md">
+                    Global settings are currently only available for Institute accounts.
+                </p>
             </div>
         );
     }
