@@ -263,14 +263,14 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
           {/* ─── Sibling Switcher Popout Panel ─── */}
           {showSwitcher && hasSiblings && !isCollapsed && (
             <div
-              className={`absolute z-50 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl shadow-gray-300/40 dark:shadow-black/40 overflow-hidden 
+              className={`absolute z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl shadow-gray-300/40 dark:shadow-black/40 overflow-hidden 
                 md:left-full md:top-0 md:ml-2 
                 left-2 right-2 top-full mt-2 md:w-64 w-[calc(100%-1rem)] mx-auto
               `}
               style={{ animation: 'fadeSlideIn 0.18s ease-out forwards' }}
             >
               {/* Panel Header */}
-              <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border-b border-gray-100 dark:border-gray-700">
+              <div className="px-4 py-3 bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border-b border-gray-100 dark:border-gray-700">
                 <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">Switch Profile</p>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Select a student account</p>
               </div>

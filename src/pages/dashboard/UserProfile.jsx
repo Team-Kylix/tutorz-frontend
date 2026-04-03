@@ -74,7 +74,8 @@ const UserProfile = () => {
                     lastName: result.data.lastName || '',
                     // Use fallbacks to ensure the Sidebar gets an image regardless of backend column names
                     profileImageUrlSmall: smallUrl,
-                    profileImageUrlLarge: largeUrl
+                    profileImageUrlLarge: largeUrl,
+                    profiles: result.data.profiles || []
                 }));
                 // --------------------------------------------------------
 
