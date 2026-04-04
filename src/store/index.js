@@ -7,6 +7,8 @@ import storage from 'localforage';
 import authReducer from './authSlice';
 import uiReducer from './uiSlice';
 import dashboardReducer from './dashboardSlice';
+// The sync queue MUST be persisted so offline attendance records survive app restarts
+import syncReducer from './syncSlice';
 
 // 1. Configure the persist settings for each slice
 const authPersistConfig = {
@@ -24,16 +26,24 @@ const dashboardPersistConfig = {
   storage,
 };
 
+const syncPersistConfig = {
+  key: 'sync',
+  storage,
+  // We do NOT blacklist anything - the entire queue must survive restarts
+};
+
 // 2. Wrap reducers with persist logic
 const persistedAuthReducer = persistReducer(authPersistConfig, authReducer);
 const persistedUiReducer = persistReducer(uiPersistConfig, uiReducer);
 const persistedDashboardReducer = persistReducer(dashboardPersistConfig, dashboardReducer);
+const persistedSyncReducer = persistReducer(syncPersistConfig, syncReducer);
 
 export const store = configureStore({
   reducer: {
     auth: persistedAuthReducer,
     ui: persistedUiReducer,
     dashboard: persistedDashboardReducer,
+    sync: persistedSyncReducer,
   },
   // 3. We must ignore the serialization warnings for redux-persist actions
   // because persist/REHYDRATE contains functions under the hood.

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, QrCode, AlertCircle, ChevronLeft, CheckCircle2, UserPlus, CreditCard, X } from 'lucide-react';
+import { Search, Loader2, QrCode, AlertCircle, ChevronLeft, CheckCircle2, UserPlus, CreditCard, X, AlertTriangle, WifiOff } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
 import Modal from '../molecules/Modal';
 import Button from '../atoms/Button';
 import StudentSelectionCard from '../molecules/StudentSelectionCard';
@@ -9,18 +10,22 @@ import QrScanner from './QrScanner';
 import {
     searchStudents,
     getStudentClassesForAttendance,
-    markAttendance,
     getInstituteClassesToday,
-    assignStudentToClass
 } from '../../services/api/instituteService';
+import { enqueueAction, SYNC_ACTION_TYPES, selectPendingCount, selectUnseenConflicts, markConflictAsSeen, clearSeenConflicts } from '../../store/syncSlice';
 
 /**
  * MarkAttendanceModal (Rapid Attendance Marker)
  * High-speed multi-step modal for marking student attendance.
  */
 const MarkAttendanceModal = ({ isOpen, onClose }) => {
+    const dispatch = useDispatch();
+    const pendingCount = useSelector(selectPendingCount);
+    const conflicts = useSelector(selectUnseenConflicts);
+    
     // Current Step: 1 (Search), 2 (Select Class)
     const [step, setStep] = useState(1);
+    const [showConflicts, setShowConflicts] = useState(false);
 
     // Global Data
     const [todayClasses, setTodayClasses] = useState([]);
@@ -172,18 +177,26 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
 
         try {
             if (showAllTodayClasses) {
-                // 1. Assign Flow ONLY
-                await assignStudentToClass(selectedStudent.roleSpecificId, selectedClassId);
+                // ─── OPTIMISTIC UI: Assign to Class ────────────────────────
+                // Add to queue immediately for instant response
+                dispatch(enqueueAction({
+                    actionType: SYNC_ACTION_TYPES.ASSIGN_TO_CLASS,
+                    payload: {
+                        studentId: selectedStudent.roleSpecificId,
+                        classId: selectedClassId,
+                    },
+                    label: `Assign to Class: ${selectedStudent.name}`,
+                    dedupeKey: `ASSIGN_${selectedStudent.roleSpecificId}_${selectedClassId}`,
+                }));
 
                 triggerSuccessToast(`Assigned to Class!`);
                 setIsSuccess(true);
+                setIsSubmitting(false);
 
-                // Switch to Mark Attendance view with the class now available & pre-selected
                 setTimeout(async () => {
                     setIsSuccess(false);
                     setShowAllTodayClasses(false);
                     setIsFetchingClasses(true);
-                    setIsSubmitting(false); // Reset submitting immediately after transition starts
                     try {
                         const res = await getStudentClassesForAttendance(selectedStudent.roleSpecificId);
                         setStudentClasses(res.data || []);
@@ -193,14 +206,28 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                         setIsFetchingClasses(false);
                     }
                 }, 800);
-
             } else {
-                // 2. Mark Attendance Flow ONLY
-                await markAttendance(selectedStudent.roleSpecificId, selectedClassId);
+                // ─── OPTIMISTIC UI: Attendance Marking ──────────────────────
+                // 1. Find the class name for readable notifications
+                const classObj = activeEnrolledClasses.find(
+                    c => (c.id || c.classId) === selectedClassId
+                );
+                
+                // 2. Instantly add to the persistent offline queue (no server wait!)
+                dispatch(enqueueAction({
+                    actionType: SYNC_ACTION_TYPES.MARK_ATTENDANCE,
+                    payload: {
+                        studentId: selectedStudent.roleSpecificId,
+                        classId: selectedClassId,
+                    },
+                    label: `Mark Present: ${selectedStudent.name}`,
+                    // Dedupe key prevents scanning the same student+class twice
+                    dedupeKey: `ATTEND_${selectedStudent.roleSpecificId}_${selectedClassId}`,
+                }));
 
+                // 3. Show success toast and reset the form IMMEDIATELY
                 triggerSuccessToast(`Present: ${selectedStudent.name}`);
                 setIsSuccess(true);
-
                 setTimeout(() => {
                     resetFlow();
                 }, 800);

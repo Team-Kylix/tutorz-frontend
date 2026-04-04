@@ -1,6 +1,7 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { loginSuccess, logout } from '../store/authSlice';
 import { clearDashboard } from '../store/dashboardSlice';
+import { clearSyncQueue } from '../store/syncSlice';
 import { persistor } from '../store/index';
 import { login as loginService, register as registerService, registerSibling as registerSiblingService, switchProfile as switchProfileService } from '../services/auth/authService';
 
@@ -46,6 +47,9 @@ export const useAuth = () => {
   const logoutUser = () => {
     dispatch(logout());
     dispatch(clearDashboard());
+    // CRITICAL: Wipe all queued offline actions so they are NOT
+    // uploaded under a new user's session after logout.
+    dispatch(clearSyncQueue());
     // Clear the service worker cache to ensure the next user doesn't see stale data
     if ('caches' in window) {
       caches.delete('user-data-cache');
@@ -97,6 +101,8 @@ export const useAuth = () => {
       
       // Clear persistent dashboard data to prevent Student A's totals flashing on Student B's screen
       dispatch(clearDashboard());
+      // CRITICAL: Wipe all queued actions so they are NOT uploaded under the new account.
+      dispatch(clearSyncQueue());
       
       // Force full reload so all cached API calls and component state reset for new student
       window.location.href = '/';
