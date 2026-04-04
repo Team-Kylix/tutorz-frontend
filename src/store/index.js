@@ -1,8 +1,49 @@
 import { configureStore } from '@reduxjs/toolkit';
+// Import the core persistence tools
+import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
+// Import localforage - the async IndexedDB driver (fast, non-blocking)
+import storage from 'localforage'; 
+
 import authReducer from './authSlice';
+import uiReducer from './uiSlice';
+import dashboardReducer from './dashboardSlice';
+
+// 1. Configure the persist settings for each slice
+const authPersistConfig = {
+  key: 'auth', 
+  storage, 
+};
+
+const uiPersistConfig = {
+  key: 'ui',
+  storage,
+};
+
+const dashboardPersistConfig = {
+  key: 'dashboard',
+  storage,
+};
+
+// 2. Wrap reducers with persist logic
+const persistedAuthReducer = persistReducer(authPersistConfig, authReducer);
+const persistedUiReducer = persistReducer(uiPersistConfig, uiReducer);
+const persistedDashboardReducer = persistReducer(dashboardPersistConfig, dashboardReducer);
 
 export const store = configureStore({
   reducer: {
-    auth: authReducer,
+    auth: persistedAuthReducer,
+    ui: persistedUiReducer,
+    dashboard: persistedDashboardReducer,
   },
+  // 3. We must ignore the serialization warnings for redux-persist actions
+  // because persist/REHYDRATE contains functions under the hood.
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+      },
+    }),
 });
+
+// 4. Export the persistor to wrap our app in main.jsx
+export const persistor = persistStore(store);

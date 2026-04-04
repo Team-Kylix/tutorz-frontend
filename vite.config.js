@@ -40,14 +40,54 @@ export default defineConfig({
         // Only use the offline fallback for actual page navigations (not API calls)
         navigateFallbackAllowlist: [new RegExp('^(?!/api/).*')],
         runtimeCaching: [
+          // 1. Static Assets (Images, Icons, CSS) - Cache First
+          // Super fast local loading for atoms/logos
           {
-            // Match ALL API requests by path — NetworkOnly (never cache)
+            urlPattern: /\.(?:png|jpg|jpeg|svg|css)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'static-assets-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+              },
+            },
+          },
+          // 2. Critical/Transactional Endpoints (Payments/Auth) - Network First
+          // We MUST try reaching the server first.
+          {
+            urlPattern: ({ url }) => url.pathname.includes('/api/payment/') || url.pathname.includes('/api/auth/'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'transactional-api-cache',
+              networkTimeoutSeconds: 3, // Fallback if Sri Lankan network hangs tightly
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60, // 1 hour
+              },
+              fetchOptions: { mode: 'cors' },
+            },
+          },
+          // 3. User Data (Classes, Profiles, Schedules) - Stale While Revalidate
+          // Instant UI rendering, background silent sync to fix the Colombo-Azure RTT issue
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/student/') || url.pathname.startsWith('/api/tutor/') || url.pathname.startsWith('/api/institute/'),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'user-data-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 24 * 60 * 60, // 24 Hours
+              },
+              fetchOptions: { mode: 'cors' },
+            },
+          },
+          // 4. Fallback for any other unhandled /api/ requests - Network Only
+          {
             urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
             handler: 'NetworkOnly',
             options: {
-              fetchOptions: {
-                mode: 'cors',
-              },
+              fetchOptions: { mode: 'cors' },
             },
           },
         ],

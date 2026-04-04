@@ -1,5 +1,7 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { loginSuccess, logout } from '../store/authSlice';
+import { clearDashboard } from '../store/dashboardSlice';
+import { persistor } from '../store/index';
 import { login as loginService, register as registerService, registerSibling as registerSiblingService, switchProfile as switchProfileService } from '../services/auth/authService';
 
 export const useAuth = () => {
@@ -43,6 +45,12 @@ export const useAuth = () => {
 
   const logoutUser = () => {
     dispatch(logout());
+    dispatch(clearDashboard());
+    // Clear the service worker cache to ensure the next user doesn't see stale data
+    if ('caches' in window) {
+      caches.delete('user-data-cache');
+      caches.delete('transactional-api-cache');
+    }
   };
 
   const registerSibling = async (siblingData) => {
@@ -76,6 +84,20 @@ export const useAuth = () => {
         },
         token: data.token
       }));
+      
+      // We must wait for the asynchronous IndexedDB write to complete 
+      // before destroying the DOM context and hard reloading.
+      await persistor.flush();
+      
+      // Clear the PWA user-data cache so the new student doesn't see the old student's 
+      // Stale-While-Revalidate cached data.
+      if ('caches' in window) {
+        await caches.delete('user-data-cache');
+      }
+      
+      // Clear persistent dashboard data to prevent Student A's totals flashing on Student B's screen
+      dispatch(clearDashboard());
+      
       // Force full reload so all cached API calls and component state reset for new student
       window.location.href = '/';
       return { success: true };

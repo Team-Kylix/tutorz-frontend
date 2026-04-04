@@ -32,3 +32,11 @@ export const requestJoinClass = async (classId) => {
   const response = await apiClient.post('/student/join-class', { classId: classId });
   return response.data;
 };
+
+/**
+ * Gets all classes the student has joined with Approved status.
+ */
+export const getStudentClasses = async () => {
+  const response = await apiClient.get('/student/classes');
+  return response.data;
+};
