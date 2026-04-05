@@ -92,3 +92,24 @@ export const getStudentAttendanceHistory = async (tutorId, classId, date) => {
   });
   return response.data;
 };
+
+/**
+ * Gets student payment history with optional filters
+ * @param {string} tutorId - Optional tutor GUID
+ * @param {string} classId - Optional class GUID  
+ * @param {string} monthYear - Optional month filter in 'YYYY-MM' format (e.g. '2026-04')
+ * @param {number} page - Page number (default 1)
+ * @param {number} pageSize - Page size (default 10)
+ */
+export const getStudentPaymentHistory = async (tutorId, classId, monthYear, page = 1, pageSize = 10) => {
+  const response = await apiClient.get('/student/payment-history', {
+    params: {
+      tutorId: tutorId || undefined,
+      classId: classId || undefined,
+      monthYear: monthYear || undefined,
+      page,
+      pageSize
+    }
+  });
+  return response.data;
+};

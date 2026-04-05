@@ -24,6 +24,7 @@ import StudentRequestsPage from './StudentRequestsPage';
 import AttendancePage from './AttendancePage';
 import StudentAttendancePage from './StudentAttendancePage';
 import FinancialsPage from './FinancialsPage';
+import StudentFinancialsPage from './StudentFinancialsPage';
 import SettingsPage from './SettingsPage';
 import AboutUsContent from '../../components/organisms/AboutUsContent';
 
@@ -84,6 +85,9 @@ const DashboardHome = ({ activePage, setActivePage }) => {
   }
 
   if (activePage === 'financials') {
+    if (user?.role === ROLES.STUDENT) {
+      return <StudentFinancialsPage />;
+    }
     return <FinancialsPage />;
   }
 

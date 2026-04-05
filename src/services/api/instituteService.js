@@ -258,7 +258,11 @@ export const markAttendance = async (studentId, classId) => {
 
 export const getInstituteClassesToday = async () => {
   try {
-    const response = await apiClient.get('/institute/attendance/classes-today');
+    // Send local date (not UTC) so the server uses the correct DayOfWeek
+    // e.g. In Sri Lanka (UTC+5:30) UtcNow before 05:30 would give the wrong day
+    const now = new Date();
+    const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const response = await apiClient.get(`/institute/attendance/classes-today?localDate=${localDate}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to fetch today\'s classes' };

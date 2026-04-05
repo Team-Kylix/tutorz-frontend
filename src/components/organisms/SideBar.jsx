@@ -102,6 +102,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'classes', label: 'My Classes', icon: BookOpen },
     { id: 'timetable', label: 'Timetable', icon: Clock },
     { id: 'attendance', label: 'My Attendance', icon: Calendar },
+    { id: 'financials', label: 'My Financials', icon: DollarSign },
     { id: 'profile', label: 'My Profile', icon: QrCode },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
