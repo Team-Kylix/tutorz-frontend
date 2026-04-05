@@ -60,3 +60,12 @@ export const getTimetableByDate = async (date) => {
   });
   return response.data;
 };
+
+/**
+ * Soft-deletes the student's enrollment in a class by setting status to Dropped.
+ * @param {string} classId - The GUID of the class to leave
+ */
+export const leaveClass = async (classId) => {
+  const response = await apiClient.put(`/student/leave-class/${classId}`);
+  return response.data;
+};

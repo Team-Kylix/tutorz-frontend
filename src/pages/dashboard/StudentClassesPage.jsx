@@ -3,6 +3,8 @@ import { Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar, User } 
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import StatCard from '../../components/molecules/StatCard';
+import ConfirmationModal from '../../components/molecules/ConfirmationModal';
+import StudentClassDetailsModal from '../../components/organisms/StudentClassDetailsModal';
 import useApi from '../../hooks/useApi';
 import * as studentService from '../../services/api/studentService';
 
@@ -10,6 +12,11 @@ const StudentClassesPage = () => {
     // State
     const [classes, setClasses] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Modal State
+    const [selectedClass, setSelectedClass] = useState(null);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [isLeaving, setIsLeaving] = useState(false);
 
     // API Hooks
     const { request: fetchClasses, loading: isLoading } = useApi();
@@ -21,12 +28,40 @@ const StudentClassesPage = () => {
 
     const loadClasses = async () => {
         const { data } = await fetchClasses(studentService.getStudentClasses);
-
         if (data && data.success) {
             setClasses(data.data || []);
         } else {
             setClasses([]);
         }
+    };
+
+    const handleRowClick = (cls) => {
+        setSelectedClass(cls);
+    };
+
+    const handleLeaveRequest = () => {
+        // close details modal, open confirmation
+        setShowConfirm(true);
+    };
+
+    const handleConfirmLeave = async () => {
+        if (!selectedClass) return;
+        setIsLeaving(true);
+        try {
+            await studentService.leaveClass(selectedClass.classId);
+            // Optimistically remove from local UI
+            setClasses(prev => prev.filter(c => c.classId !== selectedClass.classId));
+            setShowConfirm(false);
+            setSelectedClass(null);
+        } catch (err) {
+            console.error('Failed to leave class', err);
+        } finally {
+            setIsLeaving(false);
+        }
+    };
+
+    const handleCancelLeave = () => {
+        setShowConfirm(false);
     };
 
     const filteredClasses = classes.filter(c =>
@@ -99,7 +134,10 @@ const StudentClassesPage = () => {
                                 filteredClasses.map((cls, index) => (
                                     <tr
                                         key={cls.classId || index}
-                                        className={`hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors group ${cls.status !== 'active' ? 'opacity-60 bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
+                                        onClick={() => handleRowClick(cls)}
+                                        className={`cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors group ${
+                                            cls.status !== 'active' ? 'opacity-60 bg-gray-50/50 dark:bg-gray-800/50' : ''
+                                        }`}
                                     >
                                         <td className="px-6 py-4">
                                             <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -169,6 +207,28 @@ const StudentClassesPage = () => {
                     </table>
                 </div>
             </div>
+
+            {/* Class Details Modal */}
+            <StudentClassDetailsModal
+                isOpen={!!selectedClass && !showConfirm}
+                cls={selectedClass}
+                onClose={() => setSelectedClass(null)}
+                onLeave={handleLeaveRequest}
+                isLeaving={isLeaving}
+            />
+
+            {/* Leave Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showConfirm}
+                title="Leave this class?"
+                message={`Are you sure you want to leave "${selectedClass?.className}"? You can re-join the class later if the tutor approves your request again.`}
+                confirmLabel="Yes, Leave"
+                cancelLabel="Cancel"
+                variant="danger"
+                onConfirm={handleConfirmLeave}
+                onCancel={handleCancelLeave}
+                onClose={handleCancelLeave}
+            />
         </div>
     );
 };
