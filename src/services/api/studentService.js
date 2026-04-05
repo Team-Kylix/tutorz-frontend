@@ -69,3 +69,26 @@ export const leaveClass = async (classId) => {
   const response = await apiClient.put(`/student/leave-class/${classId}`);
   return response.data;
 };
+
+/**
+ * Gets student attendance history with optional filters
+ * @param {string} tutorId - Optional tutor GUID
+ * @param {string} classId - Optional class GUID
+ * @param {string} date - Optional date string (YYYY-MM-DD)
+ */
+export const getStudentAttendanceHistory = async (tutorId, classId, date) => {
+  let targetDate;
+  if (date instanceof Date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    targetDate = `${y}-${m}-${d}`;
+  } else {
+    targetDate = date;
+  }
+  
+  const response = await apiClient.get('/student/attendance-history', {
+    params: { tutorId, classId, date: targetDate }
+  });
+  return response.data;
+};

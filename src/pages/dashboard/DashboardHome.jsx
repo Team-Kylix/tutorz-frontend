@@ -22,6 +22,7 @@ import InstituteRequestsPage from './InstituteRequestsPage';
 import TutorRequestsPage from './TutorRequestsPage';
 import StudentRequestsPage from './StudentRequestsPage';
 import AttendancePage from './AttendancePage';
+import StudentAttendancePage from './StudentAttendancePage';
 import FinancialsPage from './FinancialsPage';
 import SettingsPage from './SettingsPage';
 import AboutUsContent from '../../components/organisms/AboutUsContent';
@@ -76,6 +77,9 @@ const DashboardHome = ({ activePage, setActivePage }) => {
   }
 
   if (activePage === 'attendance') {
+    if (user?.role === ROLES.STUDENT) {
+      return <StudentAttendancePage />;
+    }
     return <AttendancePage />;
   }
 

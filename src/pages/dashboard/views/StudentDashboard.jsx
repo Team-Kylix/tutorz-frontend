@@ -11,15 +11,47 @@ import * as studentService from '../../../services/api/studentService';
 const StudentDashboard = ({ user, setActivePage }) => {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [enrolledClasses, setEnrolledClasses] = useState([]);
+  const [attendanceStats, setAttendanceStats] = useState(0);
   const { request: fetchClasses, loading: isLoading } = useApi();
   
   const userGrade = user?.grade;
 
   useEffect(() => {
     const loadDashboardData = async () => {
-      const { data } = await fetchClasses(studentService.getStudentClasses);
-      if (data && data.success) {
-        setEnrolledClasses(data.data || []);
+      try {
+        const [classesRes, attendanceRes] = await Promise.all([
+          studentService.getStudentClasses(),
+          studentService.getStudentAttendanceHistory()
+        ]);
+        
+        if (classesRes.success) {
+          setEnrolledClasses(classesRes.data || []);
+        }
+
+        if (attendanceRes.success !== false) {
+           const historyData = attendanceRes.data || attendanceRes;
+           
+           const classesData = historyData.classes || [];
+           const datesData = historyData.conductedDates || [];
+           
+           const totalSlots = classesData.length * datesData.length;
+           let totalAttended = 0;
+           
+           classesData.forEach(cls => {
+             if (cls.attendanceRecord) {
+               Object.keys(cls.attendanceRecord).forEach(date => {
+                 if (cls.attendanceRecord[date]) {
+                   totalAttended++;
+                 }
+               });
+             }
+           });
+           
+           const visualRate = totalSlots > 0 ? Math.round((totalAttended / totalSlots) * 100) : 0;
+           setAttendanceStats(visualRate);
+        }
+      } catch (err) {
+        console.error("Dashboard error", err);
       }
     };
     loadDashboardData();
@@ -50,7 +82,7 @@ const StudentDashboard = ({ user, setActivePage }) => {
       </div>
 
       {/* Stats Row */}
-      <StudentStatsGrid classesCount={enrolledClasses.length} isLoading={isLoading} />
+      <StudentStatsGrid classesCount={enrolledClasses.length} attendanceRate={attendanceStats} isLoading={isLoading} />
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -122,8 +154,8 @@ const StudentDashboard = ({ user, setActivePage }) => {
            {/* Notification / Info Widget */}
            <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/50 rounded-xl p-5 transition-colors">
               <h4 className="font-bold text-blue-800 dark:text-blue-300 mb-2">Did you know?</h4>
-              <p className="text-sm text-blue-600 dark:text-blue-400">
-                You have 85% attendance this month! Keep it up to earn the "Consistent Learner" medal.
+               <p className="text-sm text-blue-600 dark:text-blue-400">
+                You have {attendanceStats}% attendance! Keep it up to earn the "Consistent Learner" medal.
               </p>
            </div>
         </div>

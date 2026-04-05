@@ -1,14 +1,14 @@
 import StatCard from '../molecules/StatCard';
 import { CheckCircle, BookOpen, DollarSign, Award } from 'lucide-react';
 
-const StudentStatsGrid = ({ classesCount = 0, isLoading = false }) => {
+const StudentStatsGrid = ({ classesCount = 0, attendanceRate = 0, isLoading = false }) => {
   const stats = [
     {
       label: "Attendance Rate",
-      value: "85%",
+      value: isLoading ? "..." : `${attendanceRate}%`,
       icon: CheckCircle,
       color: "bg-green-100 text-green-600",
-      change: "+2%"
+      change: "Overall"
     },
     {
       label: "Enrolled Classes",
