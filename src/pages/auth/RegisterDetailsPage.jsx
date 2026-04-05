@@ -9,6 +9,8 @@ import { socialLogin } from '../../services/auth/authService.js';
 import Label from '../../components/atoms/Label.jsx';
 import LocationSelector from '../../components/molecules/LocationSelector';
 import { CheckCircle2 } from 'lucide-react';
+import OtpVerificationModal from '../../components/organisms/OtpVerificationModal.jsx';
+import { sendOtp, verifyOtp } from '../../services/auth/authService.js';
 
 
 const SelectField = ({ id, label, value, onChange, groups, placeholder, required = false, error }) => {
@@ -92,6 +94,10 @@ const RegisterDetailsPage = () => {
     const [globalError, setGlobalError] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    
+    // OTP State
+    const [showOtpModal, setShowOtpModal] = useState(false);
+    const isPhoneRegistration = !isSocial && !isLinkedAccount && !stepOneData.email.includes('@');
 
     const handleChange = (e) => {
         const { id, value } = e.target;
@@ -192,8 +198,21 @@ const RegisterDetailsPage = () => {
 
                 const result = await manualRegister(fullRegistrationData);
                 if (result.success) {
-                    setIsSuccess(true);
-                    setTimeout(() => navigate('/login'), 2000);
+                    if (isPhoneRegistration) {
+                        try {
+                            await sendOtp(formData.phoneNumber);
+                            setShowOtpModal(true);
+                        } catch (error) {
+                            setGlobalError("Registration successful, but failed to send verification SMS. You can log in now.");
+                            setTimeout(() => {
+                                setIsSuccess(true);
+                                setTimeout(() => navigate('/login'), 2000);
+                            }, 3000);
+                        }
+                    } else {
+                        setIsSuccess(true);
+                        setTimeout(() => navigate('/login'), 2000);
+                    }
                 } else {
                     setGlobalError(result.error?.message || "Registration failed.");
                 }
@@ -202,6 +221,18 @@ const RegisterDetailsPage = () => {
             setGlobalError(isSocial ? error.message : "Registration failed.");
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleVerifyOtp = async (otpCode) => {
+        try {
+            await verifyOtp(formData.phoneNumber, otpCode);
+            setShowOtpModal(false);
+            setIsSuccess(true);
+            setTimeout(() => navigate('/login'), 2000);
+        } catch (error) {
+            console.error("OTP Error", error);
+            throw error;
         }
     };
 
@@ -222,7 +253,7 @@ const RegisterDetailsPage = () => {
                         <FormField id="school" label="School Name" value={formData.school} onChange={handleChange} />
                         <SelectField
                             id="grade"
-                            label="Grade / Course ..."
+                            label="Grade / Course"
                             value={formData.grade}
                             onChange={handleChange}
                             groups={GRADE_GROUPS}
@@ -271,7 +302,8 @@ const RegisterDetailsPage = () => {
                 <form className="space-y-4 mt-6" onSubmit={handleSubmit}>
                     <FormField
                         id="phoneNumber"
-                        label={<>Phone Number <span className="text-red-500 dark:text-red-400">*</span></>}
+                        label="Phone Number"
+                        required
                         type="tel"
                         placeholder="0712345678"
                         value={formData.phoneNumber}
@@ -306,6 +338,17 @@ const RegisterDetailsPage = () => {
                     </button>
                 </form>
             </div>
+            
+            <OtpVerificationModal
+                isOpen={showOtpModal}
+                onClose={() => {
+                    setShowOtpModal(false);
+                    setIsSuccess(true);
+                    setTimeout(() => navigate('/login'), 2000);
+                }}
+                onVerify={handleVerifyOtp}
+                identifier={formData.phoneNumber}
+            />
         </AuthLayout>
     );
 };

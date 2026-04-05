@@ -31,6 +31,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
     const [showOtpModal, setShowOtpModal] = useState(false);
     const [existingUser, setExistingUser] = useState(null);
     const [tempSocialProfile, setTempSocialProfile] = useState(null);
+    const [otpFlowType, setOtpFlowType] = useState(null); // 'sibling' or 'new_mobile'
 
     // handleAppleClick, validateRoleSelection, googleRegister, handleGoogleClick
     const handleAppleClick = () => {
@@ -186,6 +187,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
         setIsChecking(true);
         try {
             await sendOtp(email);
+            setOtpFlowType('sibling');
             setShowOtpModal(true);
         } catch (error) {
             setEmailError("Failed to send verification code.");
@@ -199,7 +201,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
             const response = await verifyOtp(email, otpCode);
 
             setShowOtpModal(false);
-            let backendPhone = response.phoneNumber;
+            let backendPhone = response.phoneNumber || email;
             let formattedPhone = backendPhone;
             
             if (backendPhone && backendPhone.startsWith('+94')) {

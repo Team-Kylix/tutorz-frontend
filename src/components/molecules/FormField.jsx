@@ -3,11 +3,11 @@ import Label from '../atoms/Label.jsx';
 import Input from '../atoms/Input.jsx';
 import ErrorMessage from '../atoms/ErrorMessage.jsx';
 
-const FormField = ({ id, label, type = 'text', error, ...props }) => (
+const FormField = ({ id, label, type = 'text', error, required, ...props }) => (
     <div>
         {/* Label handles its own dark mode, but we ensure the class passed is correct */}
         <Label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            {label}
+            {label} {required && <span className="text-red-500 dark:text-red-400">*</span>}
         </Label>
         
         <Input
