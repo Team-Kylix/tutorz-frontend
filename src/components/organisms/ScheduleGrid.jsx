@@ -47,6 +47,7 @@ const mapClassToCard = (cls) => {
         id: cls.classId,
         name: cls.className || cls.subject,
         teacher: cls.tutorName || 'Unknown',
+        instituteName: cls.instituteName || null,
         subject: cls.subject,
         hallName: cls.hallName || 'Unknown Hall',
         startHour: startH,
@@ -132,8 +133,19 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
     }, []);
 
 
-    // Derive distinct hall names from loaded classes — sorted alphabetically
-    const halls = [...new Set(classes.map(c => c.hallName))].sort();
+    // Derive unique columns from loaded classes. 
+    // We group by "InstituteName||HallName", sorting first by Institute, then Hall.
+    // If instituteName is null (e.g. for institute-side view), it falls back seamlessly to HallName.
+    const columnKeys = [...new Set(classes.map(c => `${c.instituteName || ''}__||__${c.hallName || 'Unknown'}`))].sort();
+
+    const columns = columnKeys.map(key => {
+        const [inst, hall] = key.split('__||__');
+        return {
+            id: key,
+            instituteName: inst || null,
+            hallName: hall
+        };
+    });
 
     return (
         <div className="flex flex-col flex-1 h-full">
@@ -227,12 +239,13 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
                         </div>
 
                         {/* ── Hall Columns ── */}
-                        {halls.map((hallName, hallIndex) => (
+                        {columns.map((col, hallIndex) => (
                             <HallColumn
-                                key={hallName}
-                                hallName={hallName}
+                                key={col.id}
+                                hallName={col.hallName}
+                                subtitle={col.instituteName}
                                 hallIndex={hallIndex}
-                                classes={classes.filter(c => c.hallName === hallName)}
+                                classes={classes.filter(c => c.hallName === col.hallName && (c.instituteName || null) === col.instituteName)}
                                 onClassClick={(cardCls) => {
                                     // Find the matching raw DTO by id to pass to the modal
                                     const raw = rawClasses.find(r => r.classId === cardCls.id);
