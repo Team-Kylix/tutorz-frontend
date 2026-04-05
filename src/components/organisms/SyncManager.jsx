@@ -12,6 +12,10 @@ import {
   markAttendance,
   assignStudentToClass,
   updateInstituteProfile,
+  addHall,
+  updateHall,
+  deleteHall,
+  toggleHallStatus,
 } from '../../services/api/instituteService';
 import { updateTutorProfile } from '../../services/api/tutorService';
 import { updateStudentProfile } from '../../services/api/studentService';
@@ -56,6 +60,14 @@ const executeAction = async (item) => {
         case 'Institute': return updateInstituteProfile(payload.formData);
         default: throw new Error(`Unknown role for UPDATE_PROFILE: ${payload.role}`);
       }
+    case SYNC_ACTION_TYPES.CREATE_HALL:
+      return addHall(payload.hallData);
+    case SYNC_ACTION_TYPES.UPDATE_HALL:
+      return updateHall(payload.id, payload.hallData);
+    case SYNC_ACTION_TYPES.DELETE_HALL:
+      return deleteHall(payload.id);
+    case SYNC_ACTION_TYPES.TOGGLE_HALL_STATUS:
+      return toggleHallStatus(payload.id);
     default:
       throw new Error(`[SyncManager] Unknown actionType: ${actionType}`);
   }

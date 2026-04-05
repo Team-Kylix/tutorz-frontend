@@ -96,9 +96,10 @@ export const toggleInstituteClassStatus = async (id) => {
 
 // --- Hall Management ---
 
-export const getHalls = async () => {
+export const getHalls = async (bypassCache = false) => {
   try {
-    const response = await apiClient.get('/institute/halls');
+    const url = bypassCache ? `/institute/halls?_t=${Date.now()}` : '/institute/halls';
+    const response = await apiClient.get(url);
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to fetch halls' };

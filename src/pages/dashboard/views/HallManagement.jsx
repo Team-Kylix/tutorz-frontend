@@ -8,13 +8,19 @@ import FormField from '../../../components/molecules/FormField';
 import ConfirmationModal from '../../../components/molecules/ConfirmationModal';
 import ClassCard from '../../../components/molecules/ClassCard';
 import StatCard from '../../../components/molecules/StatCard';
-import { getHalls, addHall, updateHall, deleteHall, toggleHallStatus } from '../../../services/api/instituteService';
+import { getHalls } from '../../../services/api/instituteService';
+import { useDispatch, useSelector } from 'react-redux';
+import { enqueueAction, SYNC_ACTION_TYPES, selectPendingCount } from '../../../store/syncSlice';
 
 const HallManagement = () => {
     // Data State
     const [halls, setHalls] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+
+    const dispatch = useDispatch();
+    const pendingCount = useSelector(selectPendingCount);
+    const prevPendingRef = React.useRef(pendingCount);
 
     // Modal States
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -37,17 +43,27 @@ const HallManagement = () => {
         fetchHalls();
     }, []);
 
-    const fetchHalls = async () => {
-        setIsLoading(true);
+    // Listen for sync completion to replace temp IDs with real IDs
+    useEffect(() => {
+        if (prevPendingRef.current > 0 && pendingCount === 0) {
+            // Sync just completed (pushed data up). 
+            // Bypass PWA cache to fetch real permanent IDs silently without loading spinner
+            fetchHalls(true);
+        }
+        prevPendingRef.current = pendingCount;
+    }, [pendingCount]);
+
+    const fetchHalls = async (bypassCache = false) => {
+        if (!bypassCache) setIsLoading(true);
         try {
-            const response = await getHalls();
+            const response = await getHalls(bypassCache);
             if (response.success) {
                 setHalls(response.data);
             }
         } catch (error) {
             console.error("Failed to fetch halls", error);
         } finally {
-            setIsLoading(false);
+            if (!bypassCache) setIsLoading(false);
         }
     };
 
@@ -93,81 +109,83 @@ const HallManagement = () => {
     // --- Confirm Actions ---
 
     const handleConfirmSave = async () => {
-        setIsSubmitting(true);
-        try {
-            if (editingHall) {
-                // Update
-                await updateHall(editingHall.hallId, {
-                    name: formData.name,
-                    capacity: parseInt(formData.capacity)
-                    // Note: UpdateHallDto might not include IsActive, usually handled by toggle endpoint.
-                    // But if we want to support it here, backend might need adjustment or we assume it is just Name/Capacity.
-                    // For now, IsActive is handled separately via toggle endpoint for existing halls.
-                });
-                setSuccessMessage("Hall updated successfully!");
-            } else {
-                // Create
-                // If backend doesn't support setting IsActive on creation (defaults true), we might need to check.
-                await addHall({
-                    name: formData.name,
-                    capacity: parseInt(formData.capacity)
-                });
-                setSuccessMessage("Hall added successfully!");
-            }
-
-            setIsConfirmOpen(false);
-            setFormData({ name: '', capacity: '', isActive: true });
-            setEditingHall(null);
-            fetchHalls();
-            setIsSuccessOpen(true);
-
-        } catch (error) {
-            alert(error.message || "Operation failed");
-            setIsConfirmOpen(false);
-            setIsFormModalOpen(true); // Re-open form on error
-        } finally {
-            setIsSubmitting(false);
+        if (editingHall) {
+            const updatedHall = { ...editingHall, name: formData.name, capacity: parseInt(formData.capacity) };
+            setHalls(prev => prev.map(h => h.hallId === editingHall.hallId ? updatedHall : h));
+            
+            dispatch(enqueueAction({
+                actionType: SYNC_ACTION_TYPES.UPDATE_HALL,
+                payload: { id: editingHall.hallId, hallData: { name: formData.name, capacity: parseInt(formData.capacity) } },
+                label: `Update Hall: ${formData.name}`,
+            }));
+            setSuccessMessage("Hall updated offline (Syncing...)!");
+        } else {
+            const tempId = `temp_${Date.now()}`;
+            const newHall = {
+                hallId: tempId,
+                name: formData.name,
+                capacity: parseInt(formData.capacity),
+                isActive: true,
+                hallCode: 'Pending...',
+                isOptimistic: true 
+            };
+            setHalls(prev => [...prev, newHall]);
+            
+            dispatch(enqueueAction({
+                actionType: SYNC_ACTION_TYPES.CREATE_HALL,
+                payload: { hallData: { name: formData.name, capacity: parseInt(formData.capacity) } },
+                label: `Create Hall: ${formData.name}`,
+            }));
+            setSuccessMessage("Hall added offline (Syncing...)!");
         }
+
+        setIsConfirmOpen(false);
+        setFormData({ name: '', capacity: '', isActive: true });
+        setEditingHall(null);
+        setIsSuccessOpen(true);
     };
 
     const handleConfirmDelete = async () => {
         if (!hallToDelete) return;
-        setIsSubmitting(true);
-        try {
-            await deleteHall(hallToDelete);
-            setDeleteConfirmOpen(false);
-            setHallToDelete(null);
-            fetchHalls();
-            setSuccessMessage("Hall deleted successfully!");
-            setIsSuccessOpen(true);
-        } catch (error) {
-            alert(error.message || "Failed to delete hall");
-        } finally {
-            setIsSubmitting(false);
-        }
+        const hallName = halls.find(h => h.hallId === hallToDelete)?.name || 'Hall';
+
+        setHalls(prev => prev.filter(h => h.hallId !== hallToDelete));
+
+        dispatch(enqueueAction({
+            actionType: SYNC_ACTION_TYPES.DELETE_HALL,
+            payload: { id: hallToDelete },
+            label: `Delete Hall: ${hallName}`
+        }));
+
+        setDeleteConfirmOpen(false);
+        setHallToDelete(null);
+        setSuccessMessage("Hall deleted offline (Syncing...)!");
+        setIsSuccessOpen(true);
     };
 
     const handleConfirmStatusChange = async () => {
         if (!statusCandidate) return;
-        setIsSubmitting(true);
-        try {
-            await toggleHallStatus(statusCandidate.hallId);
-            setStatusConfirmOpen(false);
-            // Update local form data if we are in edit mode
-            if (editingHall && editingHall.hallId === statusCandidate.hallId) {
-                setFormData(prev => ({ ...prev, isActive: !prev.isActive }));
-                // Also update editingHall so if we reopen modal it's correct
-                setEditingHall(prev => ({ ...prev, isActive: !prev.isActive }));
-            }
-            setStatusCandidate(null);
-            fetchHalls();
-            setSuccessMessage(`Hall ${!statusCandidate.isActive ? 'activated' : 'deactivated'} successfully!`);
-            setIsSuccessOpen(true);
-        } catch (error) {
-            alert(error.message || "Failed to update status");
-        } finally {
-            setIsSubmitting(false);
+        
+        setHalls(prev => prev.map(h => h.hallId === statusCandidate.hallId ? { ...h, isActive: !h.isActive } : h));
+
+        dispatch(enqueueAction({
+            actionType: SYNC_ACTION_TYPES.TOGGLE_HALL_STATUS,
+            payload: { id: statusCandidate.hallId },
+            label: `Toggle Status: ${statusCandidate.name}`
+        }));
+
+        setStatusConfirmOpen(false);
+        if (editingHall && editingHall.hallId === statusCandidate.hallId) {
+            setFormData(prev => ({ ...prev, isActive: !prev.isActive }));
+            setEditingHall(prev => ({ ...prev, isActive: !prev.isActive }));
         }
+        
+        let toggledName = statusCandidate.name;
+        let futureStatus = !statusCandidate.isActive;
+        setStatusCandidate(null);
+        
+        setSuccessMessage(`Hall ${futureStatus ? 'activated' : 'deactivated'} offline (Syncing...)!`);
+        setIsSuccessOpen(true);
     };
 
     // --- Filter ---
@@ -224,29 +242,34 @@ const HallManagement = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredHalls.map((hall) => (
-                        <div key={hall.hallId} className="relative group h-full">
-                            <ClassCard
-                                className={hall.name}
-                                subject={`Code: ${hall.hallCode || 'N/A'}`}
-                                grade="Physical"
-                                classType="Course"
-                                time={`Capacity: ${hall.capacity}`}
-                                status={hall.isActive ? 'active' : 'inactive'}
-                            // students and fee are omitted to hide those sections
-                            />
-                            {/* Overlay Edit Button */}
-                            <div className="absolute top-4 right-4 flex gap-2">
-                                <button
-                                    onClick={() => handleEditClick(hall)}
-                                    className="p-1.5 bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-                                    title="Edit Hall"
-                                >
-                                    <Edit2 size={16} />
-                                </button>
+                    {filteredHalls.map((hall) => {
+                        const isTemp = hall.hallId.toString().startsWith('temp_') || hall.isOptimistic;
+                        return (
+                            <div key={hall.hallId} className="relative group h-full">
+                                <ClassCard
+                                    className={hall.name}
+                                    subject={`Code: ${hall.hallCode || 'N/A'}`}
+                                    grade="Physical"
+                                    classType="Course"
+                                    time={`Capacity: ${hall.capacity}`}
+                                    status={hall.isActive ? 'active' : 'inactive'}
+                                />
+                                {/* Overlay Edit Button */}
+                                <div className="absolute top-4 right-4 flex gap-2">
+                                    <button
+                                        onClick={() => !isTemp && handleEditClick(hall)}
+                                        disabled={isTemp}
+                                        className={`p-1.5 shadow-sm border border-gray-100 dark:border-gray-700 rounded-full transition-colors ${
+                                            isTemp ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+                                        }`}
+                                        title={isTemp ? "Syncing to server..." : "Edit Hall"}
+                                    >
+                                        <Edit2 size={16} />
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 

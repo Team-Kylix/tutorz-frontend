@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { format, isSameDay } from 'date-fns';
 import { ArrowLeft, CalendarDays, RefreshCw } from 'lucide-react';
-import { getTimetableByDate } from '../../services/api/instituteService';
+import { getTimetableByDate as getInstituteTimetable } from '../../services/api/instituteService';
+import { getTimetableByDate as getStudentTimetable } from '../../services/api/studentService';
 import HallColumn from '../molecules/HallColumn';
 import ClassFormModal from './ClassFormModal';
+import { useAuth } from '../../hooks/useAuth';
+import { ROLES } from '../../utils/constants';
 
 const HOUR_HEIGHT = 80; // px per hour
 
@@ -64,6 +67,7 @@ const mapClassToCard = (cls) => {
  *  onBack       {Function} – Called when the user clicks "Back to Calendar".
  */
 const ScheduleGrid = ({ selectedDate, onBack }) => {
+    const { user } = useAuth();
     const [viewDate, setViewDate] = useState(selectedDate);
     const [classes, setClasses] = useState([]);
     const [rawClasses, setRawClasses] = useState([]);  // raw API DTOs for view modal
@@ -86,7 +90,12 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
             setIsLoading(true);
             setError(null);
             try {
-                const res = await getTimetableByDate(viewDate);
+                let res;
+                if (user?.role === ROLES.STUDENT) {
+                    res = await getStudentTimetable(viewDate);
+                } else {
+                    res = await getInstituteTimetable(viewDate);
+                }
                 const rawClasses = res?.data || [];
                 setRawClasses(rawClasses);
                 setClasses(rawClasses.map(mapClassToCard));
