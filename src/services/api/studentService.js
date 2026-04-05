@@ -46,8 +46,15 @@ export const getStudentClasses = async () => {
  * @param {string} date - The date to fetch the timetable for (YYYY-MM-DD or ISO string)
  */
 export const getTimetableByDate = async (date) => {
-  const targetDate = typeof date === 'string' ? date : date.toISOString();
-  // Ensure we format just the date part if necessary, but ISOString also works since the backend parses it
+  let targetDate;
+  if (date instanceof Date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    targetDate = `${y}-${m}-${d}`;
+  } else {
+    targetDate = date;
+  }
   const response = await apiClient.get('/student/timetable', {
     params: { date: targetDate }
   });
