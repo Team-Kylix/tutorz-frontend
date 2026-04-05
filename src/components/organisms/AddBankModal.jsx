@@ -2,17 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, Building2, GitBranch, User, Hash, ChevronDown, Shield, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { getBanks, getBranchesByBank, saveBankDetails } from '../../services/api/financialService';
 
-// Keywords that identify non-bank financial institutions to exclude from the bank list.
-// Adjust this list to match what your API actually returns.
-const NON_BANK_KEYWORDS = [
-    'finance', 'leasing', 'insurance', 'micro', 'credit', 'cooperative',
-    'thrift', 'savings society', 'pawning', 'merchant bank'
-];
 
-const isBankOnly = (bankName = '') => {
-    const lower = bankName.toLowerCase();
-    return !NON_BANK_KEYWORDS.some(kw => lower.includes(kw));
-};
 
 const AddBankModal = ({ isOpen, onClose, onSuccess }) => {
     const [step, setStep] = useState(1); // 3 steps: Bank → Branch → Account
@@ -138,7 +128,6 @@ const AddBankModal = ({ isOpen, onClose, onSuccess }) => {
     if (!isOpen) return null;
 
     const filteredBanks = banks.filter(b =>
-        isBankOnly(b.bankName) &&
         b.bankName.toLowerCase().includes(bankSearch.toLowerCase())
     );
     const filteredBranches = branches.filter(b =>
