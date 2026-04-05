@@ -4,7 +4,7 @@ import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import StatCard from '../../components/molecules/StatCard';
 import ConfirmationModal from '../../components/molecules/ConfirmationModal';
-import StudentClassDetailsModal from '../../components/organisms/StudentClassDetailsModal';
+import ClassFormModal from '../../components/organisms/ClassFormModal';
 import useApi from '../../hooks/useApi';
 import * as studentService from '../../services/api/studentService';
 
@@ -209,10 +209,11 @@ const StudentClassesPage = () => {
             </div>
 
             {/* Class Details Modal */}
-            <StudentClassDetailsModal
+            <ClassFormModal
                 isOpen={!!selectedClass && !showConfirm}
-                cls={selectedClass}
                 onClose={() => setSelectedClass(null)}
+                initialData={selectedClass}
+                viewOnly={true}
                 onLeave={handleLeaveRequest}
                 isLeaving={isLeaving}
             />
