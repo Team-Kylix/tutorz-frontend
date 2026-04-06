@@ -69,6 +69,13 @@ const initialState = {
   conflicts: [],
   /** Lock flag: prevents multiple concurrent sync loops */
   isSyncing: false,
+  /**
+   * Tombstones: dedupeKeys of items that have already been processed
+   * (either synced successfully or confirmed idempotent by the server).
+   * Used to prevent re-queuing the same action in the same session
+   * even after the queue item has been removed.
+   */
+  tombstones: [],
 };
 
 const syncSlice = createSlice({
@@ -97,10 +104,12 @@ const syncSlice = createSlice({
     enqueueAction: (state, action) => {
       const { actionType, payload, label, dedupeKey } = action.payload;
 
-      // DUPLICATE GUARD: If a dedupeKey is provided, don't add identical actions
+      // DUPLICATE GUARD: If a dedupeKey is provided, don't add identical actions.
+      // Check both the live queue AND the tombstones (already-processed items).
       if (dedupeKey) {
         const alreadyQueued = state.queue.some((item) => item.dedupeKey === dedupeKey);
-        if (alreadyQueued) return;
+        const alreadyDone = state.tombstones.includes(dedupeKey);
+        if (alreadyQueued || alreadyDone) return;
       }
 
       state.queue.push({
@@ -138,6 +147,11 @@ const syncSlice = createSlice({
      * Remove a successfully synced item from the queue.
      */
     dequeueAction: (state, action) => {
+      const item = state.queue.find((i) => i.id === action.payload.id);
+      // Save dedupeKey to tombstones so the same action can't be re-queued this session
+      if (item?.dedupeKey && !state.tombstones.includes(item.dedupeKey)) {
+        state.tombstones.push(item.dedupeKey);
+      }
       state.queue = state.queue.filter((item) => item.id !== action.payload.id);
     },
 
@@ -207,7 +221,7 @@ const syncSlice = createSlice({
      * Emergency wipe — called on logout and account switch.
      * Prevents any queued action from being uploaded under a different session.
      */
-    clearSyncQueue: () => initialState,
+    clearSyncQueue: () => initialState, // resets tombstones too (correct on logout/account-switch)
   },
 });
 
@@ -255,3 +269,10 @@ export const selectDueItems = createSelector(
     );
   }
 );
+
+/**
+ * All dedupeKeys that have been fully processed this session
+ * (synced successfully or confirmed as already-done by the server).
+ * Components can use this to show "Already Marked" UI states.
+ */
+export const selectTombstones = (state) => state.sync.tombstones;
