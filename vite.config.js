@@ -37,9 +37,17 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // Only use the offline fallback for actual page navigations (not API calls)
-        navigateFallbackAllowlist: [new RegExp('^(?!/api/).*')],
+        // Only use the offline fallback for actual page navigations (not API or Hub calls)
+        navigateFallbackAllowlist: [new RegExp('^(?!/api/)(?!/hubs/).*')],
         runtimeCaching: [
+          // 0. SignalR Hub — MUST bypass the Service Worker entirely.
+          //    SignalR's negotiate step is a plain HTTP POST that upgrades to WebSocket.
+          //    Any cache strategy (even NetworkFirst) can abort the upgrade or delay
+          //    negotiation enough to cause "connection stopped during negotiation".
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/hubs/'),
+            handler: 'NetworkOnly',
+          },
           // 1. Static Assets (Images, Icons, CSS) - Cache First
           // Super fast local loading for atoms/logos
           {

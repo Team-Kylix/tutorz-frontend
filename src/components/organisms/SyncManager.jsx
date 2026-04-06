@@ -19,6 +19,8 @@ import {
 } from '../../services/api/instituteService';
 import { updateTutorProfile } from '../../services/api/tutorService';
 import { updateStudentProfile } from '../../services/api/studentService';
+import signalRService from '../../services/signalRService';
+import { fetchNotificationsThunk } from '../../store/notificationSlice';
 
 /**
  * Server error messages that mean the action is already done on the server side.
@@ -136,6 +138,27 @@ const SyncManager = () => {
     const interval = setInterval(processSyncQueue, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [dueItems]);
+
+  const { isAuthenticated, token, user } = useSelector((state) => state.auth);
+
+  // --- SignalR & Notifications Lifecycle ---
+  useEffect(() => {
+    if (isAuthenticated && token && user?.role === 'Institute') {
+      // 1. Start the real-time WebSocket connection
+      signalRService.startConnection(token, dispatch);
+      
+      // 2. Fetch the notification history (last 50)
+      dispatch(fetchNotificationsThunk());
+    } else {
+      // Stop connection on logout or if role changes
+      signalRService.stopConnection();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      signalRService.stopConnection();
+    };
+  }, [isAuthenticated, token, user?.role, dispatch]);
 
   return null;
 };

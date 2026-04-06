@@ -9,6 +9,7 @@ import uiReducer from './uiSlice';
 import dashboardReducer from './dashboardSlice';
 // The sync queue MUST be persisted so offline attendance records survive app restarts
 import syncReducer from './syncSlice';
+import notificationReducer from './notificationSlice';
 
 // 1. Configure the persist settings for each slice
 const authPersistConfig = {
@@ -44,6 +45,7 @@ export const store = configureStore({
     ui: persistedUiReducer,
     dashboard: persistedDashboardReducer,
     sync: persistedSyncReducer,
+    notifications: notificationReducer,
   },
   // 3. We must ignore the serialization warnings for redux-persist actions
   // because persist/REHYDRATE contains functions under the hood.
