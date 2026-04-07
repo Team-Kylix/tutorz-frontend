@@ -76,13 +76,14 @@ export default defineConfig({
               fetchOptions: { mode: 'cors' },
             },
           },
-          // 3. User Data (Classes, Profiles, Schedules) - Stale While Revalidate
-          // Instant UI rendering, background silent sync to fix the Colombo-Azure RTT issue
+          // 3. User Data (Classes, Profiles, Schedules) - Network First
+          // Try network for latest data to prevent stale UI, fallback to cache
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/api/student/') || url.pathname.startsWith('/api/tutor/') || url.pathname.startsWith('/api/institute/'),
-            handler: 'StaleWhileRevalidate',
+            handler: 'NetworkFirst',
             options: {
               cacheName: 'user-data-cache',
+              networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 24 * 60 * 60, // 24 Hours

@@ -111,6 +111,14 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
             setResults([]);
             return;
         }
+
+        // Do not trigger search for less than 4 numbers to avoid excessive queries for prefixes like '078'
+        const isNumeric = /^\d+$/.test(query.trim());
+        if (isNumeric && query.trim().length <= 3) {
+            setResults([]);
+            return;
+        }
+
         clearTimeout(debounceTimer.current);
         debounceTimer.current = setTimeout(async () => {
             setIsSearching(true);
