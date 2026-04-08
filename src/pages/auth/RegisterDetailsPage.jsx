@@ -10,7 +10,8 @@ import Label from '../../components/atoms/Label.jsx';
 import LocationSelector from '../../components/molecules/LocationSelector';
 import { CheckCircle2 } from 'lucide-react';
 import OtpVerificationModal from '../../components/organisms/OtpVerificationModal.jsx';
-import { sendOtp, verifyOtp } from '../../services/auth/authService.js';
+import { sendRegistrationOtp } from '../../services/auth/authService.js';
+import { verifyOtp } from '../../services/auth/authService.js';
 
 
 const SelectField = ({ id, label, value, onChange, groups, placeholder, required = false, error }) => {
@@ -199,54 +200,49 @@ const RegisterDetailsPage = () => {
                 setTimeout(() => navigate('/login'), 2000);
             }
             else {
-                const fullRegistrationData = {
-                    ...stepOneData,
-                    ...formData,
-                    cityId: parseInt(formData.cityId),
-                    schoolName: formData.school,
-                    bankAccountNumber: formData.bankAccount,
-                    dateOfBirth: cleanDateOfBirth,
-                    ExperienceYears: 0,
-                    instituteName: formData.instituteName,
-                    address: formData.address
-                };
-
-                const result = await manualRegister(fullRegistrationData);
-                if (result.success) {
-                    if (isPhoneRegistration) {
-                        try {
-                            await sendOtp(formData.phoneNumber);
-                            setShowOtpModal(true);
-                        } catch (error) {
-                            setGlobalError("Registration successful, but failed to send verification SMS. You can log in now.");
-                            setTimeout(() => {
-                                setIsSuccess(true);
-                                setTimeout(() => navigate('/login'), 2000);
-                            }, 3000);
-                        }
-                    } else {
-                        setIsSuccess(true);
-                        setTimeout(() => navigate('/login'), 2000);
-                    }
-                } else {
-                    setGlobalError(result.error?.message || "Registration failed.");
+                try {
+                    setIsSubmitting(true);
+                    await sendRegistrationOtp(formData.phoneNumber);
+                    setShowOtpModal(true);
+                } catch (error) {
+                    setGlobalError(error.message);
+                } finally {
+                    setIsSubmitting(false);
                 }
             }
         } catch (error) {
             setGlobalError(isSocial ? error.message : "Registration failed.");
         } finally {
-            setIsSubmitting(false);
+            if (!isSocial) setIsSubmitting(false);
         }
     };
 
     const handleVerifyOtp = async (otpCode) => {
         try {
-            await verifyOtp(formData.phoneNumber, otpCode);
-            setShowOtpModal(false);
-            setIsSuccess(true);
-            setTimeout(() => navigate('/login'), 2000);
+            const fullRegistrationData = {
+                ...stepOneData,
+                ...formData,
+                cityId: parseInt(formData.cityId),
+                schoolName: formData.school,
+                bankAccountNumber: formData.bankAccount,
+                dateOfBirth: formData.dateOfBirth === '' ? null : formData.dateOfBirth,
+                ExperienceYears: 0,
+                instituteName: formData.instituteName,
+                address: formData.address,
+                otpCode: otpCode
+            };
+
+            const result = await manualRegister(fullRegistrationData);
+
+            if (result.success) {
+                setShowOtpModal(false);
+                setIsSuccess(true);
+                setTimeout(() => navigate('/login'), 2000);
+            } else {
+                throw new Error(result.error?.message || "Registration failed.");
+            }
         } catch (error) {
-            console.error("OTP Error", error);
+            console.error("Verification Error", error);
             throw error;
         }
     };
@@ -359,8 +355,7 @@ const RegisterDetailsPage = () => {
                 isOpen={showOtpModal}
                 onClose={() => {
                     setShowOtpModal(false);
-                    setIsSuccess(true);
-                    setTimeout(() => navigate('/login'), 2000);
+                    setGlobalError("Account created but not verified. You must verify your phone number before you can log in.");
                 }}
                 onVerify={handleVerifyOtp}
                 identifier={formData.phoneNumber}
