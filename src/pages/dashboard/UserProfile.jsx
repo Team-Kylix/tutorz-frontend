@@ -5,7 +5,8 @@ import { Mail, Phone, FileText, Pencil, MapPin, Globe, Building, School, Graduat
 // Hooks & Constants
 import { useAuth } from '../../hooks/useAuth';
 import { ROLES } from '../../utils/constants';
-import { updateUser } from '../../store/authSlice'; // Added Redux Action
+import { updateUser } from '../../store/authSlice';
+import { enqueueAction, SYNC_ACTION_TYPES } from '../../store/syncSlice';
 
 // Services
 import { getTutorProfile, updateTutorProfile } from '../../services/api/tutorService';
@@ -74,7 +75,8 @@ const UserProfile = () => {
                     lastName: result.data.lastName || '',
                     // Use fallbacks to ensure the Sidebar gets an image regardless of backend column names
                     profileImageUrlSmall: smallUrl,
-                    profileImageUrlLarge: largeUrl
+                    profileImageUrlLarge: largeUrl,
+                    profiles: result.data.profiles || []
                 }));
                 // --------------------------------------------------------
 
@@ -129,21 +131,29 @@ const UserProfile = () => {
     }, [profile, role]);
 
     const handleSaveChanges = async (formData) => {
-        setIsSaving(true);
-        try {
-            // Switch Update API call based on Role
-            switch (role) {
-                case ROLES.TUTOR: await updateTutorProfile(formData); break;
-                case ROLES.STUDENT: await updateStudentProfile(formData); break;
-                case ROLES.INSTITUTE: await updateInstituteProfile(formData); break;
-            }
-            await fetchProfileData(); // Refresh UI and Redux
-            setIsEditModalOpen(false);
-        } catch (err) {
-            console.error("Update failed", err);
-        } finally {
-            setIsSaving(false);
-        }
+        // ─── OPTIMISTIC UI: Profile Update ────────────────────────────
+        // 1. Update the local profile state immediately so the UI reflects
+        //    the new values without waiting for the server.
+        setProfile((prev) => ({ ...prev, ...formData }));
+
+        // 2. Also update the Redux auth store immediately so the Sidebar
+        //    and any other consumers see the new name/avatar right away.
+        dispatch(updateUser({
+            firstName: formData.firstName || formData.instituteName,
+            lastName: formData.lastName || '',
+        }));
+
+        // 3. Close the modal instantly for a snappy feel
+        setIsEditModalOpen(false);
+
+        // 4. Enqueue the actual server call to be processed by SyncManager
+        //    in the background. If offline, it will retry automatically.
+        dispatch(enqueueAction({
+            actionType: SYNC_ACTION_TYPES.UPDATE_PROFILE,
+            payload: { role, formData },
+            label: `Update Profile: ${formData.firstName || formData.instituteName || 'User'}`,
+            // No dedupeKey: latest profile update should always queue
+        }));
     };
 
     // --- 2. Dynamic Content Rendering ---

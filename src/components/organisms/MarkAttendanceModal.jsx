@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, QrCode, AlertCircle, ChevronLeft, CheckCircle2, UserPlus, CreditCard, X } from 'lucide-react';
+import { Search, Loader2, QrCode, AlertCircle, ChevronLeft, CheckCircle2, UserPlus, CreditCard, X, AlertTriangle, WifiOff } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
 import Modal from '../molecules/Modal';
 import Button from '../atoms/Button';
 import StudentSelectionCard from '../molecules/StudentSelectionCard';
@@ -9,18 +10,23 @@ import QrScanner from './QrScanner';
 import {
     searchStudents,
     getStudentClassesForAttendance,
-    markAttendance,
     getInstituteClassesToday,
-    assignStudentToClass
 } from '../../services/api/instituteService';
+import { enqueueAction, SYNC_ACTION_TYPES, selectPendingCount, selectUnseenConflicts, markConflictAsSeen, clearSeenConflicts, selectTombstones } from '../../store/syncSlice';
 
 /**
  * MarkAttendanceModal (Rapid Attendance Marker)
  * High-speed multi-step modal for marking student attendance.
  */
 const MarkAttendanceModal = ({ isOpen, onClose }) => {
+    const dispatch = useDispatch();
+    const pendingCount = useSelector(selectPendingCount);
+    const conflicts = useSelector(selectUnseenConflicts);
+    const tombstones = useSelector(selectTombstones);
+    
     // Current Step: 1 (Search), 2 (Select Class)
     const [step, setStep] = useState(1);
+    const [showConflicts, setShowConflicts] = useState(false);
 
     // Global Data
     const [todayClasses, setTodayClasses] = useState([]);
@@ -105,6 +111,14 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
             setResults([]);
             return;
         }
+
+        // Do not trigger search for less than 4 numbers to avoid excessive queries for prefixes like '078'
+        const isNumeric = /^\d+$/.test(query.trim());
+        if (isNumeric && query.trim().length <= 3) {
+            setResults([]);
+            return;
+        }
+
         clearTimeout(debounceTimer.current);
         debounceTimer.current = setTimeout(async () => {
             setIsSearching(true);
@@ -172,18 +186,26 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
 
         try {
             if (showAllTodayClasses) {
-                // 1. Assign Flow ONLY
-                await assignStudentToClass(selectedStudent.roleSpecificId, selectedClassId);
+                // ─── OPTIMISTIC UI: Assign to Class ────────────────────────
+                // Add to queue immediately for instant response
+                dispatch(enqueueAction({
+                    actionType: SYNC_ACTION_TYPES.ASSIGN_TO_CLASS,
+                    payload: {
+                        studentId: selectedStudent.roleSpecificId,
+                        classId: selectedClassId,
+                    },
+                    label: `Assign to Class: ${selectedStudent.name}`,
+                    dedupeKey: `ASSIGN_${selectedStudent.roleSpecificId}_${selectedClassId}`,
+                }));
 
                 triggerSuccessToast(`Assigned to Class!`);
                 setIsSuccess(true);
+                setIsSubmitting(false);
 
-                // Switch to Mark Attendance view with the class now available & pre-selected
                 setTimeout(async () => {
                     setIsSuccess(false);
                     setShowAllTodayClasses(false);
                     setIsFetchingClasses(true);
-                    setIsSubmitting(false); // Reset submitting immediately after transition starts
                     try {
                         const res = await getStudentClassesForAttendance(selectedStudent.roleSpecificId);
                         setStudentClasses(res.data || []);
@@ -193,14 +215,28 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                         setIsFetchingClasses(false);
                     }
                 }, 800);
-
             } else {
-                // 2. Mark Attendance Flow ONLY
-                await markAttendance(selectedStudent.roleSpecificId, selectedClassId);
+                // ─── OPTIMISTIC UI: Attendance Marking ──────────────────────
+                // 1. Find the class name for readable notifications
+                const classObj = activeEnrolledClasses.find(
+                    c => (c.id || c.classId) === selectedClassId
+                );
+                
+                // 2. Instantly add to the persistent offline queue (no server wait!)
+                dispatch(enqueueAction({
+                    actionType: SYNC_ACTION_TYPES.MARK_ATTENDANCE,
+                    payload: {
+                        studentId: selectedStudent.roleSpecificId,
+                        classId: selectedClassId,
+                    },
+                    label: `Mark Present: ${selectedStudent.name}`,
+                    // Dedupe key prevents scanning the same student+class twice
+                    dedupeKey: `ATTEND_${selectedStudent.roleSpecificId}_${selectedClassId}`,
+                }));
 
+                // 3. Show success toast and reset the form IMMEDIATELY
                 triggerSuccessToast(`Present: ${selectedStudent.name}`);
                 setIsSuccess(true);
-
                 setTimeout(() => {
                     resetFlow();
                 }, 800);
@@ -226,6 +262,16 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
     const otherClassesToday = todayClasses.filter(tc =>
         !studentClasses.some(sc => (sc.id || sc.classId) === (tc.id || tc.classId))
     );
+
+    /**
+     * Returns true if this student+class combination has already been
+     * marked (or confirmed as already-marked) during this session.
+     */
+    const isClassAlreadyMarked = (classIdentifier) => {
+        if (!selectedStudent) return false;
+        const dedupeKey = `ATTEND_${selectedStudent.roleSpecificId}_${classIdentifier}`;
+        return tombstones.includes(dedupeKey);
+    };
 
     // --- QR Scanner Handling ---
     const handleScanSuccess = (decodedText) => {
@@ -406,12 +452,9 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                                 statusType={showAllTodayClasses ? 'normal' : 'active'}
                                             />
                                             {!showAllTodayClasses && selectedClassId === classIdentifier && errorMsg?.includes("already marked") && (
-                                                
-                                                    
-                                                    <span className="text-[14px]  font-normal dark:text-red-300">
-                                                        {errorMsg}
-                                                    </span>
-                                                
+                                                <span className="text-[14px] font-normal dark:text-red-300">
+                                                    {errorMsg}
+                                                </span>
                                             )}
                                         </div>
                                     );
@@ -452,27 +495,34 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                 {/* Action Area */}
                 {classesToList.length > 0 && (
                     <div className="pt-2 sticky bottom-0 bg-white dark:bg-gray-900 pb-2 space-y-2">
-                        {/* Mark Present */}
-                        <Button
-                            variant="primary"
-                            fullWidth
-                            disabled={!selectedClassId || isSubmitting || isSuccess}
-                            onClick={handleMarkAttendance}
-                            className={`py-3.5 shadow-md shadow-blue-500/20 text-base transition-colors ${isSuccess ? 'bg-green-500 hover:bg-green-600 focus:ring-green-500/50 shadow-green-500/20' : ''
-                                }`}
-                        >
-                            {isSubmitting ? (
-                                <><Loader2 size={18} className="animate-spin mr-2" />Processing...</>
-                            ) : isSuccess ? (
-                                <><CheckCircle2 size={18} className="mr-2" />Success!</>
-                            ) : (
-                                showAllTodayClasses ? (
-                                    <><UserPlus size={18} className="mr-2" />Assign Class</>
+                        {/* Mark Present — replaced by an info notice if already marked today */}
+                        {!showAllTodayClasses && selectedClassId && isClassAlreadyMarked(selectedClassId) ? (
+                            <div className="flex items-center justify-center gap-2 py-3.5 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 text-sm font-semibold">
+                                <CheckCircle2 size={18} />
+                                Already marked present today
+                            </div>
+                        ) : (
+                            <Button
+                                variant="primary"
+                                fullWidth
+                                disabled={!selectedClassId || isSubmitting || isSuccess}
+                                onClick={handleMarkAttendance}
+                                className={`py-3.5 shadow-md shadow-blue-500/20 text-base transition-colors ${isSuccess ? 'bg-green-500 hover:bg-green-600 focus:ring-green-500/50 shadow-green-500/20' : ''
+                                    }`}
+                            >
+                                {isSubmitting ? (
+                                    <><Loader2 size={18} className="animate-spin mr-2" />Processing...</>
+                                ) : isSuccess ? (
+                                    <><CheckCircle2 size={18} className="mr-2" />Success!</>
                                 ) : (
-                                    <><CheckCircle2 size={18} className="mr-2" />Mark Present</>
-                                )
-                            )}
-                        </Button>
+                                    showAllTodayClasses ? (
+                                        <><UserPlus size={18} className="mr-2" />Assign Class</>
+                                    ) : (
+                                        <><CheckCircle2 size={18} className="mr-2" />Mark Present</>
+                                    )
+                                )}
+                            </Button>
+                        )}
 
                         {/* Make Payment — only shown in enrolled-class mode */}
                         {!showAllTodayClasses && (

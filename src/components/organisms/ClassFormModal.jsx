@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, Search } from 'lucide-react';
+import { X, Trash2, Search, LogOut, Loader } from 'lucide-react';
 import Button from '../atoms/Button';
 import FormField from '../molecules/FormField';
 import { MOCK_SUBJECTS } from '../../utils/mockData';
@@ -19,6 +19,8 @@ const ClassFormModal = ({
   existingClasses = [],   // ← all classes already in this institute
   backendError = '',      // ← error message from backend (e.g. hall conflict)
   viewOnly = false,       // ← read-only timetable view — no edit/delete
+  onLeave,                // ← function to leave class
+  isLeaving = false,      // ← loading state for leave action
 }) => {
 
   const [formData, setFormData] = useState({
@@ -754,10 +756,16 @@ const ClassFormModal = ({
 
             {/* ── View-Only mode: just a Close button ── */}
             {viewOnly ? (
-              <div className="w-full flex justify-end">
-                <Button variant="secondary" onClick={onClose}>
+              <div className="w-full flex justify-end gap-3 flex-col sm:flex-row">
+                <Button variant="secondary" onClick={onClose} fullWidth={!!onLeave}>
                   Close
                 </Button>
+                {onLeave && (
+                  <Button variant="danger" onClick={onLeave} disabled={isLeaving} fullWidth={!!onLeave}>
+                    {isLeaving ? <Loader size={16} className="animate-spin mr-2 inline" /> : <LogOut size={16} className="mr-2 inline" />}
+                    {isLeaving ? 'Leaving...' : 'Leave Class'}
+                  </Button>
+                )}
               </div>
             ) : (
               <>

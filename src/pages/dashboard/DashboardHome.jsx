@@ -12,6 +12,7 @@ import HallManagement from './views/HallManagement';
 // Import Pages for Navigation Switching
 import ClassesPage from './ClassesPage';
 import InstituteClassesPage from './InstituteClassesPage';
+import StudentClassesPage from './StudentClassesPage';
 import TimetablePage from './TimetablePage';
 // Import only the unified profile page
 import UserProfile from './UserProfile';
@@ -21,7 +22,9 @@ import InstituteRequestsPage from './InstituteRequestsPage';
 import TutorRequestsPage from './TutorRequestsPage';
 import StudentRequestsPage from './StudentRequestsPage';
 import AttendancePage from './AttendancePage';
+import StudentAttendancePage from './StudentAttendancePage';
 import FinancialsPage from './FinancialsPage';
+import StudentFinancialsPage from './StudentFinancialsPage';
 import SettingsPage from './SettingsPage';
 import AboutUsContent from '../../components/organisms/AboutUsContent';
 
@@ -33,6 +36,9 @@ const DashboardHome = ({ activePage, setActivePage }) => {
   if (activePage === 'classes') {
     if (user?.role === ROLES.INSTITUTE) {
       return <InstituteClassesPage />;
+    }
+    if (user?.role === ROLES.STUDENT) {
+      return <StudentClassesPage />;
     }
     return <ClassesPage />;
   }
@@ -72,10 +78,16 @@ const DashboardHome = ({ activePage, setActivePage }) => {
   }
 
   if (activePage === 'attendance') {
+    if (user?.role === ROLES.STUDENT) {
+      return <StudentAttendancePage />;
+    }
     return <AttendancePage />;
   }
 
   if (activePage === 'financials') {
+    if (user?.role === ROLES.STUDENT) {
+      return <StudentFinancialsPage />;
+    }
     return <FinancialsPage />;
   }
 

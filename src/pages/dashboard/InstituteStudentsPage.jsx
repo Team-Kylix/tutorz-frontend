@@ -9,6 +9,34 @@ import StatCard from '../../components/molecules/StatCard';
 import InstituteSearchAssignModal from '../../components/organisms/InstituteSearchAssignModal';
 import { getAssignedStudents } from '../../services/api/instituteService';
 import { useAuth } from '../../hooks/useAuth';
+import { BASE_URL } from '../../services/api/apiClient';
+
+/**
+ * Small circular avatar for a student row.
+ * Shows the profile photo when available, falls back to coloured initials.
+ */
+const StudentAvatar = ({ imageUrlSmall, imageUrlLarge, initials }) => {
+    const [imgError, setImgError] = React.useState(false);
+    const rawUrl = imageUrlSmall || imageUrlLarge;
+    const resolvedUrl = rawUrl
+        ? (rawUrl.startsWith('http') ? rawUrl : `${BASE_URL}${rawUrl}`)
+        : null;
+
+    return (
+        <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center font-bold text-xs text-blue-600 dark:text-blue-400 ring-2 ring-white dark:ring-gray-800">
+            {resolvedUrl && !imgError ? (
+                <img
+                    src={resolvedUrl}
+                    alt="Student"
+                    className="w-full h-full object-cover"
+                    onError={() => setImgError(true)}
+                />
+            ) : (
+                initials || <GraduationCap size={14} />
+            )}
+        </div>
+    );
+};
 
 const InstituteStudentsPage = () => {
     const { user } = useAuth();
@@ -186,9 +214,11 @@ const InstituteStudentsPage = () => {
                                         <tr key={student.studentId} className="hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors group">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                                                        {initials || <GraduationCap size={14} />}
-                                                    </div>
+                                                    <StudentAvatar
+                                                        imageUrlSmall={student.profileImageUrlSmall}
+                                                        imageUrlLarge={student.profileImageUrlLarge}
+                                                        initials={initials}
+                                                    />
                                                     <div>
                                                         <p className="font-semibold text-gray-900 dark:text-white">{fullName}</p>
                                                         {student.email && (

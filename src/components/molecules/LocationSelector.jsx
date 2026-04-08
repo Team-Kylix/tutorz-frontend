@@ -146,6 +146,7 @@ const LocationSelector = ({
                     Province <span className="text-red-500">*</span>
                 </Label>
                 <select 
+                    required
                     value={selectedProvince} 
                     onChange={handleProvinceChange} 
                     className={selectClass}
@@ -161,6 +162,7 @@ const LocationSelector = ({
                     District <span className="text-red-500">*</span>
                 </Label>
                 <select 
+                    required
                     value={selectedDistrict} 
                     onChange={handleDistrictChange} 
                     className={selectClass}
@@ -177,6 +179,7 @@ const LocationSelector = ({
                     City / Town <span className="text-red-500">*</span>
                 </Label>
                 <select 
+                    required
                     value={selectedCity} 
                     onChange={handleCityChange} 
                     className={selectClass}

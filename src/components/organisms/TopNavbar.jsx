@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Search, Bell, Download, Moon, Sun } from 'lucide-react'; 
+import { Menu, Search, Bell, Download, Moon, Sun, CloudOff, CheckCheck, AlertTriangle } from 'lucide-react'; 
+import { useSelector, useDispatch } from 'react-redux';
 import IconButton from '../atoms/IconButton.jsx'; 
 import { useThemeContext } from '../../context/ThemeContext'; 
+import { selectPendingCount, selectUnseenConflictCount } from '../../store/syncSlice';
+import { togglePanel, selectUnreadCount } from '../../store/notificationSlice';
+import NotificationPanel from './NotificationPanel';
+import NetworkStatusDot from '../atoms/NetworkStatusDot';
 
 const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
   const { theme, toggleTheme } = useThemeContext();
+  const dispatch = useDispatch();
+  const pendingSyncCount = useSelector(selectPendingCount);
+  const unseenConflicts = useSelector(selectUnseenConflictCount);
+  const unreadCount = useSelector(selectUnreadCount);
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
@@ -70,6 +79,26 @@ const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
           {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
         </button>
 
+        {/* Network Status Dot */}
+        <NetworkStatusDot />
+
+        {/* Sync Status Badge */}
+        {(pendingSyncCount > 0 || unseenConflicts > 0) && (
+          <div className="relative" title={unseenConflicts > 0 ? `${unseenConflicts} sync error(s)` : `${pendingSyncCount} record(s) pending upload`}>
+            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              unseenConflicts > 0
+                ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 animate-pulse'
+                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
+            }`}>
+              {unseenConflicts > 0 ? (
+                <><AlertTriangle size={13} /><span className="hidden sm:inline">{unseenConflicts} Error{unseenConflicts > 1 ? 's' : ''}</span></>
+              ) : (
+                <><CloudOff size={13} /><span className="hidden sm:inline">{pendingSyncCount} Pending</span></>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* INSTALL APP BUTTON */}
         {deferredPrompt && (
            <button
@@ -85,9 +114,30 @@ const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
            <IconButton icon={Search} />
         </div>
         
-        <div className="text-gray-500 dark:text-gray-400">
-           <IconButton icon={Bell} hasBadge={true} />
+        <div className="relative">
+          <button 
+            onClick={() => {
+              // On mobile, close the sidebar before opening notifications
+              // to prevent two overlapping panels at the same time
+              if (!isCollapsed && window.innerWidth < 768) {
+                toggleSidebar();
+              }
+              dispatch(togglePanel());
+            }}
+            className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-all relative"
+            title="Notifications"
+          >
+            <Bell size={20} />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-600 dark:bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-white dark:border-gray-900 flex items-center justify-center px-1 animate-pulse shadow-sm">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </button>
         </div>
+        
+        {/* Notification Sliding Panel */}
+        <NotificationPanel />
         
         <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1 hidden md:block"></div>
         
