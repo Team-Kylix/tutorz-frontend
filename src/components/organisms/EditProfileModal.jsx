@@ -20,7 +20,7 @@ const SelectField = ({ id, label, value, onChange, groups, placeholder, required
     return (
         <div className="w-full">
             <Label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {label} {required && <span className="text-red-500">*</span>}
+                {label} {required && <span className="text-red-500 dark:text-red-400">*</span>}
             </Label>
             <div className="relative">
                 <select
@@ -341,6 +341,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                                         onChange={handleChange}
                                         groups={GRADE_GROUPS}
                                         placeholder="Select Grade"
+                                        required={true}
                                         error={errors.grade}
                                     />
                                     {initialData?.registrationNumber && (

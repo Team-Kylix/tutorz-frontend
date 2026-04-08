@@ -266,6 +266,21 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
 
     const handleRegisterSubmit = async (e) => {
         e.preventDefault();
+
+        if (!formData.firstName.trim()) {
+            alert("First Name is required.");
+            return;
+        }
+
+        if (!formData.lastName.trim()) {
+            alert("Last Name is required.");
+            return;
+        }
+
+        if (selectedRole === 'Student' && !formData.grade) {
+            alert("Please select a Grade.");
+            return;
+        }
         const mobileStr = checkData.mobile.trim();
         const generatedPassword = mobileStr.length >= 6 ? mobileStr.slice(-6) : "123456";
         const instId = instituteProfile?.instituteId || user?.instituteId;
@@ -482,7 +497,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
 
                     {!isTutor && (
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Grade</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Grade <span className="text-red-500 dark:text-red-400">*</span></label>
                             <Select value={formData.grade} onChange={(e) => setFormData({ ...formData, grade: e.target.value })} required>
                                 <option value="">Select Grade</option>
                                 {GRADE_GROUPS.map((group, index) => (

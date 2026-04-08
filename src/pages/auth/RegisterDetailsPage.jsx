@@ -129,6 +129,21 @@ const RegisterDetailsPage = () => {
             }
         }
 
+        if (!formData.firstName.trim()) {
+            setErrors(prev => ({ ...prev, firstName: "First Name is required." }));
+            return;
+        }
+
+        if (!formData.lastName.trim()) {
+            setErrors(prev => ({ ...prev, lastName: "Last Name is required." }));
+            return;
+        }
+
+        if (stepOneData.role === ROLES.STUDENT && !formData.grade) {
+            setErrors(prev => ({ ...prev, grade: "Please select your grade." }));
+            return;
+        }
+
         if (!formData.cityId) {
             setErrors(prev => ({ ...prev, cityId: "Please select your city." }));
             return;
@@ -258,6 +273,7 @@ const RegisterDetailsPage = () => {
                             onChange={handleChange}
                             groups={GRADE_GROUPS}
                             placeholder="Select Grade"
+                            required={true}
                             error={errors.grade}
                         />
                         <FormField id="parentName" label="Parent Name" value={formData.parentName} onChange={handleChange} />

@@ -11,7 +11,10 @@ import {
     searchStudents,
     getStudentClassesForAttendance,
     getInstituteClassesToday,
+    getInstituteClasses,
 } from '../../services/api/instituteService';
+import Input from '../atoms/Input';
+import Select from '../atoms/Select';
 import { enqueueAction, SYNC_ACTION_TYPES, selectPendingCount, selectUnseenConflicts, markConflictAsSeen, clearSeenConflicts, selectTombstones } from '../../store/syncSlice';
 
 /**
@@ -46,6 +49,11 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
     const [isFetchingClasses, setIsFetchingClasses] = useState(false);
     const [selectedClassId, setSelectedClassId] = useState(null);
     const [showAllTodayClasses, setShowAllTodayClasses] = useState(false); // For Assign & Mark flow
+    const [allInstituteClasses, setAllInstituteClasses] = useState([]);
+    const [isFetchingAllClasses, setIsFetchingAllClasses] = useState(false);
+    const [tutorSearchQuery, setTutorSearchQuery] = useState('');
+    const [selectedGlobalClassId, setSelectedGlobalClassId] = useState('');
+    const tutorSearchDebounce = useRef(null);
 
     // Submission & Feedback State
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -88,6 +96,32 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         }
     };
 
+    // --- Server-side search for any class (by tutor/subject/name) ---
+    useEffect(() => {
+        if (!tutorSearchQuery.trim()) {
+            setAllInstituteClasses([]);
+            return;
+        }
+
+        clearTimeout(tutorSearchDebounce.current);
+        tutorSearchDebounce.current = setTimeout(async () => {
+            setIsFetchingAllClasses(true);
+            try {
+                // Fetch up to 50 results matching the query
+                const res = await getInstituteClasses(tutorSearchQuery.trim(), 1, 50);
+                const classes = res.data?.items || res.data?.Items || (Array.isArray(res.data) ? res.data : []);
+                setAllInstituteClasses(classes);
+            } catch (err) {
+                console.error("Failed to search classes", err);
+                setAllInstituteClasses([]);
+            } finally {
+                setIsFetchingAllClasses(false);
+            }
+        }, 400); // slightly longer debounce for server calls
+
+        return () => clearTimeout(tutorSearchDebounce.current);
+    }, [tutorSearchQuery]);
+
     const resetFlow = () => {
         setStep(1);
         setQuery('');
@@ -103,6 +137,8 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setIsPaymentOpen(false);
         setPaymentClass(null);
         setIsScanning(false);
+        setTutorSearchQuery('');
+        setSelectedGlobalClassId('');
     };
 
     // --- Search Logic ---
@@ -150,6 +186,8 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setSelectedClassId(null);
         setShowAllTodayClasses(false);
         setIsSuccess(false); // reset button success going into step 2
+        setTutorSearchQuery('');
+        setSelectedGlobalClassId('');
 
         try {
             const res = await getStudentClassesForAttendance(student.roleSpecificId);
@@ -174,6 +212,8 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         }
         setErrorMsg('');
         setIsSuccess(false);
+        setTutorSearchQuery('');
+        setSelectedGlobalClassId('');
     };
 
     // --- Final Action: Mark / Assign & Mark ---
@@ -427,6 +467,8 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                     onClick={() => {
                                         setShowAllTodayClasses(true);
                                         setErrorMsg('');
+                                        setTutorSearchQuery('');
+                                        setSelectedGlobalClassId('');
                                     }}
                                     className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors"
                                 >
@@ -434,6 +476,57 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                 </button>
                             )}
                         </div>
+
+                        {showAllTodayClasses && (
+                            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/40 animate-in slide-in-from-top-4">
+                                <h4 className="text-sm font-bold text-blue-800 dark:text-blue-400 mb-3 block">Search & Assign Any Class</h4>
+                                <div className="space-y-3">
+                                    <div className="relative">
+                                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                        <Input
+                                            placeholder="Search Tutor Name..."
+                                            value={tutorSearchQuery}
+                                            onChange={(e) => {
+                                                setTutorSearchQuery(e.target.value);
+                                                setSelectedGlobalClassId('');
+                                                // Deselect from "Other Classes Today" if someone interacts with search
+                                                setSelectedClassId(null); 
+                                            }}
+                                            className="pl-9"
+                                        />
+                                    </div>
+                                    {isFetchingAllClasses ? (
+                                        <div className="flex items-center text-sm text-blue-600">
+                                            <Loader2 size={14} className="animate-spin mr-2" /> Loading all classes...
+                                        </div>
+                                    ) : (
+                                        <Select
+                                            value={selectedGlobalClassId}
+                                            onChange={(e) => {
+                                                setSelectedGlobalClassId(e.target.value);
+                                                setSelectedClassId(e.target.value);
+                                            }}
+                                            disabled={!tutorSearchQuery.trim()}
+                                        >
+                                            <option value="">-- Select Class --</option>
+                                            {allInstituteClasses.map(c => {
+                                                const cid = c.classId || c.ClassId || c.id || c.Id;
+                                                const cname = c.className || c.ClassName || c.subject || c.Subject || "Class";
+                                                const tname = c.tutorName || c.TutorName || "Unknown Tutor";
+                                                return (
+                                                    <option key={cid} value={cid}>
+                                                        {cname} - {tname}
+                                                    </option>
+                                                );
+                                            })}
+                                        </Select>
+                                    )}
+                                    {!isFetchingAllClasses && tutorSearchQuery.trim() && allInstituteClasses.length === 0 && (
+                                        <p className="text-[10px] text-red-500 italic">No classes found matching this search.</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
                         {classesToList.length > 0 ? (
                             <div className="grid grid-cols-1 gap-3 max-h-[45vh] overflow-y-auto custom-scrollbar pr-1 pb-4">
