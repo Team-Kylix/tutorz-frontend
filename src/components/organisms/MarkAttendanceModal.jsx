@@ -12,6 +12,7 @@ import {
     getStudentClassesForAttendance,
     getInstituteClassesToday,
     getInstituteClasses,
+    searchTutors,
 } from '../../services/api/instituteService';
 import Input from '../atoms/Input';
 import Select from '../atoms/Select';
@@ -48,10 +49,13 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
     const [studentClasses, setStudentClasses] = useState([]);
     const [isFetchingClasses, setIsFetchingClasses] = useState(false);
     const [selectedClassId, setSelectedClassId] = useState(null);
-    const [showAllTodayClasses, setShowAllTodayClasses] = useState(false); // For Assign & Mark flow
+    const [assignmentMode, setAssignmentMode] = useState(null); // 'today' | 'search' | null
     const [allInstituteClasses, setAllInstituteClasses] = useState([]);
     const [isFetchingAllClasses, setIsFetchingAllClasses] = useState(false);
     const [tutorSearchQuery, setTutorSearchQuery] = useState('');
+    const [selectedTutor, setSelectedTutor] = useState(null);
+    const [tutorResults, setTutorResults] = useState([]);
+    const [isSearchingTutors, setIsSearchingTutors] = useState(false);
     const [selectedGlobalClassId, setSelectedGlobalClassId] = useState('');
     const tutorSearchDebounce = useRef(null);
 
@@ -96,31 +100,54 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         }
     };
 
-    // --- Server-side search for any class (by tutor/subject/name) ---
+    // --- Search for Tutors within the institute ---
     useEffect(() => {
-        if (!tutorSearchQuery.trim()) {
-            setAllInstituteClasses([]);
+        if (!tutorSearchQuery.trim() || selectedTutor) {
+            setTutorResults([]);
             return;
         }
 
         clearTimeout(tutorSearchDebounce.current);
         tutorSearchDebounce.current = setTimeout(async () => {
+            setIsSearchingTutors(true);
+            try {
+                const res = await searchTutors(tutorSearchQuery.trim());
+                // Filter to only show tutors already in the institute (pre-assigned)
+                const tutors = (res.data || []).filter(t => t.isAlreadyAssigned);
+                setTutorResults(tutors);
+            } catch (err) {
+                console.error("Failed to search tutors", err);
+                setTutorResults([]);
+            } finally {
+                setIsSearchingTutors(false);
+            }
+        }, 400);
+
+        return () => clearTimeout(tutorSearchDebounce.current);
+    }, [tutorSearchQuery, selectedTutor]);
+
+    // --- Fetch classes for selected tutor ---
+    useEffect(() => {
+        const fetchTutorClasses = async () => {
+            if (!selectedTutor) {
+                setAllInstituteClasses([]);
+                return;
+            }
+
             setIsFetchingAllClasses(true);
             try {
-                // Fetch up to 50 results matching the query
-                const res = await getInstituteClasses(tutorSearchQuery.trim(), 1, 50);
-                const classes = res.data?.items || res.data?.Items || (Array.isArray(res.data) ? res.data : []);
-                setAllInstituteClasses(classes);
+                const res = await getInstituteClasses('', 1, 100, selectedTutor.roleSpecificId);
+                setAllInstituteClasses(res.data?.items || []);
             } catch (err) {
-                console.error("Failed to search classes", err);
+                console.error("Failed to fetch tutor classes", err);
                 setAllInstituteClasses([]);
             } finally {
                 setIsFetchingAllClasses(false);
             }
-        }, 400); // slightly longer debounce for server calls
+        };
 
-        return () => clearTimeout(tutorSearchDebounce.current);
-    }, [tutorSearchQuery]);
+        fetchTutorClasses();
+    }, [selectedTutor]);
 
     const resetFlow = () => {
         setStep(1);
@@ -129,7 +156,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setSelectedStudent(null);
         setStudentClasses([]);
         setSelectedClassId(null);
-        setShowAllTodayClasses(false);
+        setAssignmentMode(null);
         setErrorMsg('');
         setSuccessToast(null);
         setIsSuccess(false); // Reset button success
@@ -138,6 +165,8 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setPaymentClass(null);
         setIsScanning(false);
         setTutorSearchQuery('');
+        setSelectedTutor(null);
+        setTutorResults([]);
         setSelectedGlobalClassId('');
     };
 
@@ -184,7 +213,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setIsFetchingClasses(true);
         setErrorMsg('');
         setSelectedClassId(null);
-        setShowAllTodayClasses(false);
+        setAssignmentMode(null);
         setIsSuccess(false); // reset button success going into step 2
         setTutorSearchQuery('');
         setSelectedGlobalClassId('');
@@ -201,8 +230,8 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
 
     // --- Quick Go Back ---
     const handleBack = () => {
-        if (showAllTodayClasses) {
-            setShowAllTodayClasses(false);
+        if (assignmentMode) {
+            setAssignmentMode(null);
             setSelectedClassId(null);
         } else {
             setStep(1);
@@ -213,6 +242,8 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setErrorMsg('');
         setIsSuccess(false);
         setTutorSearchQuery('');
+        setSelectedTutor(null);
+        setTutorResults([]);
         setSelectedGlobalClassId('');
     };
 
@@ -419,7 +450,9 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
 
     const renderStep2 = () => {
         // Display list changes based on mode
-        const classesToList = showAllTodayClasses ? otherClassesToday : activeEnrolledClasses;
+        const isSearchMode = assignmentMode === 'search';
+        const isTodayMode = assignmentMode === 'today';
+        const classesToList = isTodayMode ? otherClassesToday : activeEnrolledClasses;
 
         return (
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-150">
@@ -460,75 +493,122 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200">
-                                {showAllTodayClasses ? "Other Classes Today" : "Active Enrolled Classes"}
-                            </h4>
-                            {!showAllTodayClasses && (
+                            {isTodayMode ? "Other Classes Today" : isSearchMode ? "Search & Assign Any Class" : "Active Enrolled Classes"}
+                        </h4>
+                        {!assignmentMode && (
+                            <div className="flex gap-3">
                                 <button
                                     onClick={() => {
-                                        setShowAllTodayClasses(true);
+                                        setAssignmentMode('search');
                                         setErrorMsg('');
                                         setTutorSearchQuery('');
-                                        setSelectedGlobalClassId('');
                                     }}
                                     className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors"
                                 >
                                     Assign to new class
                                 </button>
-                            )}
+                                <span className="text-gray-300 dark:text-gray-700">|</span>
+                                <button
+                                    onClick={() => {
+                                        setAssignmentMode('today');
+                                        setErrorMsg('');
+                                    }}
+                                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors"
+                                >
+                                    Browse all today's classes
+                                </button>
+                            </div>
+                        )}
                         </div>
 
-                        {showAllTodayClasses && (
-                            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/40 animate-in slide-in-from-top-4">
-                                <h4 className="text-sm font-bold text-blue-800 dark:text-blue-400 mb-3 block">Search & Assign Any Class</h4>
+                        {isTodayMode && classesToList.length === 0 && (
+                            <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
+                                <AlertCircle size={32} className="mx-auto text-gray-400 mb-2" />
+                                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                                    No other classes happening today.
+                                </p>
+                            </div>
+                        )}
+
+                        {isSearchMode && (
+                            <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
                                 <div className="space-y-3">
                                     <div className="relative">
                                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                         <Input
-                                            placeholder="Search Tutor Name..."
+                                            placeholder="Tutor Name, Reg No or Mobile..."
                                             value={tutorSearchQuery}
                                             onChange={(e) => {
                                                 setTutorSearchQuery(e.target.value);
-                                                setSelectedGlobalClassId('');
-                                                // Deselect from "Other Classes Today" if someone interacts with search
-                                                setSelectedClassId(null); 
+                                                if (selectedTutor) {
+                                                    setSelectedTutor(null);
+                                                    setSelectedGlobalClassId('');
+                                                    setSelectedClassId(null);
+                                                }
                                             }}
                                             className="pl-9"
                                         />
+                                        {isSearchingTutors && (
+                                            <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 animate-spin" />
+                                        )}
                                     </div>
+
+                                    {/* Tutor Search Results Popover */}
+                                    {!selectedTutor && tutorResults.length > 0 && (
+                                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden max-h-40 overflow-y-auto">
+                                            {tutorResults.map(tutor => (
+                                                <button
+                                                    key={tutor.roleSpecificId}
+                                                    onClick={() => {
+                                                        setSelectedTutor(tutor);
+                                                        setTutorSearchQuery(tutor.name);
+                                                        setTutorResults([]);
+                                                    }}
+                                                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 border-b last:border-0 border-gray-100 dark:border-gray-800"
+                                                >
+                                                    <div className="font-semibold text-gray-900 dark:text-white">{tutor.name}</div>
+                                                    <div className="text-[10px] text-gray-500">{tutor.registrationNumber} • {tutor.phoneNumber}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
                                     {isFetchingAllClasses ? (
                                         <div className="flex items-center text-sm text-blue-600">
-                                            <Loader2 size={14} className="animate-spin mr-2" /> Loading all classes...
+                                            <Loader2 size={14} className="animate-spin mr-2" /> Loading tutor classes...
                                         </div>
-                                    ) : (
-                                        <Select
-                                            value={selectedGlobalClassId}
-                                            onChange={(e) => {
-                                                setSelectedGlobalClassId(e.target.value);
-                                                setSelectedClassId(e.target.value);
-                                            }}
-                                            disabled={!tutorSearchQuery.trim()}
-                                        >
-                                            <option value="">-- Select Class --</option>
-                                            {allInstituteClasses.map(c => {
-                                                const cid = c.classId || c.ClassId || c.id || c.Id;
-                                                const cname = c.className || c.ClassName || c.subject || c.Subject || "Class";
-                                                const tname = c.tutorName || c.TutorName || "Unknown Tutor";
-                                                return (
-                                                    <option key={cid} value={cid}>
-                                                        {cname} - {tname}
-                                                    </option>
-                                                );
-                                            })}
-                                        </Select>
-                                    )}
-                                    {!isFetchingAllClasses && tutorSearchQuery.trim() && allInstituteClasses.length === 0 && (
-                                        <p className="text-[10px] text-red-500 italic">No classes found matching this search.</p>
+                                    ) : selectedTutor && allInstituteClasses.length > 0 ? (
+                                        <div className="space-y-2">
+                                            <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 mb-1">Results for {selectedTutor.name}</p>
+                                            <div className="grid grid-cols-1 gap-3 max-h-[40vh] overflow-y-auto custom-scrollbar pr-1 pb-2">
+                                                {allInstituteClasses.map((c, idx) => {
+                                                    const cid = c.classId || c.ClassId || c.id || c.Id || `tutor-class-${idx}`;
+                                                    return (
+                                                        <ClassSelectionCard
+                                                            key={cid}
+                                                            cls={c}
+                                                            isSelected={selectedClassId === cid}
+                                                            onSelect={() => {
+                                                                setSelectedGlobalClassId(cid);
+                                                                setSelectedClassId(cid);
+                                                                setErrorMsg('');
+                                                            }}
+                                                            statusText="Tutor Class"
+                                                            statusType="normal"
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                    {!isFetchingAllClasses && selectedTutor && allInstituteClasses.length === 0 && (
+                                        <p className="text-[10px] text-red-500 italic">This tutor has no classes registered in this institute.</p>
                                     )}
                                 </div>
                             </div>
                         )}
 
-                        {classesToList.length > 0 ? (
+                        {!isSearchMode && classesToList.length > 0 && (
                             <div className="grid grid-cols-1 gap-3 max-h-[45vh] overflow-y-auto custom-scrollbar pr-1 pb-4">
                                 {classesToList.map((cls, index) => {
                                     const classIdentifier = cls.id || cls._id || cls.classId || index;
@@ -541,10 +621,10 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                                     setSelectedClassId(classIdentifier);
                                                     setErrorMsg(''); // Clear error on new selection
                                                 }}
-                                                statusText={showAllTodayClasses ? 'Available' : 'Happening Now'}
-                                                statusType={showAllTodayClasses ? 'normal' : 'active'}
+                                                statusText={isTodayMode ? 'Available' : 'Happening Now'}
+                                                statusType={isTodayMode ? 'normal' : 'active'}
                                             />
-                                            {!showAllTodayClasses && selectedClassId === classIdentifier && errorMsg?.includes("already marked") && (
+                                            {!isTodayMode && selectedClassId === classIdentifier && errorMsg?.includes("already marked") && (
                                                 <span className="text-[14px] font-normal dark:text-red-300">
                                                     {errorMsg}
                                                 </span>
@@ -553,25 +633,36 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                     );
                                 })}
                             </div>
-                        ) : (
+                        )}
+                        {!isTodayMode && !isSearchMode && classesToList.length === 0 && (
                             <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
                                 <AlertCircle size={32} className="mx-auto text-gray-400 mb-2" />
                                 <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                                    {showAllTodayClasses ? "No other classes happening today." : "No active enrolled classes found."}
+                                    No active enrolled classes found.
                                 </p>
-                                {!showAllTodayClasses && (
+                                <div className="flex flex-col gap-2 mt-4 px-10">
                                     <Button
                                         variant="outline"
                                         size="small"
-                                        className="mt-3"
                                         onClick={() => {
-                                            setShowAllTodayClasses(true);
+                                            setAssignmentMode('today');
                                             setErrorMsg('');
                                         }}
                                     >
                                         Browse all today's classes
                                     </Button>
-                                )}
+                                    <Button
+                                        variant="primary"
+                                        size="small"
+                                        onClick={() => {
+                                            setAssignmentMode('search');
+                                            setErrorMsg('');
+                                            setTutorSearchQuery('');
+                                        }}
+                                    >
+                                        Assign to new class
+                                    </Button>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -586,10 +677,10 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                 )}
 
                 {/* Action Area */}
-                {classesToList.length > 0 && (
+                {(classesToList.length > 0 || selectedClassId) && (
                     <div className="pt-2 sticky bottom-0 bg-white dark:bg-gray-900 pb-2 space-y-2">
                         {/* Mark Present — replaced by an info notice if already marked today */}
-                        {!showAllTodayClasses && selectedClassId && isClassAlreadyMarked(selectedClassId) ? (
+                        {!isTodayMode && !isSearchMode && selectedClassId && isClassAlreadyMarked(selectedClassId) ? (
                             <div className="flex items-center justify-center gap-2 py-3.5 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 text-sm font-semibold">
                                 <CheckCircle2 size={18} />
                                 Already marked present today
@@ -608,7 +699,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                 ) : isSuccess ? (
                                     <><CheckCircle2 size={18} className="mr-2" />Success!</>
                                 ) : (
-                                    showAllTodayClasses ? (
+                                    assignmentMode ? (
                                         <><UserPlus size={18} className="mr-2" />Assign Class</>
                                     ) : (
                                         <><CheckCircle2 size={18} className="mr-2" />Mark Present</>
@@ -618,7 +709,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                         )}
 
                         {/* Make Payment — only shown in enrolled-class mode */}
-                        {!showAllTodayClasses && (
+                        {!assignmentMode && (
                             <Button
                                 variant="primary"
                                 fullWidth

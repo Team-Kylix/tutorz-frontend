@@ -43,14 +43,15 @@ export const getAllInstituteClassesUnpaged = async () => {
 
 // --- Classes Management ---
 
-export const getInstituteClasses = async (searchQuery = '', page = 1, pageSize = 10) => {
+export const getInstituteClasses = async (searchQuery = '', page = 1, pageSize = 10, tutorId = null) => {
   try {
     const params = new URLSearchParams({
       searchQuery: searchQuery,
       page: page.toString(),
       pageSize: pageSize.toString()
     });
-    // This expects the backend to have an equivalent endpoint.
+    if (tutorId) params.append('tutorId', tutorId);
+    
     const response = await apiClient.get(`/institute/classes?${params.toString()}`);
     return response.data;
   } catch (error) {
