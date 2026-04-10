@@ -27,36 +27,53 @@ const NotificationPanel = () => {
   const isLoading = useSelector(selectIsLoading);
   const panelRef = useRef(null);
 
-  // Close panel on click outside or ESC key
+  // Keep a ref that always reflects the latest isOpen value.
+  // Using a ref inside the event listener avoids two problems:
+  //   1. Stale closure: if we used isOpen directly in the handler, the handler
+  //      captures isOpen at the time the effect ran. When isOpen changes React
+  //      re-runs the effect, briefly registering two listeners before removing
+  //      the old one. This is harmless in production but in React 18 Strict Mode
+  //      (which double-invokes effects) it causes unpredictable double-dispatches.
+  //   2. Strict Mode double-mount: by not listing isOpen in the deps array we
+  //      register exactly ONE stable listener for the lifetime of the component.
+  //      The ref.current check is always fresh so we never miss a state change.
+  const isOpenRef = useRef(isOpen);
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (panelRef.current && !panelRef.current.contains(event.target) && isOpen) {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
+
+  // Single, stable outside-click / ESC listener — registered once on mount,
+  // removed once on unmount. No isOpen in the deps array on purpose.
+  useEffect(() => {
+    const handleMouseDown = (event) => {
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(event.target) &&
+        isOpenRef.current
+      ) {
         dispatch(closePanel());
       }
     };
 
     const handleEsc = (event) => {
-      if (event.key === 'Escape' && isOpen) {
+      if (event.key === 'Escape' && isOpenRef.current) {
         dispatch(closePanel());
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('keydown', handleEsc);
-    
+
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('keydown', handleEsc);
     };
-  }, [isOpen, dispatch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
 
   // Prevent body scroll when panel is open
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    document.body.style.overflow = isOpen ? 'hidden' : '';
     return () => {
       document.body.style.overflow = '';
     };
@@ -85,14 +102,19 @@ const NotificationPanel = () => {
     <>
       {/* Background Overlay */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/20 dark:bg-black/40 z-40 transition-opacity duration-300" 
-          onClick={() => dispatch(closePanel())}
+        <div
+          className="fixed inset-0 bg-black/20 dark:bg-black/40 z-40 transition-opacity duration-300"
+          onMouseDown={(e) => {
+            // Stop propagation so the document mousedown handler doesn't
+            // also fire (both would call closePanel — harmless but cleaner).
+            e.stopPropagation();
+            dispatch(closePanel());
+          }}
         />
       )}
 
       {/* Sliding Panel */}
-      <div 
+      <div
         ref={panelRef}
         className={`
           fixed top-0 right-0 h-full w-80 sm:w-[380px] bg-white dark:bg-gray-800 
@@ -113,7 +135,7 @@ const NotificationPanel = () => {
             </h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Stay updated with institute activity</p>
           </div>
-          <button 
+          <button
             onClick={() => dispatch(closePanel())}
             className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-all"
           >
@@ -124,7 +146,7 @@ const NotificationPanel = () => {
         {/* Action Bar */}
         {notifications.length > 0 && (
           <div className="px-5 py-2.5 bg-gray-50/50 dark:bg-gray-800/30 border-b border-gray-100 dark:border-gray-800 flex justify-end">
-            <button 
+            <button
               onClick={handleMarkAllRead}
               className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1.5 transition-colors"
             >
@@ -151,13 +173,13 @@ const NotificationPanel = () => {
             </div>
           ) : (
             notifications.map((notif) => (
-              <div 
+              <div
                 key={notif.notificationId}
                 onClick={() => !notif.isRead && handleMarkAsRead(notif.notificationId)}
                 className={`
                   relative group p-4 rounded-xl border transition-all duration-300 cursor-pointer
-                  ${notif.isRead 
-                    ? 'bg-white/50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 opacity-70 hover:opacity-100' 
+                  ${notif.isRead
+                    ? 'bg-white/50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 opacity-70 hover:opacity-100'
                     : 'bg-blue-50/30 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900 shadow-sm hover:shadow-md'
                   }
                 `}
@@ -165,7 +187,7 @@ const NotificationPanel = () => {
                 {!notif.isRead && (
                   <div className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full" />
                 )}
-                
+
                 <div className="flex gap-4">
                   <div className={`
                     w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0
@@ -173,7 +195,7 @@ const NotificationPanel = () => {
                   `}>
                     {getIcon(notif.type)}
                   </div>
-                  
+
                   <div className="flex-1 pr-2">
                     <h3 className={`text-sm font-bold ${notif.isRead ? 'text-gray-700 dark:text-gray-300' : 'text-gray-900 dark:text-white'}`}>
                       {notif.title}
@@ -186,7 +208,7 @@ const NotificationPanel = () => {
                         <Clock size={10} />
                         {notif.createdAt ? formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true }) : 'Just now'}
                       </div>
-                      
+
                       {!notif.isRead && (
                         <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-blue-500 group-hover:translate-x-1 transition-transform">
                           Mark as read <ChevronRight size={10} />

@@ -116,7 +116,10 @@ const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
         
         <div className="relative">
           <button 
-            onClick={() => {
+            onClick={(e) => {
+              // Stop the click from bubbling to document so the NotificationPanel's
+              // outside-click handler doesn't immediately close the panel we just opened.
+              e.stopPropagation();
               // On mobile, close the sidebar before opening notifications
               // to prevent two overlapping panels at the same time
               if (!isCollapsed && window.innerWidth < 768) {

@@ -9,9 +9,12 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      // ENABLE PWA IN DEV MODE ---
+      // DISABLE PWA IN DEV MODE.
+      // Running the real service worker in dev causes CacheFirst to serve
+      // STALE SOURCE FILES — your code changes are ignored and old JS/CSS is
+      // loaded from the SW cache. Always keep this false during development.
       devOptions: {
-        enabled: true
+        enabled: false
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
@@ -48,10 +51,13 @@ export default defineConfig({
             urlPattern: ({ url }) => url.pathname.startsWith('/hubs/'),
             handler: 'NetworkOnly',
           },
-          // 1. Static Assets (Images, Icons, CSS) - Cache First
-          // Super fast local loading for atoms/logos
+          // 1. Static Assets (Images, Icons) - Cache First
+          // Only match production built files with content hashes.
+          // The old regex /\.(?:png|jpg|jpeg|svg|css)$/ also matched Vite dev
+          // server source files, causing the SW to cache them and serve stale
+          // code — making all file edits invisible until the SW cache was cleared.
           {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|css)$/,
+            urlPattern: /\.(?:png|jpg|jpeg|svg)$/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'static-assets-cache',
@@ -61,6 +67,7 @@ export default defineConfig({
               },
             },
           },
+
           // 2. Critical/Transactional Endpoints (Payments/Auth) - Network First
           // We MUST try reaching the server first.
           {
