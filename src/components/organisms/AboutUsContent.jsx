@@ -1,9 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Info, Shield, FileText, RefreshCw, Mail, Globe, MapPin, Tag, ExternalLink } from 'lucide-react';
+import { APP_VERSION } from '../../config/version';
+import apiClient from '../../services/api/apiClient';
 
 const AboutUsContent = () => {
     const [activeTab, setActiveTab] = useState('about');
+    const [backendVersion, setBackendVersion] = useState('Loading...');
+
+    useEffect(() => {
+        let isMounted = true;
+        const fetchVersion = async () => {
+            try {
+                // Fetch the backend API version using the open endpoint
+                const res = await apiClient.get('/system/version');
+                if (isMounted) setBackendVersion(res.data.version);
+            } catch (err) {
+                if (isMounted) setBackendVersion('Unavailable');
+            }
+        };
+        fetchVersion();
+        return () => { isMounted = false; };
+    }, []);
 
     const tabs = [
         { id: 'about', label: 'About Us', icon: Info },
@@ -79,6 +97,18 @@ const AboutUsContent = () => {
                             <button onClick={() => setActiveTab('refund')} className="text-xs text-blue-600 dark:text-blue-400 underline hover:no-underline">Refund Policy</button>
                             <span className="text-gray-300 dark:text-gray-600 text-xs">·</span>
                             <button onClick={() => setActiveTab('pricing')} className="text-xs text-blue-600 dark:text-blue-400 underline hover:no-underline">Pricing</button>
+                        </div>
+                        
+                        {/* Mobile Version Display */}
+                        <div className="pt-4 border-t border-gray-100 dark:border-gray-700 md:hidden flex justify-between">
+                            <div>
+                                <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 dark:text-gray-600">App Version</p>
+                                <p className="text-xs font-mono font-medium text-gray-500 dark:text-gray-400">{APP_VERSION}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 dark:text-gray-600">API Version</p>
+                                <p className="text-xs font-mono font-medium text-gray-500 dark:text-gray-400">{backendVersion}</p>
+                            </div>
                         </div>
                     </div>
                 );
@@ -354,6 +384,22 @@ const AboutUsContent = () => {
                         </button>
                     );
                 })}
+
+                {/* Layer 2: Version Display */}
+                <div className="mt-auto pt-6 px-4 hidden md:block border-t border-gray-100 dark:border-gray-800 space-y-3">
+                    <div>
+                        <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 dark:text-gray-600 mb-0.5">App Version</p>
+                        <p className="text-xs font-mono font-medium text-gray-500 dark:text-gray-400">
+                            {APP_VERSION}
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 dark:text-gray-600 mb-0.5">API Version</p>
+                        <p className="text-xs font-mono font-medium text-gray-500 dark:text-gray-400">
+                            {backendVersion}
+                        </p>
+                    </div>
+                </div>
             </div>
 
             {/* Content Area */}
