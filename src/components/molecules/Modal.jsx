@@ -12,8 +12,8 @@ const Modal = ({ isOpen, onClose, title, children }) => {
             <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-transparent dark:border-gray-800">
                 
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50 dark:bg-gray-900">
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h2>
+                <div className="px-6 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50 dark:bg-gray-900">
+                    <h2 className="text-base font-bold text-gray-900 dark:text-white">{title}</h2>
                     <Button variant="ghost" size="small" onClick={onClose}>
                         <X size={20} />
                     </Button>
