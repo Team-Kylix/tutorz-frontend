@@ -16,7 +16,7 @@ export default defineConfig({
       devOptions: {
         enabled: false
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      includeAssets: ['Icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'Tutorz',
         short_name: 'Tutorz',
@@ -40,8 +40,12 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // Only use the offline fallback for actual page navigations (not API or Hub calls)
-        navigateFallbackAllowlist: [new RegExp('^(?!/api/)(?!/hubs/).*')],
+        // Only use the offline fallback for actual page navigations (routes). 
+        // We MUST exclude API calls, SignalR hubs, and static assets like the manifest.
+        // If the manifest is caught by the fallback, it returns index.html (JSON syntax error).
+        navigateFallbackAllowlist: [
+            /^(?!\/(api|hubs|manifest\.webmanifest|sw\.js|registerSW\.js|.*\.png|.*\.jpg|.*\.svg)).*$/
+        ],
         runtimeCaching: [
           // 0. SignalR Hub — MUST bypass the Service Worker entirely.
           //    SignalR's negotiate step is a plain HTTP POST that upgrades to WebSocket.

@@ -6,11 +6,14 @@ import { Timer } from 'lucide-react';
 const OtpVerificationModal = ({ isOpen, onClose, onVerify, identifier }) => {
     const [otp, setOtp] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
     const [timeLeft, setTimeLeft] = useState(600); // 10 minutes in seconds
 
     useEffect(() => {
         if (!isOpen) return;
         
+        setOtp('');
+        setError(null);
         // Reset timer when modal opens
         setTimeLeft(600);
 
@@ -29,15 +32,30 @@ const OtpVerificationModal = ({ isOpen, onClose, onVerify, identifier }) => {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    const handleOtpChange = (e) => {
+        setOtp(e.target.value);
+        if (error) setError(null);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (!otp || otp.trim().length === 0) {
+            setError("Please enter the verification code.");
+            return;
+        }
+
+        setError(null);
         setLoading(true);
         try {
             await onVerify(otp);
+        } catch (err) {
+            setError(err.message || "Invalid verification code. Please try again.");
         } finally {
             setLoading(false);
         }
     };
+
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
@@ -60,8 +78,9 @@ const OtpVerificationModal = ({ isOpen, onClose, onVerify, identifier }) => {
                         label="Enter OTP"
                         placeholder="123456"
                         value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
+                        onChange={handleOtpChange}
                         className="text-center tracking-widest text-lg"
+                        error={error}
                     />
 
                     <Button type="submit" fullWidth disabled={loading || timeLeft === 0}>
