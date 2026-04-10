@@ -263,8 +263,15 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             } else {
                 await register(payload);
             }
-            if (onAssigned) onAssigned();
+            
+            // Show success first so the user can't double-click if callback is slow/errors
             setStep('success');
+            
+            try {
+                if (onAssigned) onAssigned();
+            } catch (e) {
+                console.error("Callback error after registration:", e);
+            }
         } catch (err) {
             alert(err.message || "Registration Failed");
         } finally {

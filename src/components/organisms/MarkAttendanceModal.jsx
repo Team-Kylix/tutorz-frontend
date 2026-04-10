@@ -256,7 +256,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setIsSuccess(false);
 
         try {
-            if (showAllTodayClasses) {
+            if (assignmentMode === 'today' || assignmentMode === 'search') {
                 // ─── OPTIMISTIC UI: Assign to Class ────────────────────────
                 // Add to queue immediately for instant response
                 dispatch(enqueueAction({
@@ -275,7 +275,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
 
                 setTimeout(async () => {
                     setIsSuccess(false);
-                    setShowAllTodayClasses(false);
+                    setAssignmentMode(null);
                     setIsFetchingClasses(true);
                     try {
                         const res = await getStudentClassesForAttendance(selectedStudent.roleSpecificId);
@@ -454,6 +454,15 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         const isTodayMode = assignmentMode === 'today';
         const classesToList = isTodayMode ? otherClassesToday : activeEnrolledClasses;
 
+        // Filter out classes the student is already enrolled in
+        const availableTutorClasses = allInstituteClasses.filter(tc => {
+            const tcId = tc.classId || tc.ClassId || tc.id || tc.Id;
+            return !studentClasses.some(sc => {
+                const scId = sc.id || sc.classId || sc.ClassId;
+                return scId === tcId;
+            });
+        });
+
         return (
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-150">
                 {/* Header / Back */}
@@ -577,11 +586,11 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                         <div className="flex items-center text-sm text-blue-600">
                                             <Loader2 size={14} className="animate-spin mr-2" /> Loading tutor classes...
                                         </div>
-                                    ) : selectedTutor && allInstituteClasses.length > 0 ? (
+                                    ) : selectedTutor && availableTutorClasses.length > 0 ? (
                                         <div className="space-y-2">
                                             <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 mb-1">Results for {selectedTutor.name}</p>
                                             <div className="grid grid-cols-1 gap-3 max-h-[40vh] overflow-y-auto custom-scrollbar pr-1 pb-2">
-                                                {allInstituteClasses.map((c, idx) => {
+                                                {availableTutorClasses.map((c, idx) => {
                                                     const cid = c.classId || c.ClassId || c.id || c.Id || `tutor-class-${idx}`;
                                                     return (
                                                         <ClassSelectionCard
@@ -593,7 +602,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                                                 setSelectedClassId(cid);
                                                                 setErrorMsg('');
                                                             }}
-                                                            statusText="Tutor Class"
+                                                            statusText="Available to Enroll"
                                                             statusType="normal"
                                                         />
                                                     );
@@ -603,6 +612,12 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                     ) : null}
                                     {!isFetchingAllClasses && selectedTutor && allInstituteClasses.length === 0 && (
                                         <p className="text-[10px] text-red-500 italic">This tutor has no classes registered in this institute.</p>
+                                    )}
+                                    {!isFetchingAllClasses && selectedTutor && allInstituteClasses.length > 0 && availableTutorClasses.length === 0 && (
+                                        <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                                            <p className="text-xs text-green-700 dark:text-green-400 font-semibold mb-1">Already Fully Enrolled!</p>
+                                            <p className="text-[10px] text-green-600 dark:text-green-500 italic">The student is already enrolled in all {allInstituteClasses.length} class(es) conducted by {selectedTutor.name}.</p>
+                                        </div>
                                     )}
                                 </div>
                             </div>

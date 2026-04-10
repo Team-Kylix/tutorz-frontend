@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { setDashboardData } from '../../../store/dashboardSlice';
 import {
     Users, GraduationCap, Calendar,
     Plus, QrCode
@@ -30,39 +32,47 @@ const InstituteDashboard = ({ user, setActivePage }) => {
     // --- Logic States ---
     const [instituteProfile, setInstituteProfile] = useState(null);
 
-    // NEW: Real Stats States
-    const [studentCount, setStudentCount] = useState('...');
-    const [tutorCount, setTutorCount] = useState('...');
-    const [todayClasses, setTodayClasses] = useState([]);
-    const [isClassesLoading, setIsClassesLoading] = useState(true);
-    const [revenueSummary, setRevenueSummary] = useState(null);
-    const [isRevenueLoading, setIsRevenueLoading] = useState(true);
+    // --- Redux Fast Cache ---
+    const dispatch = useDispatch();
+    const { stats: { studentCount, tutorCount }, todayClasses, revenueSummary, isFetched } = useSelector(state => state.dashboard);
 
-    const fetchStats = async () => {
+    const [isClassesLoading, setIsClassesLoading] = useState(!isFetched);
+    const [isRevenueLoading, setIsRevenueLoading] = useState(!isFetched);
+
+    const fetchDashboardData = async () => {
         try {
-            const [studentsRes, tutorsRes, classesRes] = await Promise.all([
+            const [studentsRes, tutorsRes, classesRes, revenueRes] = await Promise.all([
                 getAssignedStudents(),
                 getAssignedTutors(),
-                getInstituteClassesToday()
+                getInstituteClassesToday(),
+                getRevenueSummary()
             ]);
 
             const studentTotal = studentsRes.data?.totalCount ?? studentsRes.data?.items?.length ?? studentsRes.data?.length ?? 0;
             const tutorTotal = tutorsRes.data?.totalCount ?? tutorsRes.data?.items?.length ?? tutorsRes.data?.length ?? 0;
 
-            setStudentCount(studentTotal.toString());
-            setTutorCount(tutorTotal.toString());
             let extractedClasses = [];
             if (Array.isArray(classesRes)) extractedClasses = classesRes;
             else if (classesRes?.items && Array.isArray(classesRes.items)) extractedClasses = classesRes.items;
             else if (classesRes?.data && Array.isArray(classesRes.data)) extractedClasses = classesRes.data;
 
-            setTodayClasses(extractedClasses);
+            dispatch(setDashboardData({
+                studentCount: studentTotal.toString(),
+                tutorCount: tutorTotal.toString(),
+                todayClasses: extractedClasses,
+                revenueSummary: revenueRes?.success ? revenueRes.data : null
+            }));
         } catch (err) {
-            console.error("Failed to fetch real counts:", err);
-            setStudentCount('Err');
-            setTutorCount('Err');
+            console.error("Failed to fetch dashboard data:", err);
+            dispatch(setDashboardData({
+                 studentCount: 'Err',
+                 tutorCount: 'Err',
+                 todayClasses: [],
+                 revenueSummary: null
+            }));
         } finally {
             setIsClassesLoading(false);
+            setIsRevenueLoading(false);
         }
     };
 
@@ -83,22 +93,15 @@ const InstituteDashboard = ({ user, setActivePage }) => {
         fetchProfile();
     }, [user]);
 
-    // Fetch real stats
+    // Fetch real stats only if not already loaded from DB this session
     useEffect(() => {
-        const fetchRevenue = async () => {
-            try {
-                const res = await getRevenueSummary();
-                if (res?.success) setRevenueSummary(res.data);
-            } catch (err) {
-                console.error('Failed to fetch revenue summary:', err);
-            } finally {
-                setIsRevenueLoading(false);
-            }
-        };
-
-        fetchStats();
-        fetchRevenue();
-    }, []);
+        if (!isFetched) {
+            fetchDashboardData();
+        } else {
+            setIsClassesLoading(false);
+            setIsRevenueLoading(false);
+        }
+    }, [isFetched]);
 
     const openAddModal = () => {
         setIsAddModalOpen(true);
@@ -165,7 +168,7 @@ const InstituteDashboard = ({ user, setActivePage }) => {
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 type={null}
-                onAssigned={() => { fetchStats(); }}
+                onAssigned={() => { fetchDashboardData(); }}
                 user={user}
             />
 

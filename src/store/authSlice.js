@@ -30,6 +30,13 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
+
+      // Clear Service Worker Caches so the next logged-in user 
+      // doesn't instantly see old cached dashboard data.
+      if ('caches' in window) {
+        caches.delete('user-data-cache').catch(() => {});
+        caches.delete('transactional-api-cache').catch(() => {});
+      }
     },
     updateUser: (state, action) => {
       if (state.user) {
