@@ -67,11 +67,11 @@ const Footer = () => {
                         <ul className="space-y-2">
                             <li>
                                 <a
-                                    href="mailto:kylixtechnology@gmail.com"
+                                    href="mailto:lktutorz@gmail.com"
                                     className="inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                 >
                                     <Mail size={12} />
-                                    kylixtechnology@gmail.com
+                                    lktutorz@gmail.com
                                 </a>
                             </li>
                             <li className="text-xs text-gray-500 dark:text-gray-400">

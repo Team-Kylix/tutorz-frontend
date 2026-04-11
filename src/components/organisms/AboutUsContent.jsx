@@ -61,7 +61,7 @@ const AboutUsContent = () => {
                                     </div>
                                     <div>
                                         <p className="text-sm font-medium text-gray-900 dark:text-white">Email</p>
-                                        <a href="mailto:kylixtechnology@gmail.com" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">kylixtechnology@gmail.com</a>
+                                        <a href="mailto:lktutorz@gmail.com" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">lktutorz@gmail.com</a>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -173,7 +173,7 @@ const AboutUsContent = () => {
 
                         <p className="text-xs text-gray-400 dark:text-gray-500">
                             For pricing enquiries, contact us at{' '}
-                            <a href="mailto:kylixtechnology@gmail.com" className="text-blue-600 dark:text-blue-400 hover:underline">kylixtechnology@gmail.com</a>.
+                            <a href="mailto:lktutorz@gmail.com" className="text-blue-600 dark:text-blue-400 hover:underline">lktutorz@gmail.com</a>.
                         </p>
                     </div>
                 );
@@ -347,7 +347,7 @@ const AboutUsContent = () => {
 
                         <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-6">5. Payment Errors</h4>
                         <p className="text-gray-600 dark:text-gray-400">
-                            If you believe a technical error has occurred (e.g., a double-charge or an incorrect amount was billed), please contact our support team immediately at kylixtechnology@gmail.com. We will audit the transaction and, if a platform error is confirmed, we will issue a full refund of the erroneous amount. All such refunds will be credited back to the original payment-initiated media used for the transaction.
+                            If you believe a technical error has occurred (e.g., a double-charge or an incorrect amount was billed), please contact our support team immediately at lktutorz@gmail.com. We will audit the transaction and, if a platform error is confirmed, we will issue a full refund of the erroneous amount. All such refunds will be credited back to the original payment-initiated media used for the transaction.
                         </p>
 
                         <div className="not-prose mt-4">
