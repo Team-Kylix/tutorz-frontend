@@ -306,10 +306,10 @@ const UserProfile = () => {
                         <span className="text-sm text-gray-500 dark:text-gray-400">Account Status</span>
                         <span className="px-3 py-1 text-xs font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 rounded-full">Active Student</span>
                     </div>
-                    {/* Read-only card display for students */}
+                    {/* Card management — students can add/change their payment card here */}
                     <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Payment</p>
-                        <FinancialsSection role={role} readOnly={true} />
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Payment Card</p>
+                        <FinancialsSection role={role} readOnly={false} />
                     </div>
                 </div>
             );

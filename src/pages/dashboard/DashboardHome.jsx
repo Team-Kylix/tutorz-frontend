@@ -110,7 +110,7 @@ const DashboardHome = ({ activePage, setActivePage }) => {
       return <TutorDashboard setActivePage={setActivePage} />;
 
     case ROLES.STUDENT:
-      return <StudentDashboard user={user} />;
+      return <StudentDashboard user={user} setActivePage={setActivePage} />;
 
     case ROLES.INSTITUTE:
       return <InstituteDashboard user={user} setActivePage={setActivePage} />;
