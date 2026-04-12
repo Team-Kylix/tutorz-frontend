@@ -95,6 +95,15 @@ const UserProfile = () => {
         if (role) fetchProfileData();
     }, [fetchProfileData, role]);
 
+    // --- AUTO-OPEN EDIT MODAL ON INTENT ---
+    useEffect(() => {
+        const intent = sessionStorage.getItem('profile_intent');
+        if (intent === 'edit') {
+            setIsEditModalOpen(true);
+            sessionStorage.removeItem('profile_intent');
+        }
+    }, []);
+
     // Resolve location names when institute or student profile loads
     useEffect(() => {
         if ((role !== ROLES.INSTITUTE && role !== ROLES.STUDENT) || !profile) return;
@@ -306,10 +315,10 @@ const UserProfile = () => {
                         <span className="text-sm text-gray-500 dark:text-gray-400">Account Status</span>
                         <span className="px-3 py-1 text-xs font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 rounded-full">Active Student</span>
                     </div>
-                    {/* Card management — students can add/change their payment card here */}
+                    {/* Card management — students can only add/change their payment card via Edit Profile modal */}
                     <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
                         <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Payment Card</p>
-                        <FinancialsSection role={role} readOnly={false} />
+                        <FinancialsSection role={role} readOnly={true} />
                     </div>
                 </div>
             );

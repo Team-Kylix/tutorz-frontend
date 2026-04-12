@@ -1,14 +1,29 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  X, CheckCircle2, Loader2, CreditCard, ChevronRight, Search, BookOpen, AlertCircle
+import { 
+  X, 
+  ChevronRight, 
+  Search, 
+  CheckCircle2, 
+  AlertCircle, 
+  ShieldCheck, 
+  CreditCard, 
+  Calendar,
+  Hash,
+  Phone,
+  Loader2,
+  BookOpen,
+  Clock,
+  Info,
+  ArrowRight
 } from 'lucide-react';
 import Modal from '../molecules/Modal';
 import Button from '../atoms/Button';
 import MonthStrip from '../molecules/MonthStrip';
 import { getStudentClasses } from '../../services/api/studentService';
 import { getStudentPaymentStatus, initiateOnlinePayment, getFinancialSummary } from '../../services/api/financialService';
+import { BASE_URL } from '../../services/api/apiClient';
 
-const PayFeesModal = ({ isOpen, onClose }) => {
+const PayFeesModal = ({ isOpen, onClose, setActivePage }) => {
   const [classes, setClasses] = useState([]);
   const [loadingInitial, setLoadingInitial] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -110,7 +125,9 @@ const PayFeesModal = ({ isOpen, onClose }) => {
         list.push({
           tutorId: c.tutorId,
           tutorName: c.tutorName,
-          tutorRegNum: c.tutorRegistrationNumber || ''
+          tutorRegNum: c.tutorRegistrationNumber || 'ID N/A',
+          tutorPhone: c.tutorPhoneNumber || 'N/A',
+          tutorImage: c.tutorProfileImageUrlSmall
         });
       }
     });
@@ -253,13 +270,34 @@ const PayFeesModal = ({ isOpen, onClose }) => {
                 <button
                   key={t.tutorId}
                   onClick={() => handleSelectTutor(t)}
-                  className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-gray-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-all text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-all text-left group"
                 >
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{t.tutorName}</p>
-                    <p className="text-[10px] text-gray-500">{t.tutorRegNum || 'ID N/A'}</p>
+                  <div className="flex-1 min-w-0 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400 flex items-center justify-center shrink-0 overflow-hidden font-bold border border-indigo-200/50 dark:border-indigo-800/50">
+                      {t.tutorImage ? (
+                        <img 
+                          src={t.tutorImage.startsWith('http') ? t.tutorImage : `${BASE_URL}${t.tutorImage}`} 
+                          alt={t.tutorName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span>{t.tutorName.charAt(0)}</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm text-gray-900 dark:text-white truncate uppercase tracking-tight leading-none mb-1.5">
+                        {t.tutorName}
+                      </p>
+                      <div className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                        <span className="font-bold uppercase tracking-wider text-purple-500">Tutor</span>
+                        <span>&bull;</span>
+                        <span className="font-mono">{t.tutorRegNum}</span>
+                        <span className="hidden sm:inline">&bull;</span>
+                        <span className="hidden sm:inline">{t.tutorPhone}</span>
+                      </div>
+                    </div>
                   </div>
-                  <ChevronRight size={16} className="text-gray-400" />
+                  <ChevronRight size={16} className="text-gray-400 shrink-0 ml-2" />
                 </button>
               ))}
               {filteredTutors.length === 0 && !loadingInitial && (
@@ -283,31 +321,69 @@ const PayFeesModal = ({ isOpen, onClose }) => {
                 Change Tutor
               </button>
             </div>
-            <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 mb-2 border border-gray-100 dark:border-gray-700">
-              <p className="text-[11px] text-gray-500">Tutor</p>
-              <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedTutor.tutorName}</p>
+            <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800 mb-2 border border-gray-100 dark:border-gray-700">
+              <p className="text-[10px] uppercase font-bold text-gray-400 mb-2">Tutor</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-white dark:bg-gray-900 flex items-center justify-center shrink-0 overflow-hidden font-bold border border-gray-200 dark:border-gray-700 shadow-sm">
+                   {selectedTutor.tutorImage ? (
+                      <img 
+                        src={selectedTutor.tutorImage.startsWith('http') ? selectedTutor.tutorImage : `${BASE_URL}${selectedTutor.tutorImage}`} 
+                        alt={selectedTutor.tutorName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-gray-400">{selectedTutor.tutorName.charAt(0)}</span>
+                    )}
+                </div>
+                <div className="flex-1 min-w-0">
+                   <p className="font-bold text-sm text-gray-900 dark:text-white truncate uppercase tracking-tight leading-none mb-1.5">
+                      {selectedTutor.tutorName}
+                   </p>
+                   <div className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                      <span className="font-bold uppercase tracking-wider text-purple-500">Tutor</span>
+                      <span>&bull;</span>
+                      <span className="font-mono">{selectedTutor.tutorRegNum}</span>
+                   </div>
+                </div>
+                <div className="text-right shrink-0">
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Contact</p>
+                   <p className="text-xs font-bold text-gray-700 dark:text-gray-300">{selectedTutor.tutorPhone}</p>
+                </div>
+              </div>
             </div>
             <div className="space-y-2">
               {tutorClasses.map(c => (
                 <button
                   key={c.classId || c.id}
                   onClick={() => handleSelectClass(c)}
-                  className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-gray-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-all text-left group"
+                  className="w-full flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-gray-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-all text-left group gap-3"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <BookOpen size={14} />
+                  <div className="flex-1 flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform shrink-0">
+                      <BookOpen size={16} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate mb-0.5">
+                        {c.className || c.subject}
+                      </p>
+                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400 font-medium overflow-hidden">
+                        <span className="uppercase tracking-wider truncate">{c.subject} &bull; {c.grade}</span>
+                        <span className="hidden sm:inline">&bull;</span>
+                        <span className="text-indigo-600 dark:text-indigo-400 truncate">{c.dayOfWeek} {c.startTime}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between sm:justify-end sm:text-right shrink-0 border-t sm:border-t-0 border-gray-50 dark:border-gray-800 pt-2 sm:pt-0 gap-4">
+                    <div className="sm:hidden flex items-center gap-1.5 text-[10px] text-indigo-500 font-bold uppercase tracking-wider">
+                       <Clock size={10} /> {c.dayOfWeek} {c.startTime}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">
-                        {c.subject} {c.grade ? `- ${c.grade}` : ''}
-                      </p>
-                      <p className="text-[10px] text-gray-500 font-medium tracking-wide">
+                      <p className="hidden sm:block text-[10px] uppercase font-bold text-gray-400 tracking-widest mb-0.5">Monthly Fee</p>
+                      <p className="text-xs sm:text-sm font-black text-indigo-600 dark:text-indigo-400">
                         LKR {Number(c.fee).toLocaleString()}
                       </p>
                     </div>
                   </div>
-                  <ChevronRight size={16} className="text-gray-400" />
                 </button>
               ))}
             </div>
@@ -327,13 +403,6 @@ const PayFeesModal = ({ isOpen, onClose }) => {
               >
                 Change Class
               </button>
-            </div>
-
-            <div className="bg-indigo-50 dark:bg-indigo-900/10 p-3 rounded-xl border border-indigo-100 dark:border-indigo-800">
-              <p className="text-[10px] uppercase font-bold text-indigo-400 mb-1">Class Fee (Read Only)</p>
-              <p className="text-2xl font-black text-indigo-700 dark:text-indigo-400 tracking-tight">
-                LKR {Number(selectedClass.fee).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
-              </p>
             </div>
 
             <div className="pt-2">
@@ -362,30 +431,52 @@ const PayFeesModal = ({ isOpen, onClose }) => {
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-widest text-center border-b border-gray-200 dark:border-gray-700 pb-2 mb-2">
                   Payment Summary
                 </p>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Tutor</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{selectedTutor?.tutorName}</span>
+                <div className="flex justify-between items-start text-xs border-b border-gray-100 dark:border-gray-700 pb-3">
+                  <span className="text-gray-500 font-medium mt-0.5">Tutor</span>
+                  <div className="text-right">
+                    <p className="font-bold text-gray-900 dark:text-white uppercase tracking-tight">{selectedTutor?.tutorName}</p>
+                    <div className="flex items-center justify-end gap-1.5 text-[10px] text-gray-400 mt-1">
+                      <span className="font-bold uppercase tracking-wider text-purple-500/80">Reg:</span>
+                      <span className="font-mono">{selectedTutor?.tutorRegNum}</span>
+                      <span className="mx-0.5 text-gray-300">|</span>
+                      <span>{selectedTutor?.tutorPhone}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Class</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{selectedClass.subject} {selectedClass.grade}</span>
+                {/* Fee Card (Centered & Prominent) */}
+                <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-900/10 border border-dashed border-indigo-200 dark:border-indigo-800/40 space-y-1 mb-2">
+                    <label className="text-[10px] font-bold text-indigo-600/80 dark:text-indigo-400 uppercase tracking-widest">
+                        Class Fee (Monthly)
+                    </label>
+                    <div className="flex items-baseline gap-1.5">
+                        <span className="text-lg font-bold text-indigo-400 dark:text-indigo-600/60">LKR</span>
+                        <span className="text-3xl font-black text-gray-900 dark:text-white">
+                          {Number(selectedClass.fee).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </span>
+                    </div>
+                    <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500">
+                        Excluding service fees
+                    </p>
                 </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Month</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {new Date(selectedMonth.year, selectedMonth.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
-                  </span>
+
+                <div className="space-y-2 px-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Subject / Grade</span>
+                    <span className="font-bold text-gray-900 dark:text-white uppercase tracking-tight">{selectedClass.subject} • {selectedClass.grade}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Payment Month</span>
+                    <span className="font-bold text-gray-900 dark:text-white uppercase tracking-tight">
+                      {new Date(selectedMonth.year, selectedMonth.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                    </span>
+                  </div>
                 </div>
                 
                 {/* Fee Breakdown */}
-                <div className="pt-2 mt-2 border-t border-gray-100 dark:border-gray-700 space-y-1">
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-gray-500">Class Fee</span>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">LKR {Number(selectedClass.fee).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-gray-500">Service Fee (PayHere)</span>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">LKR {(calculateTotal(selectedClass.fee) - selectedClass.fee).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <div className="pt-3 mt-3 border-t border-gray-100 dark:border-gray-700 space-y-1.5">
+                  <div className="flex justify-between text-[11px] font-medium">
+                    <span className="text-gray-500">Platform Service Fee</span>
+                    <span className="text-gray-700 dark:text-gray-300">LKR {(calculateTotal(selectedClass.fee) - selectedClass.fee).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>
 
@@ -405,68 +496,112 @@ const PayFeesModal = ({ isOpen, onClose }) => {
             )}
 
             <div className="pt-2 flex flex-col gap-2">
-              {/* ── One-Click: Saved Card ───────────────────────── */}
-              {cardToken && !confirmCharge && (
-                <button
-                  type="button"
-                  disabled={!selectedMonth || isSubmitting || isSuccess || selectedStatus === 'Paid'}
-                  onClick={() => setConfirmCharge(true)}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/20 hover:border-violet-400 dark:hover:border-violet-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="flex items-center gap-2 text-sm font-semibold text-violet-700 dark:text-violet-300">
-                    <CreditCard size={16} />
-                    {cardBrand || 'Card'} •••• {cardLast4}
-                    {cardExpiry && <span className="text-xs font-normal text-violet-500">exp {cardExpiry.slice(0,2)}/{cardExpiry.slice(2)}</span>}
-                  </span>
-                  <span className="text-xs font-bold text-violet-600 dark:text-violet-400">
-                    One-Click Pay
-                  </span>
-                </button>
-              )}
+              {/* ── One-Click Payment: Only if card is saved ─────────── */}
+              {cardToken ? (
+                <>
+                  {!confirmCharge ? (
+                    <button
+                      type="button"
+                      disabled={!selectedMonth || isSubmitting || isSuccess || selectedStatus === 'Paid'}
+                      onClick={() => setConfirmCharge(true)}
+                      className="w-full h-12 flex items-center justify-between px-4 rounded-xl border-2 border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/20 hover:border-indigo-400 dark:hover:border-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm"
+                    >
+                      <span className="flex items-center gap-2.5 text-[13px] font-bold text-indigo-700 dark:text-indigo-400">
+                        <div className="w-7 h-7 bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center shadow-xs border border-indigo-100 dark:border-indigo-700">
+                          <CreditCard size={15} />
+                        </div>
+                        {cardBrand || 'Card'} •••• {cardLast4}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] items-center gap-1 font-bold text-indigo-500 uppercase tracking-widest hidden sm:flex">
+                         One-Click Pay
+                        </span>
+                        <ChevronRight size={16} className="text-indigo-300 group-hover:translate-x-0.5 transition-transform" />
+                      </div>
+                    </button>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center border border-indigo-100 dark:border-indigo-800 shadow-xs">
+                           <ShieldCheck size={20} className="text-indigo-500" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs font-bold text-indigo-950 dark:text-indigo-200">Payment Confirmation</p>
+                          <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">Charge to {cardBrand} •••• {cardLast4}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-black text-indigo-700 dark:text-indigo-300">
+                             LKR {calculateTotal(selectedClass.fee).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </div>
 
-              {/* ── Confirm one-click charge ─────────────────────── */}
-              {cardToken && confirmCharge && (
-                <div className="p-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 space-y-2">
-                  <p className="text-xs font-bold text-violet-700 dark:text-violet-300 text-center">
-                    Confirm charge to {cardBrand} •••• {cardLast4}?
-                  </p>
-                  <p className="text-center text-sm font-black text-violet-700 dark:text-violet-300">
-                    LKR {calculateTotal(selectedClass.fee).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </p>
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setConfirmCharge(false)}
-                      className="flex-1 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isSubmitting}
-                      onClick={() => handlePayClick(true)}
-                      className="flex-1 py-2 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-1"
-                    >
-                      {isSubmitting ? <><Loader2 size={12} className="animate-spin" /> Charging...</> : 'Confirm'}
-                    </button>
-                  </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setConfirmCharge(false)}
+                          className="flex-1 h-10 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 transition-all"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSubmitting}
+                          onClick={() => handlePayClick(true)}
+                          className="flex-[2] h-10 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 dark:shadow-none disabled:opacity-60 flex items-center justify-center gap-2"
+                        >
+                          {isSubmitting ? (
+                             <><Loader2 size={14} className="animate-spin" /> Processing...</>
+                          ) : isSuccess ? (
+                             <><CheckCircle2 size={15} /> Payment Successful!</>
+                          ) : (
+                             <>Confirm & Pay</>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* ── Missing Card: Guide to Profile ───────────────── */
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                   <div className="p-4 rounded-xl bg-violet-50 dark:bg-violet-900/10 border border-violet-100 dark:border-violet-800/50">
+                      <div className="flex items-start gap-3 mb-3">
+                         <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-xs border border-violet-100 dark:border-violet-800 shrink-0">
+                            <Info size={18} className="text-violet-500" />
+                         </div>
+                         <div>
+                            <p className="text-xs font-bold text-violet-900 dark:text-violet-200 mb-1">Saved Card Required</p>
+                            <p className="text-[10px] text-violet-700/80 dark:text-violet-400 leading-relaxed">
+                               To ensure secure and high-speed transactions, all class fee payments must be made using a saved payment card.
+                            </p>
+                         </div>
+                      </div>
+                      
+                      <div className="bg-white/50 dark:bg-gray-800/50 p-3 rounded-lg border border-violet-50 dark:border-violet-900/30 flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center text-violet-600 dark:text-violet-400 shrink-0">
+                            <CreditCard size={14} />
+                         </div>
+                         <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                            Card registration involves a one-time charge of <span className="font-bold text-violet-600 dark:text-violet-400">LKR 30.00</span> (LKR 29.00 platform fee + LKR 1.00 refundable by PayHere).
+                         </p>
+                      </div>
+                   </div>
+
+                   <Button 
+                      variant="primary" 
+                      fullWidth 
+                      onClick={() => {
+                        sessionStorage.setItem('profile_intent', 'edit');
+                        onClose();
+                        setActivePage('profile');
+                      }}
+                      className="group"
+                   >
+                      Go to Profile & Add Card <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
+                   </Button>
                 </div>
               )}
-               <Button
-                  variant="primary"
-                  fullWidth
-                  disabled={!selectedMonth || isSubmitting || isSuccess || selectedStatus === 'Paid'}
-                  onClick={() => handlePayClick(false)}
-                  className={isSuccess ? 'bg-green-500 hover:bg-green-600' : ''}
-              >
-                  {isSubmitting ? (
-                      <><Loader2 size={16} className="animate-spin mr-2" /> Processing...</>
-                  ) : isSuccess ? (
-                      <><CheckCircle2 size={16} className="mr-2" /> Successful!</>
-                  ) : (
-                      <>Pay LKR {calculateTotal(selectedClass.fee).toLocaleString(undefined, { minimumFractionDigits: 2 })}</>
-                  )}
-              </Button>
             </div>
           </div>
         )}

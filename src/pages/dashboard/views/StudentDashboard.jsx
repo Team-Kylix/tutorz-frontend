@@ -179,6 +179,7 @@ const StudentDashboard = ({ user, setActivePage }) => {
       <PayFeesModal 
         isOpen={isPayFeesModalOpen}
         onClose={() => setIsPayFeesModalOpen(false)}
+        setActivePage={setActivePage}
       />
     </div>
   );
