@@ -31,6 +31,9 @@ export const getTutorProfile = async () => {
 };
 
 export const updateTutorProfile = async (formData) => {
+  // NOTE: Do NOT set Content-Type manually here.
+  // Axios auto-sets 'multipart/form-data; boundary=...' when it receives FormData.
+  // Overriding it would break the boundary and cause [FromForm] binding to fail on ASP.NET Core.
   const response = await apiClient.put('/tutor/profile', formData);
   return response.data;
 };
