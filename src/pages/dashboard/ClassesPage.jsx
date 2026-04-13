@@ -52,6 +52,16 @@ const ClassesPage = () => {
   // If isFetched is already true (data in memory), loading starts as false → instant render
   const [isLoading, setIsLoading] = useState(!isFetched);
 
+  const loadClasses = useCallback(async (force = false) => {
+    if (!force && isFetched) {
+      setIsLoading(false);
+      return;
+    }
+    const { data } = await fetchClasses(tutorService.getClasses);
+    if (data) dispatch(setClassesData(data));
+    setIsLoading(false);
+  }, [isFetched, fetchClasses, dispatch]);
+
   // Load Classes
   useEffect(() => {
     if (!isFetched) {
@@ -69,16 +79,6 @@ const ClassesPage = () => {
     }
     prevPendingRef.current = pendingCount;
   }, [pendingCount, loadClasses]);
-
-  const loadClasses = useCallback(async (force = false) => {
-    if (!force && isFetched) {
-      setIsLoading(false);
-      return;
-    }
-    const { data } = await fetchClasses(tutorService.getClasses);
-    if (data) dispatch(setClassesData(data));
-    setIsLoading(false);
-  }, [isFetched, fetchClasses, dispatch]);
 
   // --- HANDLERS ---
 

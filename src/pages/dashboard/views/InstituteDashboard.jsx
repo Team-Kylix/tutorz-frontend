@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setDashboardData } from '../../../store/dashboardSlice';
 import {
@@ -12,10 +12,10 @@ import StatCard from '../../../components/molecules/StatCard';
 import RevenueStatusCard from '../../../components/molecules/RevenueStatusCard';
 import InstituteSearchAssignModal from '../../../components/organisms/InstituteSearchAssignModal';
 import MarkAttendanceModal from '../../../components/organisms/MarkAttendanceModal';
-import UpcomingClasses from '../../../components/organisms/UpcomingClasses';
+import UnifiedSchedule from '../../../components/organisms/UnifiedSchedule';
 
 // --- Services ---
-import { getInstituteProfile, getAssignedStudents, getAssignedTutors, getInstituteClassesToday, getRevenueSummary } from '../../../services/api/instituteService';
+import { getAssignedStudents, getAssignedTutors, getInstituteClassesToday, getRevenueSummary } from '../../../services/api/instituteService';
 
 // --- Constants ---
 const RsIcon = ({ size, className }) => (
@@ -29,9 +29,6 @@ const InstituteDashboard = ({ user, setActivePage }) => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
 
-    // --- Logic States ---
-    const [instituteProfile, setInstituteProfile] = useState(null);
-
     // --- Redux Fast Cache ---
     const dispatch = useDispatch();
     const { stats: { studentCount, tutorCount }, todayClasses, revenueSummary, isFetched } = useSelector(state => state.dashboard);
@@ -39,7 +36,7 @@ const InstituteDashboard = ({ user, setActivePage }) => {
     const [isClassesLoading, setIsClassesLoading] = useState(!isFetched);
     const [isRevenueLoading, setIsRevenueLoading] = useState(!isFetched);
 
-    const fetchDashboardData = async () => {
+    const fetchDashboardData = useCallback(async () => {
         try {
             const [studentsRes, tutorsRes, classesRes, revenueRes] = await Promise.all([
                 getAssignedStudents(),
@@ -74,26 +71,9 @@ const InstituteDashboard = ({ user, setActivePage }) => {
             setIsClassesLoading(false);
             setIsRevenueLoading(false);
         }
-    };
+    }, [dispatch]);
 
-    // Fetch Institute Profile on mount to get CityId
-    useEffect(() => {
-        const fetchProfile = async () => {
-            if (user?.userId) {
-                try {
-                    const response = await getInstituteProfile(user.userId);
-                    if (response.success) {
-                        setInstituteProfile(response.data);
-                    }
-                } catch (error) {
-                    console.error("Failed to fetch institute profile", error);
-                }
-            }
-        };
-        fetchProfile();
-    }, [user]);
-
-    // Fetch real stats only if not already loaded from DB this session
+// Fetch real stats only if not already loaded from DB this session
     useEffect(() => {
         if (!isFetched) {
             fetchDashboardData();
@@ -101,7 +81,7 @@ const InstituteDashboard = ({ user, setActivePage }) => {
             setIsClassesLoading(false);
             setIsRevenueLoading(false);
         }
-    }, [isFetched]);
+    }, [isFetched, fetchDashboardData]);
 
     const openAddModal = () => {
         setIsAddModalOpen(true);
@@ -149,10 +129,12 @@ const InstituteDashboard = ({ user, setActivePage }) => {
 
             {/* Main Content */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                    <UpcomingClasses
+                <div className="lg:col-span-2 h-[26rem]">
+                    <UnifiedSchedule
+                        title="Today's Classes"
                         onNavigate={() => setActivePage('classes')}
-                        fetchClassesApi={getInstituteClassesToday}
+                        classes={todayClasses}
+                        isLoading={isClassesLoading}
                     />
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 h-fit">
