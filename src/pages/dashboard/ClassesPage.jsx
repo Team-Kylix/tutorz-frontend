@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, UserPlus, Search, RefreshCw, BookOpen } from 'lucide-react';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
@@ -11,14 +11,15 @@ import useApi from '../../hooks/useApi';
 import * as tutorService from '../../services/api/tutorService';
 import { useDispatch, useSelector } from 'react-redux';
 import { enqueueAction, SYNC_ACTION_TYPES, selectPendingCount } from '../../store/syncSlice';
+import { setClassesData, addTutorClass, updateTutorClass, removeTutorClass } from '../../store/tutorSlice';
 
 const ClassesPage = () => {
   const dispatch = useDispatch();
   const pendingCount = useSelector(selectPendingCount);
   const prevPendingRef = React.useRef(pendingCount);
+  const { classes, isFetched } = useSelector(state => state.tutorData);
 
   // State
-  const [classes, setClasses] = useState([]);
   const [isClassModalOpen, setClassModalOpen] = useState(false);
   const [isStudentModalOpen, setStudentModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
@@ -44,25 +45,40 @@ const ClassesPage = () => {
   const [classFormError, setClassFormError] = useState('');
 
   // API Hooks
-  const { request: fetchClasses, loading: isLoading } = useApi();
+  const { request: fetchClasses } = useApi();
   const { request: saveClass, loading: isSaving } = useApi();
+
+  // Mirror InstituteDashboard pattern: local loading state initialized from cache flag
+  // If isFetched is already true (data in memory), loading starts as false → instant render
+  const [isLoading, setIsLoading] = useState(!isFetched);
 
   // Load Classes
   useEffect(() => {
-    loadClasses();
-  }, []);
+    if (!isFetched) {
+      loadClasses();
+    } else {
+      // Data already cached in Redux — skip fetch, hide loading immediately
+      setIsLoading(false);
+    }
+  }, [isFetched, loadClasses]);
+
   // Listen for sync completion to replace temp IDs with real IDs
   useEffect(() => {
     if (prevPendingRef.current > 0 && pendingCount === 0) {
-      loadClasses();
+      loadClasses(true);
     }
     prevPendingRef.current = pendingCount;
-  }, [pendingCount]);
+  }, [pendingCount, loadClasses]);
 
-  const loadClasses = async () => {
+  const loadClasses = useCallback(async (force = false) => {
+    if (!force && isFetched) {
+      setIsLoading(false);
+      return;
+    }
     const { data } = await fetchClasses(tutorService.getClasses);
-    if (data) setClasses(data);
-  };
+    if (data) dispatch(setClassesData(data));
+    setIsLoading(false);
+  }, [isFetched, fetchClasses, dispatch]);
 
   // --- HANDLERS ---
 
@@ -112,7 +128,7 @@ const ClassesPage = () => {
     const cleanPayload = preparePayload(statusCandidate);
     cleanPayload.isActive = newStatus;
 
-    setClasses(prev => prev.map(c => c.classId === statusCandidate.classId ? { ...c, isActive: newStatus } : c));
+    dispatch(updateTutorClass({ classId: statusCandidate.classId, isActive: newStatus }));
 
     dispatch(enqueueAction({
       actionType: SYNC_ACTION_TYPES.TOGGLE_CLASS_STATUS,
@@ -147,7 +163,7 @@ const ClassesPage = () => {
 
     if (editingClass) {
       // Update Mode
-      setClasses(prev => prev.map(c => c.classId === editingClass.classId ? { ...c, ...cleanPayload } : c));
+      dispatch(updateTutorClass({ classId: editingClass.classId, ...cleanPayload }));
       
       dispatch(enqueueAction({
         actionType: SYNC_ACTION_TYPES.UPDATE_CLASS,
@@ -164,7 +180,8 @@ const ClassesPage = () => {
         studentCount: 0,
         isOptimistic: true
       };
-      setClasses(prev => [...prev, newClass]);
+      
+      dispatch(addTutorClass(newClass));
       
       dispatch(enqueueAction({
         actionType: SYNC_ACTION_TYPES.CREATE_CLASS,
@@ -181,7 +198,7 @@ const ClassesPage = () => {
     if (!classToDelete) return;
     const clsName = classes.find(c => c.classId === classToDelete)?.className || 'Class';
 
-    setClasses(prev => prev.filter(c => c.classId !== classToDelete));
+    dispatch(removeTutorClass(classToDelete));
 
     dispatch(enqueueAction({
       actionType: SYNC_ACTION_TYPES.DELETE_CLASS,
@@ -222,7 +239,7 @@ const ClassesPage = () => {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={loadClasses}
+            onClick={() => { setIsLoading(true); loadClasses(true); }}
             disabled={isLoading}
             className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
             title="Refresh"
