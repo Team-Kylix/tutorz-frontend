@@ -101,8 +101,8 @@ const PrivacyPage = () => {
 
                 <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-400 dark:text-gray-500">
                     For privacy-related concerns, contact us at{' '}
-                    <a href="mailto:kylixtechnology@gmail.com" className="text-blue-600 dark:text-blue-400 hover:underline">
-                        kylixtechnology@gmail.com
+                    <a href="mailto:lktutorz@gmail.com" className="text-blue-600 dark:text-blue-400 hover:underline">
+                        lktutorz@gmail.com
                     </a>
                 </div>
             </div>

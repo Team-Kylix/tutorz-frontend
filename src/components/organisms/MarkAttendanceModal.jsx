@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, QrCode, AlertCircle, ChevronLeft, CheckCircle2, UserPlus, CreditCard, X } from 'lucide-react';
+import { Search, Loader2, QrCode, AlertCircle, ChevronLeft, CheckCircle2, UserPlus, CreditCard, X, AlertTriangle, WifiOff } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
 import Modal from '../molecules/Modal';
 import Button from '../atoms/Button';
 import StudentSelectionCard from '../molecules/StudentSelectionCard';
@@ -9,18 +10,27 @@ import QrScanner from './QrScanner';
 import {
     searchStudents,
     getStudentClassesForAttendance,
-    markAttendance,
     getInstituteClassesToday,
-    assignStudentToClass
+    getInstituteClasses,
+    searchTutors,
 } from '../../services/api/instituteService';
+import Input from '../atoms/Input';
+import Select from '../atoms/Select';
+import { enqueueAction, SYNC_ACTION_TYPES, selectPendingCount, selectUnseenConflicts, markConflictAsSeen, clearSeenConflicts, selectTombstones } from '../../store/syncSlice';
 
 /**
  * MarkAttendanceModal (Rapid Attendance Marker)
  * High-speed multi-step modal for marking student attendance.
  */
 const MarkAttendanceModal = ({ isOpen, onClose }) => {
+    const dispatch = useDispatch();
+    const pendingCount = useSelector(selectPendingCount);
+    const conflicts = useSelector(selectUnseenConflicts);
+    const tombstones = useSelector(selectTombstones);
+    
     // Current Step: 1 (Search), 2 (Select Class)
     const [step, setStep] = useState(1);
+    const [showConflicts, setShowConflicts] = useState(false);
 
     // Global Data
     const [todayClasses, setTodayClasses] = useState([]);
@@ -39,7 +49,15 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
     const [studentClasses, setStudentClasses] = useState([]);
     const [isFetchingClasses, setIsFetchingClasses] = useState(false);
     const [selectedClassId, setSelectedClassId] = useState(null);
-    const [showAllTodayClasses, setShowAllTodayClasses] = useState(false); // For Assign & Mark flow
+    const [assignmentMode, setAssignmentMode] = useState(null); // 'today' | 'search' | null
+    const [allInstituteClasses, setAllInstituteClasses] = useState([]);
+    const [isFetchingAllClasses, setIsFetchingAllClasses] = useState(false);
+    const [tutorSearchQuery, setTutorSearchQuery] = useState('');
+    const [selectedTutor, setSelectedTutor] = useState(null);
+    const [tutorResults, setTutorResults] = useState([]);
+    const [isSearchingTutors, setIsSearchingTutors] = useState(false);
+    const [selectedGlobalClassId, setSelectedGlobalClassId] = useState('');
+    const tutorSearchDebounce = useRef(null);
 
     // Submission & Feedback State
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,6 +100,55 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         }
     };
 
+    // --- Search for Tutors within the institute ---
+    useEffect(() => {
+        if (!tutorSearchQuery.trim() || selectedTutor) {
+            setTutorResults([]);
+            return;
+        }
+
+        clearTimeout(tutorSearchDebounce.current);
+        tutorSearchDebounce.current = setTimeout(async () => {
+            setIsSearchingTutors(true);
+            try {
+                const res = await searchTutors(tutorSearchQuery.trim());
+                // Filter to only show tutors already in the institute (pre-assigned)
+                const tutors = (res.data || []).filter(t => t.isAlreadyAssigned);
+                setTutorResults(tutors);
+            } catch (err) {
+                console.error("Failed to search tutors", err);
+                setTutorResults([]);
+            } finally {
+                setIsSearchingTutors(false);
+            }
+        }, 400);
+
+        return () => clearTimeout(tutorSearchDebounce.current);
+    }, [tutorSearchQuery, selectedTutor]);
+
+    // --- Fetch classes for selected tutor ---
+    useEffect(() => {
+        const fetchTutorClasses = async () => {
+            if (!selectedTutor) {
+                setAllInstituteClasses([]);
+                return;
+            }
+
+            setIsFetchingAllClasses(true);
+            try {
+                const res = await getInstituteClasses('', 1, 100, selectedTutor.roleSpecificId);
+                setAllInstituteClasses(res.data?.items || []);
+            } catch (err) {
+                console.error("Failed to fetch tutor classes", err);
+                setAllInstituteClasses([]);
+            } finally {
+                setIsFetchingAllClasses(false);
+            }
+        };
+
+        fetchTutorClasses();
+    }, [selectedTutor]);
+
     const resetFlow = () => {
         setStep(1);
         setQuery('');
@@ -89,7 +156,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setSelectedStudent(null);
         setStudentClasses([]);
         setSelectedClassId(null);
-        setShowAllTodayClasses(false);
+        setAssignmentMode(null);
         setErrorMsg('');
         setSuccessToast(null);
         setIsSuccess(false); // Reset button success
@@ -97,6 +164,10 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setIsPaymentOpen(false);
         setPaymentClass(null);
         setIsScanning(false);
+        setTutorSearchQuery('');
+        setSelectedTutor(null);
+        setTutorResults([]);
+        setSelectedGlobalClassId('');
     };
 
     // --- Search Logic ---
@@ -105,6 +176,14 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
             setResults([]);
             return;
         }
+
+        // Do not trigger search for less than 4 numbers to avoid excessive queries for prefixes like '078'
+        const isNumeric = /^\d+$/.test(query.trim());
+        if (isNumeric && query.trim().length <= 3) {
+            setResults([]);
+            return;
+        }
+
         clearTimeout(debounceTimer.current);
         debounceTimer.current = setTimeout(async () => {
             setIsSearching(true);
@@ -134,8 +213,10 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setIsFetchingClasses(true);
         setErrorMsg('');
         setSelectedClassId(null);
-        setShowAllTodayClasses(false);
+        setAssignmentMode(null);
         setIsSuccess(false); // reset button success going into step 2
+        setTutorSearchQuery('');
+        setSelectedGlobalClassId('');
 
         try {
             const res = await getStudentClassesForAttendance(student.roleSpecificId);
@@ -149,8 +230,8 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
 
     // --- Quick Go Back ---
     const handleBack = () => {
-        if (showAllTodayClasses) {
-            setShowAllTodayClasses(false);
+        if (assignmentMode) {
+            setAssignmentMode(null);
             setSelectedClassId(null);
         } else {
             setStep(1);
@@ -160,6 +241,10 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         }
         setErrorMsg('');
         setIsSuccess(false);
+        setTutorSearchQuery('');
+        setSelectedTutor(null);
+        setTutorResults([]);
+        setSelectedGlobalClassId('');
     };
 
     // --- Final Action: Mark / Assign & Mark ---
@@ -171,19 +256,27 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setIsSuccess(false);
 
         try {
-            if (showAllTodayClasses) {
-                // 1. Assign Flow ONLY
-                await assignStudentToClass(selectedStudent.roleSpecificId, selectedClassId);
+            if (assignmentMode === 'today' || assignmentMode === 'search') {
+                // ─── OPTIMISTIC UI: Assign to Class ────────────────────────
+                // Add to queue immediately for instant response
+                dispatch(enqueueAction({
+                    actionType: SYNC_ACTION_TYPES.ASSIGN_TO_CLASS,
+                    payload: {
+                        studentId: selectedStudent.roleSpecificId,
+                        classId: selectedClassId,
+                    },
+                    label: `Assign to Class: ${selectedStudent.name}`,
+                    dedupeKey: `ASSIGN_${selectedStudent.roleSpecificId}_${selectedClassId}`,
+                }));
 
                 triggerSuccessToast(`Assigned to Class!`);
                 setIsSuccess(true);
+                setIsSubmitting(false);
 
-                // Switch to Mark Attendance view with the class now available & pre-selected
                 setTimeout(async () => {
                     setIsSuccess(false);
-                    setShowAllTodayClasses(false);
+                    setAssignmentMode(null);
                     setIsFetchingClasses(true);
-                    setIsSubmitting(false); // Reset submitting immediately after transition starts
                     try {
                         const res = await getStudentClassesForAttendance(selectedStudent.roleSpecificId);
                         setStudentClasses(res.data || []);
@@ -193,14 +286,28 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                         setIsFetchingClasses(false);
                     }
                 }, 800);
-
             } else {
-                // 2. Mark Attendance Flow ONLY
-                await markAttendance(selectedStudent.roleSpecificId, selectedClassId);
+                // ─── OPTIMISTIC UI: Attendance Marking ──────────────────────
+                // 1. Find the class name for readable notifications
+                const classObj = activeEnrolledClasses.find(
+                    c => (c.id || c.classId) === selectedClassId
+                );
+                
+                // 2. Instantly add to the persistent offline queue (no server wait!)
+                dispatch(enqueueAction({
+                    actionType: SYNC_ACTION_TYPES.MARK_ATTENDANCE,
+                    payload: {
+                        studentId: selectedStudent.roleSpecificId,
+                        classId: selectedClassId,
+                    },
+                    label: `Mark Present: ${selectedStudent.name}`,
+                    // Dedupe key prevents scanning the same student+class twice
+                    dedupeKey: `ATTEND_${selectedStudent.roleSpecificId}_${selectedClassId}`,
+                }));
 
+                // 3. Show success toast and reset the form IMMEDIATELY
                 triggerSuccessToast(`Present: ${selectedStudent.name}`);
                 setIsSuccess(true);
-
                 setTimeout(() => {
                     resetFlow();
                 }, 800);
@@ -226,6 +333,16 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
     const otherClassesToday = todayClasses.filter(tc =>
         !studentClasses.some(sc => (sc.id || sc.classId) === (tc.id || tc.classId))
     );
+
+    /**
+     * Returns true if this student+class combination has already been
+     * marked (or confirmed as already-marked) during this session.
+     */
+    const isClassAlreadyMarked = (classIdentifier) => {
+        if (!selectedStudent) return false;
+        const dedupeKey = `ATTEND_${selectedStudent.roleSpecificId}_${classIdentifier}`;
+        return tombstones.includes(dedupeKey);
+    };
 
     // --- QR Scanner Handling ---
     const handleScanSuccess = (decodedText) => {
@@ -333,7 +450,18 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
 
     const renderStep2 = () => {
         // Display list changes based on mode
-        const classesToList = showAllTodayClasses ? otherClassesToday : activeEnrolledClasses;
+        const isSearchMode = assignmentMode === 'search';
+        const isTodayMode = assignmentMode === 'today';
+        const classesToList = isTodayMode ? otherClassesToday : activeEnrolledClasses;
+
+        // Filter out classes the student is already enrolled in
+        const availableTutorClasses = allInstituteClasses.filter(tc => {
+            const tcId = tc.classId || tc.ClassId || tc.id || tc.Id;
+            return !studentClasses.some(sc => {
+                const scId = sc.id || sc.classId || sc.ClassId;
+                return scId === tcId;
+            });
+        });
 
         return (
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-150">
@@ -374,22 +502,128 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200">
-                                {showAllTodayClasses ? "Other Classes Today" : "Active Enrolled Classes"}
-                            </h4>
-                            {!showAllTodayClasses && (
+                            {isTodayMode ? "Other Classes Today" : isSearchMode ? "Search & Assign Any Class" : "Active Enrolled Classes"}
+                        </h4>
+                        {!assignmentMode && (
+                            <div className="flex gap-3">
                                 <button
                                     onClick={() => {
-                                        setShowAllTodayClasses(true);
+                                        setAssignmentMode('search');
                                         setErrorMsg('');
+                                        setTutorSearchQuery('');
                                     }}
                                     className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors"
                                 >
                                     Assign to new class
                                 </button>
-                            )}
+                                <span className="text-gray-300 dark:text-gray-700">|</span>
+                                <button
+                                    onClick={() => {
+                                        setAssignmentMode('today');
+                                        setErrorMsg('');
+                                    }}
+                                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors"
+                                >
+                                    Browse all today's classes
+                                </button>
+                            </div>
+                        )}
                         </div>
 
-                        {classesToList.length > 0 ? (
+                        {isTodayMode && classesToList.length === 0 && (
+                            <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
+                                <AlertCircle size={32} className="mx-auto text-gray-400 mb-2" />
+                                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                                    No other classes happening today.
+                                </p>
+                            </div>
+                        )}
+
+                        {isSearchMode && (
+                            <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                <div className="space-y-3">
+                                    <div className="relative">
+                                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                        <Input
+                                            placeholder="Tutor Name, Reg No or Mobile..."
+                                            value={tutorSearchQuery}
+                                            onChange={(e) => {
+                                                setTutorSearchQuery(e.target.value);
+                                                if (selectedTutor) {
+                                                    setSelectedTutor(null);
+                                                    setSelectedGlobalClassId('');
+                                                    setSelectedClassId(null);
+                                                }
+                                            }}
+                                            className="pl-9"
+                                        />
+                                        {isSearchingTutors && (
+                                            <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 animate-spin" />
+                                        )}
+                                    </div>
+
+                                    {/* Tutor Search Results Popover */}
+                                    {!selectedTutor && tutorResults.length > 0 && (
+                                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden max-h-40 overflow-y-auto">
+                                            {tutorResults.map(tutor => (
+                                                <button
+                                                    key={tutor.roleSpecificId}
+                                                    onClick={() => {
+                                                        setSelectedTutor(tutor);
+                                                        setTutorSearchQuery(tutor.name);
+                                                        setTutorResults([]);
+                                                    }}
+                                                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 border-b last:border-0 border-gray-100 dark:border-gray-800"
+                                                >
+                                                    <div className="font-semibold text-gray-900 dark:text-white">{tutor.name}</div>
+                                                    <div className="text-[10px] text-gray-500">{tutor.registrationNumber} • {tutor.phoneNumber}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {isFetchingAllClasses ? (
+                                        <div className="flex items-center text-sm text-blue-600">
+                                            <Loader2 size={14} className="animate-spin mr-2" /> Loading tutor classes...
+                                        </div>
+                                    ) : selectedTutor && availableTutorClasses.length > 0 ? (
+                                        <div className="space-y-2">
+                                            <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 mb-1">Results for {selectedTutor.name}</p>
+                                            <div className="grid grid-cols-1 gap-3 max-h-[40vh] overflow-y-auto custom-scrollbar pr-1 pb-2">
+                                                {availableTutorClasses.map((c, idx) => {
+                                                    const cid = c.classId || c.ClassId || c.id || c.Id || `tutor-class-${idx}`;
+                                                    return (
+                                                        <ClassSelectionCard
+                                                            key={cid}
+                                                            cls={c}
+                                                            isSelected={selectedClassId === cid}
+                                                            onSelect={() => {
+                                                                setSelectedGlobalClassId(cid);
+                                                                setSelectedClassId(cid);
+                                                                setErrorMsg('');
+                                                            }}
+                                                            statusText="Available to Enroll"
+                                                            statusType="normal"
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                    {!isFetchingAllClasses && selectedTutor && allInstituteClasses.length === 0 && (
+                                        <p className="text-[10px] text-red-500 italic">This tutor has no classes registered in this institute.</p>
+                                    )}
+                                    {!isFetchingAllClasses && selectedTutor && allInstituteClasses.length > 0 && availableTutorClasses.length === 0 && (
+                                        <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                                            <p className="text-xs text-green-700 dark:text-green-400 font-semibold mb-1">Already Fully Enrolled!</p>
+                                            <p className="text-[10px] text-green-600 dark:text-green-500 italic">The student is already enrolled in all {allInstituteClasses.length} class(es) conducted by {selectedTutor.name}.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {!isSearchMode && classesToList.length > 0 && (
                             <div className="grid grid-cols-1 gap-3 max-h-[45vh] overflow-y-auto custom-scrollbar pr-1 pb-4">
                                 {classesToList.map((cls, index) => {
                                     const classIdentifier = cls.id || cls._id || cls.classId || index;
@@ -402,40 +636,48 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                                     setSelectedClassId(classIdentifier);
                                                     setErrorMsg(''); // Clear error on new selection
                                                 }}
-                                                statusText={showAllTodayClasses ? 'Available' : 'Happening Now'}
-                                                statusType={showAllTodayClasses ? 'normal' : 'active'}
+                                                statusText={isTodayMode ? 'Available' : 'Happening Now'}
+                                                statusType={isTodayMode ? 'normal' : 'active'}
                                             />
-                                            {!showAllTodayClasses && selectedClassId === classIdentifier && errorMsg?.includes("already marked") && (
-                                                
-                                                    
-                                                    <span className="text-[14px]  font-normal dark:text-red-300">
-                                                        {errorMsg}
-                                                    </span>
-                                                
+                                            {!isTodayMode && selectedClassId === classIdentifier && errorMsg?.includes("already marked") && (
+                                                <span className="text-[14px] font-normal dark:text-red-300">
+                                                    {errorMsg}
+                                                </span>
                                             )}
                                         </div>
                                     );
                                 })}
                             </div>
-                        ) : (
+                        )}
+                        {!isTodayMode && !isSearchMode && classesToList.length === 0 && (
                             <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
                                 <AlertCircle size={32} className="mx-auto text-gray-400 mb-2" />
                                 <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                                    {showAllTodayClasses ? "No other classes happening today." : "No active enrolled classes found."}
+                                    No active enrolled classes found.
                                 </p>
-                                {!showAllTodayClasses && (
+                                <div className="flex flex-col gap-2 mt-4 px-10">
                                     <Button
                                         variant="outline"
                                         size="small"
-                                        className="mt-3"
                                         onClick={() => {
-                                            setShowAllTodayClasses(true);
+                                            setAssignmentMode('today');
                                             setErrorMsg('');
                                         }}
                                     >
                                         Browse all today's classes
                                     </Button>
-                                )}
+                                    <Button
+                                        variant="primary"
+                                        size="small"
+                                        onClick={() => {
+                                            setAssignmentMode('search');
+                                            setErrorMsg('');
+                                            setTutorSearchQuery('');
+                                        }}
+                                    >
+                                        Assign to new class
+                                    </Button>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -450,32 +692,39 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                 )}
 
                 {/* Action Area */}
-                {classesToList.length > 0 && (
+                {(classesToList.length > 0 || selectedClassId) && (
                     <div className="pt-2 sticky bottom-0 bg-white dark:bg-gray-900 pb-2 space-y-2">
-                        {/* Mark Present */}
-                        <Button
-                            variant="primary"
-                            fullWidth
-                            disabled={!selectedClassId || isSubmitting || isSuccess}
-                            onClick={handleMarkAttendance}
-                            className={`py-3.5 shadow-md shadow-blue-500/20 text-base transition-colors ${isSuccess ? 'bg-green-500 hover:bg-green-600 focus:ring-green-500/50 shadow-green-500/20' : ''
-                                }`}
-                        >
-                            {isSubmitting ? (
-                                <><Loader2 size={18} className="animate-spin mr-2" />Processing...</>
-                            ) : isSuccess ? (
-                                <><CheckCircle2 size={18} className="mr-2" />Success!</>
-                            ) : (
-                                showAllTodayClasses ? (
-                                    <><UserPlus size={18} className="mr-2" />Assign Class</>
+                        {/* Mark Present — replaced by an info notice if already marked today */}
+                        {!isTodayMode && !isSearchMode && selectedClassId && isClassAlreadyMarked(selectedClassId) ? (
+                            <div className="flex items-center justify-center gap-2 py-3.5 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 text-sm font-semibold">
+                                <CheckCircle2 size={18} />
+                                Already marked present today
+                            </div>
+                        ) : (
+                            <Button
+                                variant="primary"
+                                fullWidth
+                                disabled={!selectedClassId || isSubmitting || isSuccess}
+                                onClick={handleMarkAttendance}
+                                className={`py-3.5 shadow-md shadow-blue-500/20 text-base transition-colors ${isSuccess ? 'bg-green-500 hover:bg-green-600 focus:ring-green-500/50 shadow-green-500/20' : ''
+                                    }`}
+                            >
+                                {isSubmitting ? (
+                                    <><Loader2 size={18} className="animate-spin mr-2" />Processing...</>
+                                ) : isSuccess ? (
+                                    <><CheckCircle2 size={18} className="mr-2" />Success!</>
                                 ) : (
-                                    <><CheckCircle2 size={18} className="mr-2" />Mark Present</>
-                                )
-                            )}
-                        </Button>
+                                    assignmentMode ? (
+                                        <><UserPlus size={18} className="mr-2" />Assign Class</>
+                                    ) : (
+                                        <><CheckCircle2 size={18} className="mr-2" />Mark Present</>
+                                    )
+                                )}
+                            </Button>
+                        )}
 
                         {/* Make Payment — only shown in enrolled-class mode */}
-                        {!showAllTodayClasses && (
+                        {!assignmentMode && (
                             <Button
                                 variant="primary"
                                 fullWidth

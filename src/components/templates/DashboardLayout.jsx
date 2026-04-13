@@ -1,12 +1,35 @@
 import React, { useState } from 'react';
+import { useDispatch } from 'react-redux';
 import Sidebar from '../organisms/SideBar'; 
 import TopNavbar from '../organisms/TopNavbar'; 
+import { closePanel } from '../../store/notificationSlice';
 
 const DashboardLayout = ({ children }) => {
+  const dispatch = useDispatch();
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 768);
   const [activePage, setActivePage] = useState('dashboard'); // State lives here
 
-  const toggleSidebar = () => setSidebarCollapsed(!isSidebarCollapsed);
+  const toggleSidebar = () => {
+    const willOpen = isSidebarCollapsed; // true = sidebar is about to open
+    if (willOpen) {
+      // Sidebar is opening — close the notification panel to avoid overlap on mobile
+      dispatch(closePanel());
+    }
+    setSidebarCollapsed(!isSidebarCollapsed);
+  };
+
+  // Prevent body scroll when sidebar is open on mobile
+  React.useEffect(() => {
+    const isMobile = window.innerWidth < 768;
+    if (!isSidebarCollapsed && isMobile) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isSidebarCollapsed]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans text-gray-900 dark:text-white transition-colors">

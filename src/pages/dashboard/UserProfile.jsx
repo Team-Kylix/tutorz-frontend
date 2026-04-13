@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useDispatch } from 'react-redux'; // Added Redux Dispatch
-import { Mail, Phone, FileText, Pencil, MapPin, Globe, Building, School, GraduationCap, Calendar, User, Building2, CreditCard } from 'lucide-react';
+import { useDispatch } from 'react-redux';
+import { Mail, Phone, FileText, Pencil, MapPin, Globe, School, GraduationCap, Calendar, User } from 'lucide-react';
 
 // Hooks & Constants
 import { useAuth } from '../../hooks/useAuth';
 import { ROLES } from '../../utils/constants';
-import { updateUser } from '../../store/authSlice'; // Added Redux Action
+import { updateUser } from '../../store/authSlice';
+import { enqueueAction, SYNC_ACTION_TYPES } from '../../store/syncSlice';
 
 // Services
 import { getTutorProfile, updateTutorProfile } from '../../services/api/tutorService';
@@ -74,7 +75,8 @@ const UserProfile = () => {
                     lastName: result.data.lastName || '',
                     // Use fallbacks to ensure the Sidebar gets an image regardless of backend column names
                     profileImageUrlSmall: smallUrl,
-                    profileImageUrlLarge: largeUrl
+                    profileImageUrlLarge: largeUrl,
+                    profiles: result.data.profiles || []
                 }));
                 // --------------------------------------------------------
 
@@ -92,6 +94,15 @@ const UserProfile = () => {
     useEffect(() => {
         if (role) fetchProfileData();
     }, [fetchProfileData, role]);
+
+    // --- AUTO-OPEN EDIT MODAL ON INTENT ---
+    useEffect(() => {
+        const intent = sessionStorage.getItem('profile_intent');
+        if (intent === 'edit') {
+            setIsEditModalOpen(true);
+            sessionStorage.removeItem('profile_intent');
+        }
+    }, []);
 
     // Resolve location names when institute or student profile loads
     useEffect(() => {
@@ -128,23 +139,61 @@ const UserProfile = () => {
         resolveLocationNames();
     }, [profile, role]);
 
-    const handleSaveChanges = async (formData) => {
-        setIsSaving(true);
-        try {
-            // Switch Update API call based on Role
-            switch (role) {
-                case ROLES.TUTOR: await updateTutorProfile(formData); break;
-                case ROLES.STUDENT: await updateStudentProfile(formData); break;
-                case ROLES.INSTITUTE: await updateInstituteProfile(formData); break;
+    const handleSaveChanges = async (formDataOrObj) => {
+        const isFormData = formDataOrObj instanceof FormData;
+        const hasFile = isFormData && formDataOrObj.has('profilePicture');
+
+        // --- OPTIMISTIC UI: update local state immediately ---
+        if (!isFormData) {
+            // Plain object: spread into local profile state for instant UI
+            setProfile((prev) => ({ ...prev, ...formDataOrObj }));
+            dispatch(updateUser({
+                firstName: formDataOrObj.firstName || formDataOrObj.instituteName,
+                lastName: formDataOrObj.lastName || '',
+            }));
+        }
+
+        // Close the modal right away for a snappy feel
+        setIsEditModalOpen(false);
+
+        if (isFormData) {
+            // ─── DIRECT UPLOAD: FormData (contains binary image file) ──────────────
+            // FormData is NON-SERIALIZABLE — it CANNOT be stored in Redux or
+            // persisted by redux-persist. Enqueuing it would corrupt the sync queue
+            // and silently discard the image, causing slow/failed photo updates.
+            // Solution: call the API directly and refresh from the response.
+            setIsSaving(true);
+            try {
+                let updateFn;
+                switch (role) {
+                    case ROLES.TUTOR:     updateFn = updateTutorProfile; break;
+                    case ROLES.STUDENT:   updateFn = updateStudentProfile; break;
+                    case ROLES.INSTITUTE: updateFn = updateInstituteProfile; break;
+                    default: throw new Error(`Unknown role: ${role}`);
+                }
+
+                await updateFn(formDataOrObj);
+
+                // Refresh profile from server to get real CDN URLs for the new image
+                await fetchProfileData();
+            } catch (err) {
+                console.error('[UserProfile] Direct profile update failed:', err);
+                // Re-fetch to revert optimistic state on failure
+                await fetchProfileData();
+            } finally {
+                setIsSaving(false);
             }
-            await fetchProfileData(); // Refresh UI and Redux
-            setIsEditModalOpen(false);
-        } catch (err) {
-            console.error("Update failed", err);
-        } finally {
-            setIsSaving(false);
+        } else {
+            // ─── OFFLINE-SAFE PATH: plain JSON object (no image) ─────────────────
+            // Safe to enqueue in Redux — all values are plain serializable primitives.
+            dispatch(enqueueAction({
+                actionType: SYNC_ACTION_TYPES.UPDATE_PROFILE,
+                payload: { role, formData: formDataOrObj },
+                label: `Update Profile: ${formDataOrObj.firstName || formDataOrObj.instituteName || 'User'}`,
+            }));
         }
     };
+
 
     // --- 2. Dynamic Content Rendering ---
 
@@ -266,9 +315,9 @@ const UserProfile = () => {
                         <span className="text-sm text-gray-500 dark:text-gray-400">Account Status</span>
                         <span className="px-3 py-1 text-xs font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 rounded-full">Active Student</span>
                     </div>
-                    {/* Read-only card display for students */}
+                    {/* Card management — students can only add/change their payment card via Edit Profile modal */}
                     <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Payment</p>
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Payment Card</p>
                         <FinancialsSection role={role} readOnly={true} />
                     </div>
                 </div>

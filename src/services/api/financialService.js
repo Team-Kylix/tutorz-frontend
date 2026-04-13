@@ -67,32 +67,38 @@ export const removeCardToken = async () => {
   }
 };
 
-// ─── Mock PayHere Tokenization ───────────────────────────────────
+// ─── PayHere Preapproval (Card Tokenization) ─────────────────────
 /**
- * Simulates the PayHere frontend SDK.
- * In production, replace this entire function with the real PayHere.js SDK call.
- * The real SDK sends the card number directly to PayHere's servers and returns a token.
- * We NEVER receive the real card number in our own API.
+ * Requests the backend to generate PayHere preapproval parameters.
+ * The returned object is passed directly to window.payhere.startPayment().
+ * PayHere charges Rs.1 (auto-refunded) and returns a customer_token to our notify_url.
  */
-export const mockPayHereTokenize = async (cardDetails) => {
-  // Simulate a short network delay (PayHere would do this in production)
-  await new Promise((resolve) => setTimeout(resolve, 800));
+export const initiatePreapproval = async () => {
+  try {
+    const response = await apiClient.post('/financials/initiate-preapproval');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to initiate card preapproval' };
+  }
+};
 
-  // Detect card brand from first digit
-  const firstDigit = cardDetails.cardNumber.replace(/\s/g, '')[0];
-  const brand =
-    firstDigit === '4' ? 'Visa' :
-    firstDigit === '5' ? 'Mastercard' :
-    firstDigit === '3' ? 'Amex' :
-    firstDigit === '6' ? 'Discover' : 'Card';
+// ─── Online Fee Payments (Student) ───────────────────────────────
+export const getStudentPaymentStatus = async (classId) => {
+  try {
+    const response = await apiClient.get('/financials/student-payment-status', {
+      params: { classId }
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch payment status' };
+  }
+};
 
-  const last4 = cardDetails.cardNumber.replace(/\s/g, '').slice(-4);
-  const mockToken = `payhere_mock_token_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-
-  return {
-    token: mockToken,
-    last4,
-    brand,
-    cardholderName: cardDetails.cardholderName,
-  };
+export const initiateOnlinePayment = async (data) => {
+  try {
+    const response = await apiClient.post('/financials/initiate-payment', data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to initiate payment' };
+  }
 };

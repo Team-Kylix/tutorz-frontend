@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { format, isSameDay } from 'date-fns';
 import { ArrowLeft, CalendarDays, RefreshCw } from 'lucide-react';
-import { getTimetableByDate } from '../../services/api/instituteService';
+import { getTimetableByDate as getInstituteTimetable } from '../../services/api/instituteService';
+import { getTimetableByDate as getStudentTimetable } from '../../services/api/studentService';
 import HallColumn from '../molecules/HallColumn';
 import ClassFormModal from './ClassFormModal';
+import { useAuth } from '../../hooks/useAuth';
+import { ROLES } from '../../utils/constants';
 
 const HOUR_HEIGHT = 80; // px per hour
 
@@ -44,6 +47,7 @@ const mapClassToCard = (cls) => {
         id: cls.classId,
         name: cls.className || cls.subject,
         teacher: cls.tutorName || 'Unknown',
+        instituteName: cls.instituteName || null,
         subject: cls.subject,
         hallName: cls.hallName || 'Unknown Hall',
         startHour: startH,
@@ -64,6 +68,7 @@ const mapClassToCard = (cls) => {
  *  onBack       {Function} – Called when the user clicks "Back to Calendar".
  */
 const ScheduleGrid = ({ selectedDate, onBack }) => {
+    const { user } = useAuth();
     const [viewDate, setViewDate] = useState(selectedDate);
     const [classes, setClasses] = useState([]);
     const [rawClasses, setRawClasses] = useState([]);  // raw API DTOs for view modal
@@ -86,7 +91,12 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
             setIsLoading(true);
             setError(null);
             try {
-                const res = await getTimetableByDate(viewDate);
+                let res;
+                if (user?.role === ROLES.STUDENT) {
+                    res = await getStudentTimetable(viewDate);
+                } else {
+                    res = await getInstituteTimetable(viewDate);
+                }
                 const rawClasses = res?.data || [];
                 setRawClasses(rawClasses);
                 setClasses(rawClasses.map(mapClassToCard));
@@ -123,8 +133,19 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
     }, []);
 
 
-    // Derive distinct hall names from loaded classes — sorted alphabetically
-    const halls = [...new Set(classes.map(c => c.hallName))].sort();
+    // Derive unique columns from loaded classes. 
+    // We group by "InstituteName||HallName", sorting first by Institute, then Hall.
+    // If instituteName is null (e.g. for institute-side view), it falls back seamlessly to HallName.
+    const columnKeys = [...new Set(classes.map(c => `${c.instituteName || ''}__||__${c.hallName || 'Unknown'}`))].sort();
+
+    const columns = columnKeys.map(key => {
+        const [inst, hall] = key.split('__||__');
+        return {
+            id: key,
+            instituteName: inst || null,
+            hallName: hall
+        };
+    });
 
     return (
         <div className="flex flex-col flex-1 h-full">
@@ -218,12 +239,13 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
                         </div>
 
                         {/* ── Hall Columns ── */}
-                        {halls.map((hallName, hallIndex) => (
+                        {columns.map((col, hallIndex) => (
                             <HallColumn
-                                key={hallName}
-                                hallName={hallName}
+                                key={col.id}
+                                hallName={col.hallName}
+                                subtitle={col.instituteName}
                                 hallIndex={hallIndex}
-                                classes={classes.filter(c => c.hallName === hallName)}
+                                classes={classes.filter(c => c.hallName === col.hallName && (c.instituteName || null) === col.instituteName)}
                                 onClassClick={(cardCls) => {
                                     // Find the matching raw DTO by id to pass to the modal
                                     const raw = rawClasses.find(r => r.classId === cardCls.id);
