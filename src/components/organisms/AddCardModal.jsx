@@ -1,289 +1,311 @@
-import React, { useState } from 'react';
-import { X, CreditCard, User, Lock, Shield, AlertCircle, CalendarDays, Loader2 } from 'lucide-react';
-import { mockPayHereTokenize, saveCardToken } from '../../services/api/financialService';
+import React, { useState, useEffect } from 'react';
+import {
+  X, CreditCard, Shield, AlertCircle, Loader2, CheckCircle2,
+  RefreshCw, Info
+} from 'lucide-react';
+import { initiatePreapproval, getFinancialSummary } from '../../services/api/financialService';
 
-// Card brand detection
-const detectBrand = (number) => {
-    const n = number.replace(/\s/g, '');
-    if (n.startsWith('4')) return 'Visa';
-    if (n.startsWith('5') || (n >= '2221' && n <= '2720')) return 'Mastercard';
-    if (n.startsWith('34') || n.startsWith('37')) return 'Amex';
-    if (n.startsWith('6')) return 'Discover';
-    return '';
-};
-
-const BrandLogo = ({ brand }) => {
-    const colors = {
-        Visa: 'bg-blue-600',
-        Mastercard: 'bg-red-500',
-        Amex: 'bg-cyan-600',
-        Discover: 'bg-orange-500',
-    };
-    return brand ? (
-        <span className={`text-[10px] font-bold text-white px-2 py-0.5 rounded ${colors[brand] || 'bg-gray-500'}`}>
-            {brand.toUpperCase()}
-        </span>
-    ) : null;
-};
+// ── PayHere Preapproval — Automated Charging Consent Modal ────────────────────
+//
+// Flow:
+//  1. Student clicks "Add Payment Card" → this modal opens
+//  2. We show a consent screen explaining what Automated Charging is
+//  3. On confirm → backend generates a preapproval hash → PayHere JS popup opens
+//  4. Student enters card in PayHere's secure hosted UI (Rs.1 is charged & instantly refunded)
+//  5. PayHere calls our /preapproval-notify webhook with customer_token
+//  6. We poll the financial summary until the card appears, then show success
+//
+// Note: Only Visa and Mastercard support automated charging.
+//
+const POLL_INTERVAL_MS = 3000;
+const POLL_MAX_ATTEMPTS = 10;
 
 const AddCardModal = ({ isOpen, onClose, onSuccess }) => {
-    const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState('');
+  const [step, setStep] = useState('consent'); // 'consent' | 'waiting' | 'success' | 'error'
+  const [error, setError] = useState('');
+  const [pollCount, setPollCount] = useState(0);
 
-    const [form, setForm] = useState({
-        cardholderName: '',
-        cardNumber: '',
-        expiryMonth: '',
-        expiryYear: '',
-        cvv: '',
-    });
+  // Reset when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setStep('consent');
+      setError('');
+      setPollCount(0);
+    }
+  }, [isOpen]);
 
-    const currentYear = new Date().getFullYear();
+  // Ensure PayHere JS is loaded
+  const injectPayHereScript = () => {
+    if (!document.getElementById('payhere-js')) {
+      const script = document.createElement('script');
+      script.id = 'payhere-js';
+      script.src = 'https://www.payhere.lk/lib/payhere.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  };
 
-    // Format card number as groups of 4
-    const handleCardNumber = (e) => {
-        const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
-        const formatted = raw.replace(/(.{4})/g, '$1 ').trim();
-        setForm(f => ({ ...f, cardNumber: formatted }));
-    };
+  // Poll the summary API until the card token appears (webhook may take a few seconds)
+  const pollForCard = async (attempt = 0) => {
+    if (attempt >= POLL_MAX_ATTEMPTS) {
+      setStep('error');
+      setError(
+        'Your card approval is being processed. It may take a moment to appear — ' +
+        'please refresh your profile page in a few seconds.'
+      );
+      return;
+    }
 
-    // CVV: 3-4 digits only
-    const handleCvv = (e) => {
-        const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
-        setForm(f => ({ ...f, cvv: raw }));
-    };
+    try {
+      const res = await getFinancialSummary();
+      if (res?.success && res.data?.hasCard) {
+        setStep('success');
+        // Notify parent to refresh card display
+        setTimeout(() => {
+          onSuccess(res.data);
+        }, 2000);
+        return;
+      }
+    } catch {
+      // Ignore poll errors silently
+    }
 
-    const handleExpiry = (field) => (e) => {
-        const raw = e.target.value.replace(/\D/g, '').slice(0, field === 'expiryMonth' ? 2 : 4);
-        setForm(f => ({ ...f, [field]: raw }));
-    };
+    // Wait and try again
+    setPollCount(attempt + 1);
+    setTimeout(() => pollForCard(attempt + 1), POLL_INTERVAL_MS);
+  };
 
-    const brand = detectBrand(form.cardNumber);
+  const handleStartPreapproval = async () => {
+    setError('');
+    setStep('waiting');
+    injectPayHereScript();
 
-    const validate = () => {
-        const stripped = form.cardNumber.replace(/\s/g, '');
-        if (stripped.length < 13) return 'Please enter a valid card number.';
-        if (!form.cardholderName.trim()) return 'Please enter the cardholder name.';
-        const month = parseInt(form.expiryMonth);
-        if (!month || month < 1 || month > 12) return 'Please enter a valid expiry month (01-12).';
-        const year = parseInt(form.expiryYear);
-        if (!year || year < currentYear || year > currentYear + 20) return 'Please enter a valid expiry year.';
-        if (!form.cvv || form.cvv.length < 3) return 'Please enter the CVV.';
-        return null;
-    };
+    try {
+      // 1. Get preapproval params from our backend (hash, order_id, etc.)
+      const res = await initiatePreapproval();
+      if (!res?.success || !res.data) {
+        setStep('error');
+        setError(res?.message || 'Failed to initiate preapproval. Please try again.');
+        return;
+      }
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        e.stopPropagation(); // Prevent bubbling to parent form (e.g. EditProfileModal)
-        const validationError = validate();
-        if (validationError) { setError(validationError); return; }
-        setError('');
-        setIsSaving(true);
+      const preapprovalParams = res.data;
 
-        try {
-            // Step 1: "Tokenize" via mock PayHere (real SDK would send card to PayHere servers directly)
-            const tokenResult = await mockPayHereTokenize({
-                cardNumber: form.cardNumber,
-                cardholderName: form.cardholderName,
-                expiryMonth: form.expiryMonth,
-                expiryYear: form.expiryYear,
-                // Note: CVV is used only by the PayHere SDK and never sent to our backend
-            });
-
-            // Step 2: Send ONLY the token + metadata to our backend (never the card number or CVV)
-            const res = await saveCardToken({
-                token: tokenResult.token,
-                last4: tokenResult.last4,
-                brand: tokenResult.brand,
-                cardholderName: tokenResult.cardholderName,
-            });
-
-            if (res.success) {
-                onSuccess(res.data);
-                onClose();
-            } else {
-                setError(res.message || 'Failed to save card.');
-            }
-        } catch (err) {
-            setError(err?.message || 'An error occurred.');
-        } finally {
-            // Immediately scrub sensitive card data from memory
-            setForm({ cardholderName: '', cardNumber: '', expiryMonth: '', expiryYear: '', cvv: '' });
-            setIsSaving(false);
+      // 2. Wait for PayHere JS to be ready then open the popup
+      const openPayHere = () => {
+        if (!window.payhere) {
+          setTimeout(openPayHere, 300);
+          return;
         }
-    };
 
-    const handleClose = () => {
-        setForm({ cardholderName: '', cardNumber: '', expiryMonth: '', expiryYear: '', cvv: '' });
-        setError('');
-        onClose();
-    };
+        window.payhere.onCompleted = function (orderId) {
+          // PayHere popup closed after successful preapproval
+          // The actual customer_token is delivered via server-to-server notify_url
+          // Poll our API until it appears
+          pollForCard(0);
+        };
 
-    if (!isOpen) return null;
+        window.payhere.onDismissed = function () {
+          setStep('consent');
+          setError('Card preapproval was cancelled. You can try again anytime.');
+        };
 
-    const last4 = form.cardNumber.replace(/\s/g, '').slice(-4);
-    const maskedPreview = form.cardNumber.replace(/\s/g, '').length > 4
-        ? `•••• •••• •••• ${last4}`
-        : '•••• •••• •••• ••••';
+        window.payhere.onError = function (error) {
+          setStep('error');
+          setError('PayHere error: ' + error);
+        };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={handleClose}>
-            <div
-                className="relative w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden"
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Header */}
-                <div className="bg-gradient-to-r from-violet-600 to-purple-700 p-6 text-white">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-white/20 rounded-xl">
-                                <CreditCard size={22} />
-                            </div>
-                            <div>
-                                <h2 className="text-lg font-bold">Add Payment Card</h2>
-                                <p className="text-xs text-violet-200">Secured via PayHere tokenization</p>
-                            </div>
-                        </div>
-                        <button type="button" onClick={handleClose} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
-                            <X size={20} />
-                        </button>
-                    </div>
+        window.payhere.startPayment(preapprovalParams);
+      };
 
-                    {/* Card Preview */}
-                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="w-8 h-6 bg-yellow-400/80 rounded-sm" /> {/* Chip */}
-                            <BrandLogo brand={brand} />
-                        </div>
-                        <p className="font-mono text-sm tracking-widest mb-2 text-white/90">{maskedPreview}</p>
-                        <div className="flex items-center justify-between">
-                            <p className="text-xs text-white/60 uppercase tracking-widest">
-                                {form.cardholderName || 'Cardholder Name'}
-                            </p>
-                            <p className="text-xs text-white/60 font-mono">
-                                {form.expiryMonth || 'MM'}/{form.expiryYear || 'YY'}
-                            </p>
-                        </div>
-                    </div>
-                </div>
+      openPayHere();
+    } catch (err) {
+      setStep('error');
+      setError(err?.message || 'An error occurred. Please try again.');
+    }
+  };
 
-                {/* Form */}
-                <form onSubmit={handleSubmit} autoComplete="off" className="p-6 space-y-4">
-                    {/* Cardholder Name */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                            Cardholder Name
-                        </label>
-                        <div className="relative">
-                            <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
-                                value={form.cardholderName}
-                                onChange={e => setForm(f => ({ ...f, cardholderName: e.target.value.toUpperCase() }))}
-                                placeholder="Name on card"
-                                autoComplete="off"
-                                className="w-full pl-9 pr-4 py-2.5 text-sm tracking-wider rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-                            />
-                        </div>
-                    </div>
+  const handleClose = () => {
+    setStep('consent');
+    setError('');
+    onClose();
+  };
 
-                    {/* Card Number */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                            Card Number
-                        </label>
-                        <div className="relative">
-                            <CreditCard size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                value={form.cardNumber}
-                                onChange={handleCardNumber}
-                                placeholder="0000 0000 0000 0000"
-                                autoComplete="cc-number"
-                                maxLength={19}
-                                className="w-full pl-9 pr-4 py-2.5 text-sm font-mono tracking-widest rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-                            />
-                            {brand && (
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                    <BrandLogo brand={brand} />
-                                </div>
-                            )}
-                        </div>
-                    </div>
+  if (!isOpen) return null;
 
-                    {/* Expiry + CVV row */}
-                    <div className="grid grid-cols-3 gap-3">
-                        <div>
-                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">MM</label>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                value={form.expiryMonth}
-                                onChange={handleExpiry('expiryMonth')}
-                                placeholder="01"
-                                maxLength={2}
-                                autoComplete="cc-exp-month"
-                                className="w-full px-3 py-2.5 text-sm font-mono text-center rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">YYYY</label>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                value={form.expiryYear}
-                                onChange={handleExpiry('expiryYear')}
-                                placeholder="2026"
-                                maxLength={4}
-                                autoComplete="cc-exp-year"
-                                className="w-full px-3 py-2.5 text-sm font-mono text-center rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                                <Lock size={10} className="inline mr-1" /> CVV
-                            </label>
-                            <input
-                                type="password"
-                                inputMode="numeric"
-                                value={form.cvv}
-                                onChange={handleCvv}
-                                placeholder="•••"
-                                maxLength={4}
-                                autoComplete="cc-csc"
-                                className="w-full px-3 py-2.5 text-sm font-mono text-center rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Security notice */}
-                    <div className="flex items-start gap-2 p-3 bg-violet-50 dark:bg-violet-900/20 rounded-xl text-xs text-violet-700 dark:text-violet-300">
-                        <Shield size={14} className="mt-0.5 shrink-0" />
-                        <span>Your card number and CVV are never sent to our servers. They are handled directly by PayHere's secure network.</span>
-                    </div>
-
-                    {error && (
-                        <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm text-red-700 dark:text-red-300">
-                            <AlertCircle size={14} />
-                            <span>{error}</span>
-                        </div>
-                    )}
-
-                    <button
-                        type="submit"
-                        disabled={isSaving}
-                        className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-purple-700 text-white font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
-                    >
-                        {isSaving
-                            ? <><Loader2 size={16} className="animate-spin" /> Securing Card...</>
-                            : 'Save Card Securely'
-                        }
-                    </button>
-                </form>
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={step === 'waiting' ? undefined : handleClose}
+    >
+      <div
+        className="relative w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* ── Header ─────────────────────────────────────────────────── */}
+        <div className="bg-gradient-to-r from-violet-600 to-purple-700 p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-xl">
+                <CreditCard size={22} />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">Add Payment Card</h2>
+                <p className="text-xs text-violet-200">Powered by PayHere Automated Charging</p>
+              </div>
             </div>
+            {step !== 'waiting' && (
+              <button
+                type="button"
+                onClick={handleClose}
+                className="p-2 hover:bg-white/20 rounded-xl transition-colors"
+              >
+                <X size={20} />
+              </button>
+            )}
+          </div>
         </div>
-    );
+
+        {/* ── Consent Step ────────────────────────────────────────────── */}
+        {step === 'consent' && (
+          <div className="p-6 space-y-5">
+            {/* How it works */}
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                How it works
+              </p>
+              {[
+                {
+                  icon: '1',
+                  title: 'Enter your card securely',
+                  desc: "You'll enter your card details directly in PayHere's secure payment window — we never see your card number."
+                },
+                {
+                  icon: '2',
+                  title: 'LKR 30.00 registration fee',
+                  desc: 'A one-time card registration fee of LKR 30.00 is charged. This covers the cost of securely tokenizing your card with PayHere.'
+                },
+                {
+                  icon: '3',
+                  title: 'Pay fees in one click',
+                  desc: 'After approval, you can pay any class fee instantly without re-entering your card details.'
+                },
+              ].map((step, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-xs font-bold flex items-center justify-center">
+                    {step.icon}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{step.title}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{step.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Fee notice */}
+            <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl text-xs text-amber-700 dark:text-amber-300">
+              <Info size={14} className="shrink-0" />
+              <span>
+                A <strong>LKR 30.00</strong> one-time card registration fee applies.
+                Automated charging supports <strong>Visa</strong> and <strong>Mastercard</strong> only.
+              </span>
+            </div>
+
+            {/* Security note */}
+            <div className="flex items-start gap-2 p-3 bg-violet-50 dark:bg-violet-900/20 rounded-xl text-xs text-violet-700 dark:text-violet-300">
+              <Shield size={14} className="mt-0.5 shrink-0" />
+              <span>
+                Your card details are handled exclusively by PayHere. We only receive a secure encrypted token.
+                You can cancel this preapproval at any time from your profile.
+              </span>
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm text-red-700 dark:text-red-300">
+                <AlertCircle size={14} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleStartPreapproval}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-purple-700 text-white font-semibold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+            >
+              <CreditCard size={16} />
+              Register Card — LKR 30.00
+            </button>
+
+            <button
+              type="button"
+              onClick={handleClose}
+              className="w-full py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {/* ── Waiting Step ────────────────────────────────────────────── */}
+        {step === 'waiting' && (
+          <div className="p-8 flex flex-col items-center justify-center gap-4 min-h-[220px]">
+            <Loader2 size={40} className="animate-spin text-violet-500" />
+            <div className="text-center">
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                {pollCount === 0 ? 'Opening PayHere...' : 'Saving your card...'}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {pollCount === 0
+                  ? 'Complete the card preapproval in the PayHere window.'
+                  : `Verifying approval (${Math.min(pollCount, POLL_MAX_ATTEMPTS)}/${POLL_MAX_ATTEMPTS})...`
+                }
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Success Step ─────────────────────────────────────────────── */}
+        {step === 'success' && (
+          <div className="p-8 flex flex-col items-center justify-center gap-4 min-h-[220px]">
+            <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <CheckCircle2 size={36} className="text-green-600 dark:text-green-400" />
+            </div>
+            <div className="text-center">
+              <p className="text-base font-bold text-gray-900 dark:text-white">Card Added!</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Your card has been pre-approved. You can now pay fees in one click.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Error Step ───────────────────────────────────────────────── */}
+        {step === 'error' && (
+          <div className="p-6 space-y-4">
+            <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm text-red-700 dark:text-red-300">
+              <AlertCircle size={16} className="shrink-0" />
+              <span>{error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setStep('consent'); setError(''); }}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-700 text-white font-semibold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+            >
+              <RefreshCw size={14} /> Try Again
+            </button>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="w-full py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default AddCardModal;

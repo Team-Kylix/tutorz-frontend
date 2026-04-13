@@ -8,7 +8,7 @@ import QuickActionCard from '../molecules/QuickActionCard';
 import ConfirmationModal from '../molecules/ConfirmationModal';
 import OtpVerificationModal from './OtpVerificationModal';
 
-import { checkUserStatus, register, sendOtp, verifyOtp, registerSibling } from '../../services/auth/authService';
+import { checkUserStatus, register, sendOtp, verifyOtp, registerSibling, sendRegistrationOtp } from '../../services/auth/authService';
 import { searchStudents, searchTutors, assignStudent, sendTutorRequest, getInstituteProfile } from '../../services/api/instituteService';
 import { validatePhoneNumber } from '../../utils/validators';
 
@@ -48,6 +48,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
 
     const [isRegistering, setIsRegistering] = useState(false);
     const [isSiblingRegistration, setIsSiblingRegistration] = useState(false);
+    const [registrationMode, setRegistrationMode] = useState(null); // 'sibling' or 'new'
     const [siblingVerificationToken, setSiblingVerificationToken] = useState(null);
 
     const [formData, setFormData] = useState({
@@ -221,6 +222,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
         setIsChecking(true);
         try {
             const identifierToUse = checkData.email || checkData.mobile;
+            setRegistrationMode('sibling');
             await sendOtp(identifierToUse);
             setIsOtpModalOpen(true);
         } catch (error) {
@@ -232,14 +234,20 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
 
     const handleVerifyOtp = async (otpCode) => {
         try {
-            const identifierToUse = checkData.email || checkData.mobile;
-            await verifyOtp(identifierToUse, otpCode);
-            setIsOtpModalOpen(false);
+            if (registrationMode === 'sibling') {
+                const identifierToUse = checkData.email || checkData.mobile;
+                await verifyOtp(identifierToUse, otpCode);
+                setIsOtpModalOpen(false);
 
-            setIsSiblingRegistration(true);
-            setSiblingVerificationToken(otpCode);
-            setFormData({ firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
-            setStep('register-student');
+                setIsSiblingRegistration(true);
+                setSiblingVerificationToken(otpCode);
+                setFormData({ firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
+                setStep('register-student');
+            } else {
+                // New registration - OTP is verified DURING the actual register call
+                setIsOtpModalOpen(false);
+                await performFinalRegistration(otpCode);
+            }
         } catch (error) {
             console.error("OTP Error", error);
             throw error;
@@ -255,8 +263,15 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             } else {
                 await register(payload);
             }
-            if (onAssigned) onAssigned();
+            
+            // Show success first so the user can't double-click if callback is slow/errors
             setStep('success');
+            
+            try {
+                if (onAssigned) onAssigned();
+            } catch (e) {
+                console.error("Callback error after registration:", e);
+            }
         } catch (err) {
             alert(err.message || "Registration Failed");
         } finally {
@@ -266,6 +281,29 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
 
     const handleRegisterSubmit = async (e) => {
         e.preventDefault();
+
+        if (!formData.firstName.trim()) { alert("First Name is required."); return; }
+        if (!formData.lastName.trim()) { alert("Last Name is required."); return; }
+        if (selectedRole === 'Student' && !formData.grade) { alert("Please select a Grade."); return; }
+
+        if (isSiblingRegistration) {
+            await performFinalRegistration(siblingVerificationToken);
+        } else {
+            // New Registration - Send OTP First
+            setIsRegistering(true);
+            try {
+                setRegistrationMode('new');
+                await sendRegistrationOtp(checkData.mobile);
+                setIsOtpModalOpen(true);
+            } catch (err) {
+                alert(err.message || "Failed to send verification code.");
+            } finally {
+                setIsRegistering(false);
+            }
+        }
+    };
+
+    const performFinalRegistration = async (otpCode) => {
         const mobileStr = checkData.mobile.trim();
         const generatedPassword = mobileStr.length >= 6 ? mobileStr.slice(-6) : "123456";
         const instId = instituteProfile?.instituteId || user?.instituteId;
@@ -274,7 +312,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             if (isSiblingRegistration) {
                 await executeRegister({
                     identifier: checkData.email || checkData.mobile,
-                    verificationToken: siblingVerificationToken,
+                    verificationToken: otpCode,
                     firstName: formData.firstName,
                     lastName: formData.lastName,
                     grade: formData.grade,
@@ -300,7 +338,8 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                     parentName: "Not Provided",
                     dateOfBirth: new Date().toISOString(),
                     cityId: instituteProfile?.cityId,
-                    instituteId: instId
+                    instituteId: instId,
+                    otpCode: otpCode
                 });
                 setSuccessMessage({ 
                     title: "Registration Successful!", 
@@ -325,7 +364,8 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 bankName: formData.bankName,
                 experienceYears: formData.experienceYears,
                 cityId: instituteProfile.cityId,
-                instituteId: instId
+                instituteId: instId,
+                otpCode: otpCode
             });
             setSuccessMessage({ 
                 title: "Tutor Added Successfully!", 
@@ -482,7 +522,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
 
                     {!isTutor && (
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Grade</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Grade <span className="text-red-500 dark:text-red-400">*</span></label>
                             <Select value={formData.grade} onChange={(e) => setFormData({ ...formData, grade: e.target.value })} required>
                                 <option value="">Select Grade</option>
                                 {GRADE_GROUPS.map((group, index) => (

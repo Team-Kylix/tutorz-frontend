@@ -43,14 +43,15 @@ export const getAllInstituteClassesUnpaged = async () => {
 
 // --- Classes Management ---
 
-export const getInstituteClasses = async (searchQuery = '', page = 1, pageSize = 10) => {
+export const getInstituteClasses = async (searchQuery = '', page = 1, pageSize = 10, tutorId = null) => {
   try {
     const params = new URLSearchParams({
       searchQuery: searchQuery,
       page: page.toString(),
       pageSize: pageSize.toString()
     });
-    // This expects the backend to have an equivalent endpoint.
+    if (tutorId) params.append('tutorId', tutorId);
+    
     const response = await apiClient.get(`/institute/classes?${params.toString()}`);
     return response.data;
   } catch (error) {
@@ -96,9 +97,10 @@ export const toggleInstituteClassStatus = async (id) => {
 
 // --- Hall Management ---
 
-export const getHalls = async () => {
+export const getHalls = async (bypassCache = false) => {
   try {
-    const response = await apiClient.get('/institute/halls');
+    const url = bypassCache ? `/institute/halls?_t=${Date.now()}` : '/institute/halls';
+    const response = await apiClient.get(url);
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to fetch halls' };
@@ -257,7 +259,11 @@ export const markAttendance = async (studentId, classId) => {
 
 export const getInstituteClassesToday = async () => {
   try {
-    const response = await apiClient.get('/institute/attendance/classes-today');
+    // Send local date (not UTC) so the server uses the correct DayOfWeek
+    // e.g. In Sri Lanka (UTC+5:30) UtcNow before 05:30 would give the wrong day
+    const now = new Date();
+    const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const response = await apiClient.get(`/institute/attendance/classes-today?localDate=${localDate}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to fetch today\'s classes' };

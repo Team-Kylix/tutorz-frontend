@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { store } from '../../store';
 import { logout } from '../../store/authSlice';
+import { invalidateDashboard, clearDashboard } from '../../store/dashboardSlice';
 
 // IMPORTANT: Update this URL to match backend!
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'https://localhost:7010';
@@ -27,7 +28,18 @@ apiClient.interceptors.request.use(
 // RESPONSE interceptor: global error handling
 apiClient.interceptors.response.use(
   // On success, pass the response through unchanged
-  (response) => response,
+  (response) => {
+    // Force a cache invalidation if the user changed data (e.g. Added student)
+    const method = response.config.method?.toLowerCase();
+    if (['post', 'put', 'patch', 'delete'].includes(method)) {
+      if ('caches' in window) {
+        caches.delete('user-data-cache').catch(() => {});
+      }
+      // Also invalidate the Redux fast-cache so it fetches new data on next mount
+      store.dispatch(invalidateDashboard());
+    }
+    return response;
+  },
 
   // On error, handle specific cases globally
   (error) => {
@@ -35,9 +47,8 @@ apiClient.interceptors.response.use(
       // The server responded with an error status code
       if (error.response.status === 401) {
         // Session expired or invalid token — log the user out immediately
-        // This will clear localStorage and Redux state, causing ProtectedRoute
-        // to redirect to /login automatically
         store.dispatch(logout());
+        store.dispatch(clearDashboard());
       }
       // For all other server errors (403, 500, etc.), reject as normal
       return Promise.reject(error);

@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useDispatch } from 'react-redux'; // Added Redux Dispatch
+import { createPortal } from 'react-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   LayoutDashboard, Users, BookOpen, Calendar, DollarSign,
   FileText, QrCode, Settings, ChevronRight, ChevronLeft, LogOut,
-  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus, Clock, Info
+  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus, Clock, Info, CloudOff
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SidebarItem from '../molecules/SidebarItem';
 import ConfirmationModal from '../molecules/ConfirmationModal';
+import UserProfileSwitcher from '../molecules/UserProfileSwitcher';
 import Logo from '../atoms/Logo';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLES } from '../../utils/constants';
-import { BASE_URL } from '../../services/api/apiClient';
+import { selectPendingCount } from '../../store/syncSlice';
 
-// Added API and Redux actions to fetch data on load
 import { updateUser } from '../../store/authSlice';
 import { getTutorProfile } from '../../services/api/tutorService';
 import { getStudentProfile } from '../../services/api/studentService';
@@ -23,20 +24,12 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user, logout } = useAuth();
+  const pendingSyncCount = useSelector(selectPendingCount);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showPendingWarning, setShowPendingWarning] = useState(false);
 
-  // User Display Logic
-  const firstName = user?.firstName || "User";
-  const lastName = user?.lastName || "";
-  const fullName = `${firstName} ${lastName}`.trim();
-  const displayRole = user?.role || "Member";
-  const displayId = user?.registrationNumber || user?.userId || "";
-
-  // Look for Small, then Large, then any profile picture URL available in Redux
-  const profileImage = user?.profileImageUrlSmall || user?.profileImageUrlLarge || user?.profilePictureUrl;
-
-  // --- CRITICAL FIX: Fetch profile quietly on Dashboard load ---
+  // Fetch fresh profile data on load
   useEffect(() => {
     const initProfileData = async () => {
       if (!user?.role) return;
@@ -50,38 +43,46 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         }
 
         if (result?.success) {
-          // Generate cache-busting timestamp
           let smallUrl = result.data.profileImageUrlSmall || result.data.profileImageUrlLarge || result.data.profilePictureUrl;
           let largeUrl = result.data.profileImageUrlLarge || result.data.profilePictureUrl;
-          
+
           if (smallUrl) smallUrl = `${smallUrl}${smallUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
           if (largeUrl) largeUrl = `${largeUrl}${largeUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
 
-          // Send fresh data to Redux immediately so the Sidebar updates
           dispatch(updateUser({
             firstName: result.data.firstName || result.data.instituteName,
             lastName: result.data.lastName || '',
             profileImageUrlSmall: smallUrl,
-            profileImageUrlLarge: largeUrl
+            profileImageUrlLarge: largeUrl,
+            profiles: result.data.profiles || []
           }));
         }
       } catch (error) {
-        console.error("Sidebar failed to fetch fresh profile data:", error);
+        console.error('Sidebar failed to fetch fresh profile data:', error);
       }
     };
 
     initProfileData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array ensures this runs exactly once when the Sidebar mounts
+  }, []);
+
+  const handleLogoutClick = () => {
+    // If there are unsynced records, show the data-loss warning first
+    if (pendingSyncCount > 0) {
+      setShowPendingWarning(true);
+    } else {
+      setShowLogoutModal(true);
+    }
+  };
 
   const handleLogoutConfirm = () => {
     logout();
     setShowLogoutModal(false);
+    setShowPendingWarning(false);
     navigate('/login');
   };
 
-  // --- 1. Define Menus for Different Roles ---
-
+  // --- Menu Definitions ---
   const tutorMenu = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
@@ -101,6 +102,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'classes', label: 'My Classes', icon: BookOpen },
     { id: 'timetable', label: 'Timetable', icon: Clock },
     { id: 'attendance', label: 'My Attendance', icon: Calendar },
+    { id: 'financials', label: 'My Financials', icon: DollarSign },
     { id: 'profile', label: 'My Profile', icon: QrCode },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -130,7 +132,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'settings', label: 'System Config', icon: Settings },
   ];
 
-  // --- 2. Switch Logic ---
   const getMenuItems = () => {
     switch (user?.role) {
       case ROLES.ADMIN: return adminMenu;
@@ -149,6 +150,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         <div className="fixed inset-0 bg-black/20 z-20 md:hidden" onClick={toggleSidebar}></div>
       )}
 
+      {/* Standard Logout Confirmation */}
       <ConfirmationModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
@@ -159,7 +161,39 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         variant="danger"
       />
 
-      <aside className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen fixed left-0 top-0 z-30 transition-all duration-300 ease-in-out ${isCollapsed ? '-translate-x-full md:translate-x-0 md:w-20' : 'w-64'}`}>
+      {/* Data-Loss Warning — uses standard modal but with custom content */}
+      <ConfirmationModal
+        isOpen={showPendingWarning}
+        onClose={() => setShowPendingWarning(false)}
+        onCancel={() => setShowPendingWarning(false)}
+        onConfirm={handleLogoutConfirm}
+        title="Data Not Yet Uploaded"
+        confirmLabel="Logout Anyway"
+        cancelLabel="Stay & Sync"
+        variant="danger"
+      >
+        <div className="flex items-center gap-3 p-3.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl mb-4">
+          <span className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">{pendingSyncCount}</span>
+          <p className="text-sm text-amber-800 dark:text-amber-300 leading-snug">
+            {pendingSyncCount === 1 ? 'record is' : 'records are'} waiting to be uploaded to the server.
+          </p>
+        </div>
+
+        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-4">
+          Please ensure you have a <strong>stable internet connection</strong> and wait for the upload to complete before logging out. If you log out now, this data <strong>will be permanently lost</strong>.
+        </p>
+
+        {/* Online status hint */}
+        {!navigator.onLine && (
+          <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400 font-medium">
+            <CloudOff size={14} />
+            <span>You are currently offline. Connect to the internet first.</span>
+          </div>
+        )}
+      </ConfirmationModal>
+
+      <aside className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen fixed left-0 top-0 z-30 transition-all duration-300 ease-in-out scrollbar-hide ${isCollapsed ? '-translate-x-full md:translate-x-0 md:w-20' : 'w-64'}`}>
+
         {/* Header */}
         <div className={`h-16 flex items-center px-4 border-b border-gray-100 dark:border-gray-700 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           <Logo size="small" collapsed={isCollapsed} />
@@ -181,41 +215,11 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
           </div>
         )}
 
-        {/* User Profile */}
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/50">
-          <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
-            
-            {/* Avatar container */}
-            <div 
-              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 overflow-hidden
-                ${user?.role === ROLES.ADMIN ? 'bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-300' : 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300'}`}
-            >
-              {profileImage ? (
-                <img 
-                  src={profileImage.startsWith('http') ? profileImage : `${BASE_URL}${profileImage}`} 
-                  alt="Profile" 
-                  className="w-full h-full object-cover" 
-                />
-              ) : (
-                <span>{firstName.charAt(0)}</span>
-              )}
-            </div>
-            
-            {!isCollapsed && (
-              <div className="overflow-hidden">
-                <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200 truncate" title={fullName}>
-                  {fullName}
-                </h4>
-                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize truncate">
-                  {displayRole} {displayId && `| ${displayId}`}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* ─── User Profile Section ─── */}
+        <UserProfileSwitcher isCollapsed={isCollapsed} />
 
         {/* Navigation */}
-        <nav className="p-3 pb-6 space-y-1 mt-2 flex-1 overflow-y-auto h-[calc(100vh-240px)] custom-scrollbar">
+        <nav className="p-3 pb-6 space-y-1 mt-2 flex-1 overflow-y-auto h-[calc(100vh-240px)] scrollbar-hide">
           {menuItems.map((item) => (
             <SidebarItem
               key={item.id}
@@ -243,9 +247,9 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
             <Info size={20} />
             {!isCollapsed && <span>About & Policies</span>}
           </button>
-          
+
           <button
-            onClick={() => setShowLogoutModal(true)}
+            onClick={handleLogoutClick}
             className={`w-full flex items-center gap-3 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${isCollapsed ? 'justify-center' : ''}`}
           >
             <LogOut size={20} />
