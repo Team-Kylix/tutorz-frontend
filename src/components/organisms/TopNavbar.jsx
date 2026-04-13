@@ -10,6 +10,7 @@ import NetworkStatusDot from '../atoms/NetworkStatusDot';
 import { getAssignedStudents, getAssignedTutors } from '../../services/api/instituteService';
 import AccountViewModal from './AccountViewModal';
 import { BASE_URL } from '../../services/api/apiClient';
+import DeploymentControlPanel from './DeploymentControlPanel';
 
 const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
   const { theme, toggleTheme } = useThemeContext();
@@ -279,6 +280,11 @@ const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
              <Download size={16} />
              <span className="hidden sm:inline">Install App</span>
            </button>
+        )}
+
+        {/* ADMIN DEPLOY BUTTON */}
+        {user?.role === 'Admin' && (
+           <DeploymentControlPanel />
         )}
 
         {!isMobileSearchExpanded && (
