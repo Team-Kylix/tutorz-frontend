@@ -84,6 +84,15 @@ export const checkUserStatus = async (data) => {
     }
 };
 
+export const sendRegistrationOtp = async (phoneNumber) => {
+    try {
+        const response = await apiClient.post('/auth/send-registration-otp', { phoneNumber });
+        return response.data;
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Failed to send registration OTP.');
+    }
+};
+
 /**
  * Sends an OTP to the registered email of the identifier.
  */

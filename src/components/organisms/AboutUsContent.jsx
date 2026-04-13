@@ -1,9 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Info, Shield, FileText, RefreshCw, Mail, Globe, MapPin, Tag, ExternalLink } from 'lucide-react';
+import { APP_VERSION } from '../../config/version';
+import apiClient from '../../services/api/apiClient';
 
 const AboutUsContent = () => {
     const [activeTab, setActiveTab] = useState('about');
+    const [backendVersion, setBackendVersion] = useState('Loading...');
+
+    useEffect(() => {
+        let isMounted = true;
+        const fetchVersion = async () => {
+            try {
+                // Fetch the backend API version using the open endpoint
+                const res = await apiClient.get('/system/version');
+                if (isMounted) setBackendVersion(res.data.version);
+            } catch (err) {
+                if (isMounted) setBackendVersion('Unavailable');
+            }
+        };
+        fetchVersion();
+        return () => { isMounted = false; };
+    }, []);
 
     const tabs = [
         { id: 'about', label: 'About Us', icon: Info },
@@ -43,7 +61,7 @@ const AboutUsContent = () => {
                                     </div>
                                     <div>
                                         <p className="text-sm font-medium text-gray-900 dark:text-white">Email</p>
-                                        <a href="mailto:kylixtechnology@gmail.com" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">kylixtechnology@gmail.com</a>
+                                        <a href="mailto:lktutorz@gmail.com" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">lktutorz@gmail.com</a>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -79,6 +97,18 @@ const AboutUsContent = () => {
                             <button onClick={() => setActiveTab('refund')} className="text-xs text-blue-600 dark:text-blue-400 underline hover:no-underline">Refund Policy</button>
                             <span className="text-gray-300 dark:text-gray-600 text-xs">·</span>
                             <button onClick={() => setActiveTab('pricing')} className="text-xs text-blue-600 dark:text-blue-400 underline hover:no-underline">Pricing</button>
+                        </div>
+                        
+                        {/* Mobile Version Display */}
+                        <div className="pt-4 border-t border-gray-100 dark:border-gray-700 md:hidden flex justify-between">
+                            <div>
+                                <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 dark:text-gray-600">App Version</p>
+                                <p className="text-xs font-mono font-medium text-gray-500 dark:text-gray-400">{APP_VERSION}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 dark:text-gray-600">API Version</p>
+                                <p className="text-xs font-mono font-medium text-gray-500 dark:text-gray-400">{backendVersion}</p>
+                            </div>
                         </div>
                     </div>
                 );
@@ -143,7 +173,7 @@ const AboutUsContent = () => {
 
                         <p className="text-xs text-gray-400 dark:text-gray-500">
                             For pricing enquiries, contact us at{' '}
-                            <a href="mailto:kylixtechnology@gmail.com" className="text-blue-600 dark:text-blue-400 hover:underline">kylixtechnology@gmail.com</a>.
+                            <a href="mailto:lktutorz@gmail.com" className="text-blue-600 dark:text-blue-400 hover:underline">lktutorz@gmail.com</a>.
                         </p>
                     </div>
                 );
@@ -317,7 +347,7 @@ const AboutUsContent = () => {
 
                         <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-6">5. Payment Errors</h4>
                         <p className="text-gray-600 dark:text-gray-400">
-                            If you believe a technical error has occurred (e.g., a double-charge or an incorrect amount was billed), please contact our support team immediately at kylixtechnology@gmail.com. We will audit the transaction and, if a platform error is confirmed, we will issue a full refund of the erroneous amount. All such refunds will be credited back to the original payment-initiated media used for the transaction.
+                            If you believe a technical error has occurred (e.g., a double-charge or an incorrect amount was billed), please contact our support team immediately at lktutorz@gmail.com. We will audit the transaction and, if a platform error is confirmed, we will issue a full refund of the erroneous amount. All such refunds will be credited back to the original payment-initiated media used for the transaction.
                         </p>
 
                         <div className="not-prose mt-4">
@@ -354,6 +384,22 @@ const AboutUsContent = () => {
                         </button>
                     );
                 })}
+
+                {/* Layer 2: Version Display */}
+                <div className="mt-auto pt-6 px-4 hidden md:block border-t border-gray-100 dark:border-gray-800 space-y-3">
+                    <div>
+                        <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 dark:text-gray-600 mb-0.5">App Version</p>
+                        <p className="text-xs font-mono font-medium text-gray-500 dark:text-gray-400">
+                            {APP_VERSION}
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 dark:text-gray-600 mb-0.5">API Version</p>
+                        <p className="text-xs font-mono font-medium text-gray-500 dark:text-gray-400">
+                            {backendVersion}
+                        </p>
+                    </div>
+                </div>
             </div>
 
             {/* Content Area */}

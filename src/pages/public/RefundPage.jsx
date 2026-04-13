@@ -90,8 +90,8 @@ const RefundPage = () => {
                     <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">6. Payment Errors</h2>
                     <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                         If you believe a technical error has occurred (e.g., a double-charge or an incorrect amount was billed), please contact our support team immediately at{' '}
-                        <a href="mailto:kylixtechnology@gmail.com" className="text-blue-600 dark:text-blue-400 hover:underline">
-                            kylixtechnology@gmail.com
+                        <a href="mailto:lktutorz@gmail.com" className="text-blue-600 dark:text-blue-400 hover:underline">
+                            lktutorz@gmail.com
                         </a>
                         . We will audit the transaction and, if a platform error is confirmed, we will issue a full refund of the erroneous amount. All such refunds will be credited back to the original payment-initiated media used for the transaction.
                     </p>
@@ -99,8 +99,8 @@ const RefundPage = () => {
 
                 <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-400 dark:text-gray-500">
                     For refund-related queries, contact us at{' '}
-                    <a href="mailto:kylixtechnology@gmail.com" className="text-blue-600 dark:text-blue-400 hover:underline">
-                        kylixtechnology@gmail.com
+                    <a href="mailto:lktutorz@gmail.com" className="text-blue-600 dark:text-blue-400 hover:underline">
+                        lktutorz@gmail.com
                     </a>
                 </div>
             </div>

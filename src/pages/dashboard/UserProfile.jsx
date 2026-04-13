@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useDispatch } from 'react-redux'; // Added Redux Dispatch
-import { Mail, Phone, FileText, Pencil, MapPin, Globe, Building, School, GraduationCap, Calendar, User, Building2, CreditCard } from 'lucide-react';
+import { useDispatch } from 'react-redux';
+import { Mail, Phone, FileText, Pencil, MapPin, Globe, School, GraduationCap, Calendar, User } from 'lucide-react';
 
 // Hooks & Constants
 import { useAuth } from '../../hooks/useAuth';
@@ -95,6 +95,15 @@ const UserProfile = () => {
         if (role) fetchProfileData();
     }, [fetchProfileData, role]);
 
+    // --- AUTO-OPEN EDIT MODAL ON INTENT ---
+    useEffect(() => {
+        const intent = sessionStorage.getItem('profile_intent');
+        if (intent === 'edit') {
+            setIsEditModalOpen(true);
+            sessionStorage.removeItem('profile_intent');
+        }
+    }, []);
+
     // Resolve location names when institute or student profile loads
     useEffect(() => {
         if ((role !== ROLES.INSTITUTE && role !== ROLES.STUDENT) || !profile) return;
@@ -130,31 +139,61 @@ const UserProfile = () => {
         resolveLocationNames();
     }, [profile, role]);
 
-    const handleSaveChanges = async (formData) => {
-        // ─── OPTIMISTIC UI: Profile Update ────────────────────────────
-        // 1. Update the local profile state immediately so the UI reflects
-        //    the new values without waiting for the server.
-        setProfile((prev) => ({ ...prev, ...formData }));
+    const handleSaveChanges = async (formDataOrObj) => {
+        const isFormData = formDataOrObj instanceof FormData;
+        const hasFile = isFormData && formDataOrObj.has('profilePicture');
 
-        // 2. Also update the Redux auth store immediately so the Sidebar
-        //    and any other consumers see the new name/avatar right away.
-        dispatch(updateUser({
-            firstName: formData.firstName || formData.instituteName,
-            lastName: formData.lastName || '',
-        }));
+        // --- OPTIMISTIC UI: update local state immediately ---
+        if (!isFormData) {
+            // Plain object: spread into local profile state for instant UI
+            setProfile((prev) => ({ ...prev, ...formDataOrObj }));
+            dispatch(updateUser({
+                firstName: formDataOrObj.firstName || formDataOrObj.instituteName,
+                lastName: formDataOrObj.lastName || '',
+            }));
+        }
 
-        // 3. Close the modal instantly for a snappy feel
+        // Close the modal right away for a snappy feel
         setIsEditModalOpen(false);
 
-        // 4. Enqueue the actual server call to be processed by SyncManager
-        //    in the background. If offline, it will retry automatically.
-        dispatch(enqueueAction({
-            actionType: SYNC_ACTION_TYPES.UPDATE_PROFILE,
-            payload: { role, formData },
-            label: `Update Profile: ${formData.firstName || formData.instituteName || 'User'}`,
-            // No dedupeKey: latest profile update should always queue
-        }));
+        if (isFormData) {
+            // ─── DIRECT UPLOAD: FormData (contains binary image file) ──────────────
+            // FormData is NON-SERIALIZABLE — it CANNOT be stored in Redux or
+            // persisted by redux-persist. Enqueuing it would corrupt the sync queue
+            // and silently discard the image, causing slow/failed photo updates.
+            // Solution: call the API directly and refresh from the response.
+            setIsSaving(true);
+            try {
+                let updateFn;
+                switch (role) {
+                    case ROLES.TUTOR:     updateFn = updateTutorProfile; break;
+                    case ROLES.STUDENT:   updateFn = updateStudentProfile; break;
+                    case ROLES.INSTITUTE: updateFn = updateInstituteProfile; break;
+                    default: throw new Error(`Unknown role: ${role}`);
+                }
+
+                await updateFn(formDataOrObj);
+
+                // Refresh profile from server to get real CDN URLs for the new image
+                await fetchProfileData();
+            } catch (err) {
+                console.error('[UserProfile] Direct profile update failed:', err);
+                // Re-fetch to revert optimistic state on failure
+                await fetchProfileData();
+            } finally {
+                setIsSaving(false);
+            }
+        } else {
+            // ─── OFFLINE-SAFE PATH: plain JSON object (no image) ─────────────────
+            // Safe to enqueue in Redux — all values are plain serializable primitives.
+            dispatch(enqueueAction({
+                actionType: SYNC_ACTION_TYPES.UPDATE_PROFILE,
+                payload: { role, formData: formDataOrObj },
+                label: `Update Profile: ${formDataOrObj.firstName || formDataOrObj.instituteName || 'User'}`,
+            }));
+        }
     };
+
 
     // --- 2. Dynamic Content Rendering ---
 
@@ -276,9 +315,9 @@ const UserProfile = () => {
                         <span className="text-sm text-gray-500 dark:text-gray-400">Account Status</span>
                         <span className="px-3 py-1 text-xs font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 rounded-full">Active Student</span>
                     </div>
-                    {/* Read-only card display for students */}
+                    {/* Card management — students can only add/change their payment card via Edit Profile modal */}
                     <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Payment</p>
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Payment Card</p>
                         <FinancialsSection role={role} readOnly={true} />
                     </div>
                 </div>

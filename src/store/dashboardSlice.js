@@ -1,37 +1,34 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
-  // We keep counts and small summaries for instant loading 
-  // until the background sync finishes.
   stats: {
-    studentCount: 0,
-    classCount: 0,
-    attendanceRate: 0,
-    thisMonthIncome: 0,
+    studentCount: '...',
+    tutorCount: '...',
   },
-  recentNotifications: [],
-  activeTab: 'overview', // 'overview', 'classes', 'students', etc.
-  lastSyncTimestamp: null,
+  todayClasses: [],
+  revenueSummary: null,
+  isFetched: false, // True when data has been successfully loaded from DB
 };
 
 const dashboardSlice = createSlice({
   name: 'dashboard',
   initialState,
   reducers: {
-    updateStats: (state, action) => {
-      state.stats = { ...state.stats, ...action.payload };
-      state.lastSyncTimestamp = new Date().toISOString();
+    setDashboardData: (state, action) => {
+      state.stats.studentCount = action.payload.studentCount;
+      state.stats.tutorCount = action.payload.tutorCount;
+      state.todayClasses = action.payload.todayClasses;
+      state.revenueSummary = action.payload.revenueSummary;
+      state.isFetched = true;
     },
-    setNotifications: (state, action) => {
-      state.recentNotifications = action.payload;
-    },
-    setActiveTab: (state, action) => {
-      state.activeTab = action.payload;
+    // Call this when a mutation occurs (Add Student, etc)
+    invalidateDashboard: (state) => {
+      state.isFetched = false;
     },
     clearDashboard: () => initialState,
   },
 });
 
-export const { updateStats, setNotifications, setActiveTab, clearDashboard } = dashboardSlice.actions;
+export const { setDashboardData, invalidateDashboard, clearDashboard } = dashboardSlice.actions;
 
 export default dashboardSlice.reducer;

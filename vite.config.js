@@ -7,13 +7,17 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    VitePWA({
+        VitePWA({
       registerType: 'autoUpdate',
-      // ENABLE PWA IN DEV MODE ---
+      injectRegister: null, // We handle registration manually in main.jsx via virtual module
+      // DISABLE PWA IN DEV MODE.
+      // Running the real service worker in dev causes CacheFirst to serve
+      // STALE SOURCE FILES — your code changes are ignored and old JS/CSS is
+      // loaded from the SW cache. Always keep this false during development.
       devOptions: {
-        enabled: true
+        enabled: false
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      includeAssets: ['Icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'Tutorz',
         short_name: 'Tutorz',
@@ -37,10 +41,20 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // Only use the offline fallback for actual page navigations (not API or Hub calls)
-        navigateFallbackAllowlist: [new RegExp('^(?!/api/)(?!/hubs/).*')],
+        // Only use the offline fallback for actual page navigations (routes). 
+        // We MUST exclude API calls, SignalR hubs, and static assets like the manifest.
+        // If the manifest is caught by the fallback, it returns index.html (JSON syntax error).
+        navigateFallbackAllowlist: [
+            /^(?!\/(api|hubs|manifest\.webmanifest|sw\.js|registerSW\.js|.*\.png|.*\.jpg|.*\.svg)).*$/
+        ],
         runtimeCaching: [
-          // 0. SignalR Hub — MUST bypass the Service Worker entirely.
+          // 0. PWA Registration script — NEVER cache this file. 
+          // It's handled manually in main.jsx.
+          {
+            urlPattern: ({ url }) => url.pathname === '/registerSW.js',
+            handler: 'NetworkOnly',
+          },
+          // 0a. SignalR Hub — MUST bypass the Service Worker entirely.
           //    SignalR's negotiate step is a plain HTTP POST that upgrades to WebSocket.
           //    Any cache strategy (even NetworkFirst) can abort the upgrade or delay
           //    negotiation enough to cause "connection stopped during negotiation".
@@ -48,10 +62,13 @@ export default defineConfig({
             urlPattern: ({ url }) => url.pathname.startsWith('/hubs/'),
             handler: 'NetworkOnly',
           },
-          // 1. Static Assets (Images, Icons, CSS) - Cache First
-          // Super fast local loading for atoms/logos
+          // 1. Static Assets (Images, Icons) - Cache First
+          // Only match production built files with content hashes.
+          // The old regex /\.(?:png|jpg|jpeg|svg|css)$/ also matched Vite dev
+          // server source files, causing the SW to cache them and serve stale
+          // code — making all file edits invisible until the SW cache was cleared.
           {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|css)$/,
+            urlPattern: /\.(?:png|jpg|jpeg|svg)$/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'static-assets-cache',
@@ -61,6 +78,7 @@ export default defineConfig({
               },
             },
           },
+
           // 2. Critical/Transactional Endpoints (Payments/Auth) - Network First
           // We MUST try reaching the server first.
           {
@@ -76,14 +94,13 @@ export default defineConfig({
               fetchOptions: { mode: 'cors' },
             },
           },
-          // 3. User Data (Classes, Profiles, Schedules) - Network First
-          // Try network for latest data to prevent stale UI, fallback to cache
+          // 3. User Data (Classes, Profiles, Schedules) - Cache First
+          // Try cache for instant load. Only invalidated when mutations (POST/PUT/DELETE) occur.
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/api/student/') || url.pathname.startsWith('/api/tutor/') || url.pathname.startsWith('/api/institute/'),
-            handler: 'NetworkFirst',
+            handler: 'CacheFirst',
             options: {
               cacheName: 'user-data-cache',
-              networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 24 * 60 * 60, // 24 Hours
