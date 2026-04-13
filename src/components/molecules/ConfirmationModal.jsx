@@ -13,6 +13,7 @@ const ConfirmationModal = ({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   variant = "primary", // 'primary', 'danger', 'success'
+  isSubmitting = false,
   children
 }) => {
   if (!isOpen) return null;
@@ -86,6 +87,7 @@ const ConfirmationModal = ({
               variant={styles.btnVariant}
               onClick={onConfirm}
               fullWidth
+              disabled={isSubmitting}
             >
               {confirmLabel}
             </Button>
@@ -95,8 +97,6 @@ const ConfirmationModal = ({
     </div>,
     document.body
   );
-
-  return createPortal(modalContent, document.body);
 };
 
 export default ConfirmationModal;
