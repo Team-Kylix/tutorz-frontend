@@ -17,3 +17,8 @@ export const forceLogoutAll = async (versionNumber, releaseNotes) => {
   });
   return response.data;
 };
+
+export const getAdminDashboardStats = async () => {
+  const response = await apiClient.get('/system/dashboard-stats');
+  return response.data;
+};
