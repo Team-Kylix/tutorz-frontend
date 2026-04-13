@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, CheckCircle2, UserPlus, Loader2, AlertCircle, GraduationCap, Save } from 'lucide-react';
+import { useDispatch } from 'react-redux';
+import { enqueueAction, SYNC_ACTION_TYPES } from '../../store/syncSlice';
 import Modal from '../molecules/Modal';
 import Button from '../atoms/Button';
 import FormField from '../molecules/FormField';
@@ -8,9 +10,9 @@ import QuickActionCard from '../molecules/QuickActionCard';
 import ConfirmationModal from '../molecules/ConfirmationModal';
 import OtpVerificationModal from './OtpVerificationModal';
 
-import { checkUserStatus, register, sendOtp, verifyOtp, registerSibling, sendRegistrationOtp } from '../../services/auth/authService';
+import { checkUserStatus, sendOtp, verifyOtp } from '../../services/auth/authService';
 import { searchStudents, searchTutors, assignStudent, sendTutorRequest, getInstituteProfile } from '../../services/api/instituteService';
-import { validatePhoneNumber } from '../../utils/validators';
+import { validatePhoneNumber, validateEmail } from '../../utils/validators';
 
 const GRADE_GROUPS = [
     { label: "Primary Education", options: ['Preschool', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'] },
@@ -19,6 +21,8 @@ const GRADE_GROUPS = [
 ];
 
 const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, user }) => {
+    const dispatch = useDispatch();
+    
     // Flow states
     // steps: 'role-picker' | 'choice' | 'search' | 'check' | 'register-student' | 'register-tutor' | 'success'
     const [step, setStep] = useState('role-picker');
@@ -52,6 +56,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
     const [siblingVerificationToken, setSiblingVerificationToken] = useState(null);
 
     const [formData, setFormData] = useState({
+        mobile: '',
         firstName: '',
         lastName: '',
         grade: '',
@@ -60,6 +65,14 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
         bankName: '',
         experienceYears: 0
     });
+    const [errors, setErrors] = useState({});
+    const [globalError, setGlobalError] = useState(null);
+    
+    const handleFormChange = (id, value) => {
+        setFormData(prev => ({ ...prev, [id]: value }));
+        if (errors[id]) setErrors(prev => ({ ...prev, [id]: null }));
+        if (globalError) setGlobalError(null);
+    };
 
     // Reset and Initialize on Open
     useEffect(() => {
@@ -85,7 +98,9 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             setIsOtpModalOpen(false);
             
             // Form resets
-            setFormData({ firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
+            setFormData({ mobile: '', firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
+            setErrors({});
+            setGlobalError(null);
             setIsSiblingRegistration(false);
             setSiblingVerificationToken(null);
             setIsRegistering(false);
@@ -97,6 +112,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 }).catch(err => console.error("Failed to fetch institute profile", err));
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, type, user]);
 
     // --- Search Logic ---
@@ -114,7 +130,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 const searchFn = selectedRole === 'Student' ? searchStudents : searchTutors;
                 const res = await searchFn(query.trim());
                 setResults(res.data || []);
-            } catch (err) {
+            } catch {
                 setResults([]);
             } finally {
                 setIsSearching(false);
@@ -167,50 +183,94 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
     const handleResetToChoice = () => {
         // Specifically used after "Done" or "Add Another" in Success view
         setCheckData({ email: '', mobile: '' });
-        setFormData({ firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
+        setFormData({ mobile: '', firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
+        setErrors({});
+        setGlobalError(null);
         setIsSiblingRegistration(false);
         setSiblingVerificationToken(null);
         setStep(type ? 'check' : 'role-picker');
     };
 
-    // --- Check User Logic ---
     const handleCheckUser = async (e) => {
         e.preventDefault();
-        if (!checkData.email.trim() && !checkData.mobile.trim()) {
+        setCheckError('');
+
+        const mobileStr = checkData.mobile.trim();
+        const emailStr = checkData.email.trim();
+
+        if (!emailStr && !mobileStr) {
             setCheckError("Please enter at least a Mobile Number or Email.");
             return;
         }
 
-        if (checkData.mobile.trim()) {
-            const mobileValidation = validatePhoneNumber(checkData.mobile.trim());
+        if (mobileStr) {
+            const mobileValidation = validatePhoneNumber(mobileStr);
             if (!mobileValidation.isValid) {
                 setCheckError(mobileValidation.message);
                 return;
             }
         }
 
+        if (emailStr) {
+            const emailValidation = validateEmail(emailStr);
+            if (!emailValidation.isValid) {
+                setCheckError(emailValidation.message);
+                return;
+            }
+        }
+
         setIsChecking(true);
-        setCheckError('');
 
         try {
-            const result = await checkUserStatus({
-                email: checkData.email,
-                phoneNumber: checkData.mobile
-            });
+            let mobileRes = null;
+            let emailRes = null;
+
+            const checkPromises = [];
+            if (mobileStr) {
+                checkPromises.push(checkUserStatus({ phoneNumber: mobileStr }).then(r => mobileRes = r).catch(() => null));
+            }
+            if (emailStr) {
+                checkPromises.push(checkUserStatus({ email: emailStr }).then(r => emailRes = r).catch(() => null));
+            }
+            
+            await Promise.all(checkPromises);
+
+            // Cross-validation if both are entered
+            if (mobileStr && emailStr) {
+                 if (mobileRes?.exists && emailRes?.exists) {
+                      if (mobileRes.userId !== emailRes.userId) {
+                           setCheckError("The Email and Mobile number belong to different accounts. Please use only one to search.");
+                           setIsChecking(false);
+                           return;
+                      }
+                 } else if (mobileRes?.exists && !emailRes?.exists) {
+                      setCheckError(`Mobile is registered to ${mobileRes.name} [${mobileRes.role}], but Email is not. Please search using only mobile.`);
+                      setIsChecking(false);
+                      return;
+                 } else if (!mobileRes?.exists && emailRes?.exists) {
+                      setCheckError(`Email is registered to ${emailRes.name} [${emailRes.role}], but Mobile is not. Please search using only email.`);
+                      setIsChecking(false);
+                      return;
+                 }
+            }
+
+            const result = mobileRes?.exists ? mobileRes : (emailRes?.exists ? emailRes : { exists: false });
 
             if (result.exists) {
                 setExistingUser(result);
                 if (result.role === selectedRole) {
-                    setQuery(checkData.mobile || checkData.email);
+                    setQuery(mobileStr || emailStr);
                     setStep('search');
                 } else {
                     setIsExistingUserModalOpen(true);
                 }
             } else {
-                setFormData({ firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
+                setFormData({ mobile: mobileStr, firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
+                setErrors({});
+                setGlobalError(null);
                 setStep(selectedRole === 'Student' ? 'register-student' : 'register-tutor');
             }
-        } catch (err) {
+        } catch {
             setCheckError("Failed to verify user. Please try again.");
         } finally {
             setIsChecking(false);
@@ -226,7 +286,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             await sendOtp(identifierToUse);
             setIsOtpModalOpen(true);
         } catch (error) {
-            alert(error.message || "Failed to send verification code.");
+            setGlobalError(error.message || "Failed to send verification code.");
         } finally {
             setIsChecking(false);
         }
@@ -241,7 +301,8 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
 
                 setIsSiblingRegistration(true);
                 setSiblingVerificationToken(otpCode);
-                setFormData({ firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
+                setFormData({ mobile: '', firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
+                setErrors({});
                 setStep('register-student');
             } else {
                 // New registration - OTP is verified DURING the actual register call
@@ -254,17 +315,23 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
         }
     };
 
-    // --- Final Register ---
     const executeRegister = async (payload) => {
         setIsRegistering(true);
         try {
-            if (isSiblingRegistration && selectedRole === 'Student') {
-                await registerSibling(payload);
-            } else {
-                await register(payload);
-            }
+            const isSibling = isSiblingRegistration && selectedRole === 'Student';
             
-            // Show success first so the user can't double-click if callback is slow/errors
+            // Background sync queue dispatch
+            dispatch(enqueueAction({
+                actionType: SYNC_ACTION_TYPES.REGISTER_USER,
+                payload: {
+                    isSibling,
+                    registrationData: payload
+                },
+                label: `Register ${selectedRole}: ${payload.firstName}`,
+                dedupeKey: `register_${payload.phoneNumber || payload.identifier}`
+            }));
+            
+            // Instantly transition to Success view
             setStep('success');
             
             try {
@@ -273,7 +340,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 console.error("Callback error after registration:", e);
             }
         } catch (err) {
-            alert(err.message || "Registration Failed");
+            setGlobalError(err.message || "Registration Failed");
         } finally {
             setIsRegistering(false);
         }
@@ -281,31 +348,59 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
 
     const handleRegisterSubmit = async (e) => {
         e.preventDefault();
+        setGlobalError(null);
+        
+        const newErrors = {};
 
-        if (!formData.firstName.trim()) { alert("First Name is required."); return; }
-        if (!formData.lastName.trim()) { alert("Last Name is required."); return; }
-        if (selectedRole === 'Student' && !formData.grade) { alert("Please select a Grade."); return; }
+        if (!isSiblingRegistration) {
+            if (!formData.mobile.trim()) { 
+                newErrors.mobile = "Mobile Number is required."; 
+            } else {
+                const mobileValidation = validatePhoneNumber(formData.mobile.trim());
+                if (!mobileValidation.isValid) newErrors.mobile = mobileValidation.message;
+            }
+        }
+
+        if (!formData.firstName.trim()) newErrors.firstName = "First Name is required.";
+        if (!formData.lastName.trim()) newErrors.lastName = "Last Name is required.";
+        if (selectedRole === 'Student' && !formData.grade) newErrors.grade = "Please select a Grade.";
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            return;
+        }
+
+        if (!isSiblingRegistration && !checkData.mobile) {
+            // They entered mobile directly here, so we must check if it already exists
+            setIsRegistering(true);
+            try {
+                const result = await checkUserStatus({ phoneNumber: formData.mobile.trim() });
+                if (result.exists) {
+                    setErrors({ mobile: `Already registered as ${result.name} [${result.role}]. Go back and verify.` });
+                    setIsRegistering(false);
+                    return;
+                }
+            } catch {
+                setErrors({ mobile: "Failed to verify mobile number. Please try again." });
+                setIsRegistering(false);
+                return;
+            }
+            setIsRegistering(false);
+        }
 
         if (isSiblingRegistration) {
             await performFinalRegistration(siblingVerificationToken);
         } else {
-            // New Registration - Send OTP First
-            setIsRegistering(true);
-            try {
-                setRegistrationMode('new');
-                await sendRegistrationOtp(checkData.mobile);
-                setIsOtpModalOpen(true);
-            } catch (err) {
-                alert(err.message || "Failed to send verification code.");
-            } finally {
-                setIsRegistering(false);
-            }
+            // New Registration - By Institute, no OTP required.
+            // Backend handles account creation and sends welcome SMS automatically.
+            setRegistrationMode('new');
+            await performFinalRegistration(null);
         }
     };
 
     const performFinalRegistration = async (otpCode) => {
-        const mobileStr = checkData.mobile.trim();
-        const generatedPassword = mobileStr.length >= 6 ? mobileStr.slice(-6) : "123456";
+        const mobileStr = formData.mobile.trim();
+        const generatedPassword = mobileStr && mobileStr.length >= 6 ? mobileStr.slice(-6) : "123456";
         const instId = instituteProfile?.instituteId || user?.instituteId;
 
         if (selectedRole === 'Student') {
@@ -502,28 +597,46 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             <>
                 {renderHeader(`New ${selectedRole} Registration`)}
                 <form onSubmit={handleRegisterSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
-                    <div className={`bg-${color}-50 dark:bg-${color}-900/20 p-3 rounded-lg border border-${color}-100 dark:border-${color}-800 grid ${isTutor ? 'grid-cols-2' : 'grid-cols-2'} gap-4`}>
-                        <div><p className={`text-[10px] text-${color}-600 dark:text-${color}-400 font-semibold uppercase`}>Mobile</p><p className={`font-mono text-sm font-bold text-${color}-800 dark:text-${color}-300`}>{checkData.mobile || "N/A"}</p></div>
-                        <div><p className={`text-[10px] text-${color}-600 dark:text-${color}-400 font-semibold uppercase`}>Email</p><p className={`font-mono text-sm font-bold text-${color}-800 dark:text-${color}-300 truncate`}>{checkData.email || "N/A"}</p></div>
-                        {isTutor && (
-                            <div className="col-span-2">
-                                <p className={`text-[10px] text-${color}-600 dark:text-${color}-400 font-semibold uppercase`}>Location</p>
-                                <p className={`font-mono text-sm font-bold text-${color}-800 dark:text-${color}-300`}>
-                                    {instituteProfile?.cityId ? `Linked to Institute (ID: ${instituteProfile.cityId})` : "Loading Location..."}
-                                </p>
-                            </div>
-                        )}
-                    </div>
+                    {(checkData.email || isTutor) && (
+                        <div className={`bg-${color}-50 dark:bg-${color}-900/20 p-3 rounded-lg border border-${color}-100 dark:border-${color}-800 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4`}>
+                            {checkData.email && (
+                                <div><p className={`text-[10px] text-${color}-600 dark:text-${color}-400 font-semibold uppercase`}>Email</p><p className={`font-mono text-sm font-bold text-${color}-800 dark:text-${color}-300 truncate`}>{checkData.email}</p></div>
+                            )}
+                            {isTutor && (
+                                <div className="min-w-0">
+                                    <p className={`text-[10px] text-${color}-600 dark:text-${color}-400 font-semibold uppercase`}>Affiliation</p>
+                                    <p className={`truncate text-sm font-bold text-${color}-800 dark:text-${color}-300`}>
+                                        {instituteProfile?.instituteName ? `Linked to ${instituteProfile.instituteName}` : "Institute Primary Location"}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {!isSiblingRegistration && (
+                        <FormField 
+                            id="mobile" 
+                            label="Mobile Number" 
+                            placeholder="e.g. 0771234567" 
+                            value={formData.mobile} 
+                            onChange={(e) => handleFormChange('mobile', e.target.value)} 
+                            disabled={!!checkData.mobile}
+                            error={errors.mobile}
+                            required 
+                        />
+                    )}
 
                     <div className="grid grid-cols-2 gap-4">
-                        <FormField id="firstName" label="First Name" value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} required />
-                        <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} required />
+                        <FormField id="firstName" label="First Name" value={formData.firstName} onChange={(e) => handleFormChange('firstName', e.target.value)} error={errors.firstName} required />
+                        <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={(e) => handleFormChange('lastName', e.target.value)} error={errors.lastName} required />
                     </div>
 
                     {!isTutor && (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Grade <span className="text-red-500 dark:text-red-400">*</span></label>
-                            <Select value={formData.grade} onChange={(e) => setFormData({ ...formData, grade: e.target.value })} required>
+                            <Select value={formData.grade} onChange={(e) => handleFormChange('grade', e.target.value)} required 
+                                className={errors.grade ? 'border-red-300 dark:border-red-500 focus:ring-red-200 dark:focus:ring-red-900 focus:border-red-500' : ''}
+                            >
                                 <option value="">Select Grade</option>
                                 {GRADE_GROUPS.map((group, index) => (
                                     <optgroup key={index} label={group.label} className="font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">
@@ -531,18 +644,13 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                                     </optgroup>
                                 ))}
                             </Select>
+                            {errors.grade && <p className="text-xs text-red-500 dark:text-red-400 mt-1">{errors.grade}</p>}
                         </div>
                     )}
 
-                    {isTutor && (
-                        <>
-                            <FormField id="bio" label="Bio / Title" placeholder="e.g. A/L Logic Tutor" value={formData.bio} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} />
-                            <div className="grid grid-cols-2 gap-4">
-                                <FormField id="bankAccount" label="Account Number" placeholder="Optional" value={formData.bankAccountNumber} onChange={(e) => setFormData({ ...formData, bankAccountNumber: e.target.value })} />
-                                <FormField id="bankName" label="Bank Name" placeholder="Optional" value={formData.bankName} onChange={(e) => setFormData({ ...formData, bankName: e.target.value })} />
-                            </div>
-                        </>
-                    )}
+
+
+                    {globalError && <p className="text-sm font-medium text-red-500 dark:text-red-400 mt-2 text-center">{globalError}</p>}
 
                     <div className="pt-4">
                         <Button type="submit" fullWidth disabled={isRegistering || (isTutor && !instituteProfile?.cityId)}>
