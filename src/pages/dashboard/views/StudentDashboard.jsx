@@ -13,20 +13,27 @@ const StudentDashboard = ({ user, setActivePage }) => {
   const [isPayFeesModalOpen, setIsPayFeesModalOpen] = useState(false);
   const [enrolledClasses, setEnrolledClasses] = useState([]);
   const [attendanceStats, setAttendanceStats] = useState(0);
+  const [fullProfile, setFullProfile] = useState(null);
   const { loading: isLoading } = useApi();
   
-  const userGrade = user?.grade;
+  const userGrade = fullProfile?.grade || user?.grade;
 
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
-        const [classesRes, attendanceRes] = await Promise.all([
+        const [classesRes, attendanceRes, profileRes] = await Promise.all([
           studentService.getStudentClasses(),
-          studentService.getStudentAttendanceHistory()
+          studentService.getStudentAttendanceHistory(),
+          studentService.getStudentProfile()
         ]);
         
         if (classesRes.success) {
           setEnrolledClasses(classesRes.data || []);
+        }
+
+        if (profileRes.success !== false) {
+           // On some endpoints it might be profileRes.data, on others the object itself
+           setFullProfile(profileRes.data || profileRes);
         }
 
         if (attendanceRes.success !== false) {
@@ -130,7 +137,7 @@ const StudentDashboard = ({ user, setActivePage }) => {
       <ClassSearchModal 
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
-        userGrade={userGrade}
+        user={{...user, ...fullProfile}}
       />
       <PayFeesModal 
         isOpen={isPayFeesModalOpen}

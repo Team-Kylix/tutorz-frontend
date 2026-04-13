@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Calendar, ArrowRight, Clock, Users, GraduationCap, Building2, Banknote, Presentation, PenTool, BookOpen, MapPin, User, CheckCircle, Radio } from 'lucide-react';
 import useApi from '../../hooks/useApi';
 import { getClassStatus, getDayIndex } from '../../utils/scheduleHelpers';
+import { formatTime } from '../../utils/helpers';
 
 const calculateDuration = (start, end) => {
     if (!start || !end) return '';
@@ -204,8 +205,8 @@ const UnifiedSchedule = ({
                                             <span className={`text-[10px] font-bold uppercase tracking-widest ${isLive ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'}`}>
                                                 {cls.dayOfWeek ? cls.dayOfWeek.substring(0, 3) : 'DAY'}
                                             </span>
-                                            <span className={`text-base sm:text-lg font-black leading-none ${isLive ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
-                                                {cls.startTime?.split(' ')[0] || '--:--'}
+                                            <span className={`text-xs sm:text-sm font-black leading-none ${isLive ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                                                {formatTime(cls.startTime) || '--:--'}
                                             </span>
                                         </div>
                                         <div className="hidden sm:flex mt-1">

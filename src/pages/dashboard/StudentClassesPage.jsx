@@ -7,6 +7,7 @@ import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 import ClassFormModal from '../../components/organisms/ClassFormModal';
 import useApi from '../../hooks/useApi';
 import * as studentService from '../../services/api/studentService';
+import { formatTime } from '../../utils/helpers';
 
 const StudentClassesPage = () => {
     // State
@@ -151,6 +152,11 @@ const StudentClassesPage = () => {
                                             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
                                                 <User size={12} />
                                                 <span className="font-medium">{cls.tutorName || '-'}</span>
+                                                <span className="text-gray-300 dark:text-gray-600 px-0.5">•</span>
+                                                <div className="flex items-center gap-1">
+                                                    <Users size={12} className="text-blue-500" />
+                                                    <span>{cls.studentCount || 0} enrolled</span>
+                                                </div>
                                                 <span className="text-blue-600 dark:text-blue-400 ml-1 opacity-75">• {cls.classType || 'Class'}</span>
                                             </div>
                                         </td>
@@ -162,7 +168,7 @@ const StudentClassesPage = () => {
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
                                                 <Clock size={14} />
-                                                <span>{cls.startTime} - {cls.endTime}</span>
+                                                <span>{formatTime(cls.startTime)} - {formatTime(cls.endTime)}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
