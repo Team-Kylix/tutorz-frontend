@@ -74,6 +74,7 @@ const ConfirmationModal = ({
               variant={styles.btnVariant}
               onClick={onConfirm}
               fullWidth
+              disabled={isSubmitting}
             >
               {confirmLabel}
             </Button>
