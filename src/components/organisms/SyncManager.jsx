@@ -19,6 +19,7 @@ import {
 } from '../../services/api/instituteService';
 import { updateTutorProfile, createClass, updateClass, deleteClass } from '../../services/api/tutorService';
 import { updateStudentProfile } from '../../services/api/studentService';
+import { register, registerSibling } from '../../services/auth/authService';
 import signalRService from '../../services/signalRService';
 import { fetchNotificationsThunk } from '../../store/notificationSlice';
 
@@ -77,6 +78,12 @@ const executeAction = async (item) => {
       return updateClass(payload.id, payload.classData);
     case SYNC_ACTION_TYPES.DELETE_CLASS:
       return deleteClass(payload.id);
+    case SYNC_ACTION_TYPES.REGISTER_USER:
+      if (payload.isSibling) {
+        return registerSibling(payload.registrationData);
+      } else {
+        return register(payload.registrationData);
+      }
     default:
       throw new Error(`[SyncManager] Unknown actionType: ${actionType}`);
   }
