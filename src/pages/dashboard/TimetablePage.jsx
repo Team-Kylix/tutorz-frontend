@@ -37,7 +37,7 @@ const TimetablePage = () => {
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
                         <CalendarIcon className="w-6 h-6 text-blue-600" />
-                        {user?.role === ROLES.STUDENT ? 'My Timetable' : 'Institution Timetable'}
+                        {user?.role === ROLES.STUDENT ? 'My Timetable' : 'InstiTuition Timetable'}
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-1">
                         {isDateSelected

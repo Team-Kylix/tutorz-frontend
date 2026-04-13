@@ -20,7 +20,7 @@ const Logo = ({ size = 'large', collapsed = false, className = '' }) => {
                             Tutorz
                         </span>
                         <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
-                            Tution Management Platform
+                            Tuition Management Platform
                         </span>
                     </div>
                 )}
@@ -39,7 +39,7 @@ const Logo = ({ size = 'large', collapsed = false, className = '' }) => {
                 />
                 Tutorz
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Tution Management Platform</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Tuition Management Platform</p>
         </div>
     );
 };
