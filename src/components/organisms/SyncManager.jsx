@@ -157,14 +157,14 @@ const SyncManager = () => {
 
   // --- SignalR & Notifications Lifecycle ---
   useEffect(() => {
-    if (isAuthenticated && token && user?.role === 'Institute') {
-      // 1. Start the real-time WebSocket connection
+    if (isAuthenticated && token) {
+      // 1. Start the real-time WebSocket connection for ALL roles (to receive ForceLogout & real-time notifications)
       signalRService.startConnection(token, dispatch);
       
-      // 2. Fetch the notification history (last 50)
+      // 2. Fetch the notification history (last 50) for ALL roles
       dispatch(fetchNotificationsThunk());
     } else {
-      // Stop connection on logout or if role changes
+      // Stop connection on logout
       signalRService.stopConnection();
     }
 
@@ -172,7 +172,7 @@ const SyncManager = () => {
     return () => {
       signalRService.stopConnection();
     };
-  }, [isAuthenticated, token, user?.role, dispatch]);
+  }, [isAuthenticated, token, dispatch]);
 
   return null;
 };
