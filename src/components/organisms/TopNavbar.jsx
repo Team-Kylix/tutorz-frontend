@@ -8,6 +8,8 @@ import { togglePanel, selectUnreadCount } from '../../store/notificationSlice';
 import NotificationPanel from './NotificationPanel';
 import NetworkStatusDot from '../atoms/NetworkStatusDot';
 import { getAssignedStudents, getAssignedTutors } from '../../services/api/instituteService';
+import { searchJoinedTutors } from '../../services/api/studentService';
+import { searchEnrolledStudents } from '../../services/api/tutorService';
 import AccountViewModal from './AccountViewModal';
 import { BASE_URL } from '../../services/api/apiClient';
 import DeploymentControlPanel from './DeploymentControlPanel';
@@ -95,6 +97,38 @@ const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
             setSearchResults(combined);
         } catch (error) {
             console.error("Search failed", error);
+            setSearchResults([]);
+        } finally {
+            setIsSearching(false);
+        }
+    } else if (user?.role === 'Student') {
+        setIsSearching(true);
+        try {
+            const res = await searchJoinedTutors(query);
+            const tutors = Array.isArray(res) ? res : (res?.data || []);
+            setSearchResults(tutors.map(t => ({
+                ...t,
+                sysRole: 'Tutor',
+                displayName: t.name || `${t.firstName || ''} ${t.lastName || ''}`.trim()
+            })));
+        } catch (error) {
+            console.error("Student search failed", error);
+            setSearchResults([]);
+        } finally {
+            setIsSearching(false);
+        }
+    } else if (user?.role === 'Tutor') {
+        setIsSearching(true);
+        try {
+            const res = await searchEnrolledStudents(query);
+            const students = Array.isArray(res) ? res : (res?.data || []);
+            setSearchResults(students.map(s => ({
+                ...s,
+                sysRole: 'Student',
+                displayName: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim()
+            })));
+        } catch (error) {
+            console.error("Tutor search failed", error);
             setSearchResults([]);
         } finally {
             setIsSearching(false);

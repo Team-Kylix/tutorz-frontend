@@ -113,3 +113,14 @@ export const getStudentPaymentHistory = async (tutorId, classId, monthYear, page
   });
   return response.data;
 };
+
+/**
+ * Searches for tutors of classes the student has joined.
+ * @param {string} query - Search term
+ */
+export const searchJoinedTutors = async (query) => {
+  const response = await apiClient.get('/student/tutors/search', {
+    params: { query }
+  });
+  return response.data;
+};

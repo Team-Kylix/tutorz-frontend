@@ -104,3 +104,14 @@ export const getInstituteHalls = async (instituteId) => {
     throw error.response?.data || { message: 'Failed to fetch institute halls' };
   }
 };
+
+/**
+ * Searches for students enrolled in classes conducted by this tutor.
+ * @param {string} query - Search term
+ */
+export const searchEnrolledStudents = async (query) => {
+  const response = await apiClient.get('/tutor/students/search', {
+    params: { query }
+  });
+  return response.data;
+};
