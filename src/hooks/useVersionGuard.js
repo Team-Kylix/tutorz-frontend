@@ -53,9 +53,9 @@ const useVersionGuard = () => {
         // 4. Write the new version AFTER clearing, so the next boot sees the correct version
         localStorage.setItem(VERSION_KEY, APP_VERSION);
 
-        // 5. Hard redirect to login — replaces history entry so back button won't return
+        // 5. Hard redirect to home — replaces history entry so back button won't return
         //    to the dashboard with empty state
-        window.location.replace('/login');
+        window.location.replace('/');
 
     }, [dispatch]);
 };

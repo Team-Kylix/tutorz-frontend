@@ -15,9 +15,9 @@ export const updateStudentProfile = async (data) => {
  * @param {string} grade - User's grade (e.g., 'Grade 8')
  * @param {string} query - Search term (Subject, Tutor Name, TUT ID)
  */
-export const searchClasses = async (grade, query) => {
+export const searchClasses = async (grade, query, districtId, cityId, page = 1, pageSize = 10) => {
   const response = await apiClient.get('/student/search-classes', {
-    params: { grade, query }
+    params: { grade, query, districtId, cityId, page, pageSize }
   });
   return response.data;
 };
@@ -110,6 +110,17 @@ export const getStudentPaymentHistory = async (tutorId, classId, monthYear, page
       page,
       pageSize
     }
+  });
+  return response.data;
+};
+
+/**
+ * Searches for tutors of classes the student has joined.
+ * @param {string} query - Search term
+ */
+export const searchJoinedTutors = async (query) => {
+  const response = await apiClient.get('/student/tutors/search', {
+    params: { query }
   });
   return response.data;
 };

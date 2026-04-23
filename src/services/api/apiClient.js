@@ -9,6 +9,7 @@ export const API_BASE_URL = `${BASE_URL}/api`;
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,
 });
 
 // REQUEST interceptor: attach auth token from Redux store to every request

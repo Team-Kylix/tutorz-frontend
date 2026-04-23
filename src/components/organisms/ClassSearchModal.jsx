@@ -1,56 +1,201 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X, Loader } from 'lucide-react';
+import { Search, X, Loader, Filter, MapPin, ChevronRight } from 'lucide-react';
 import { searchClasses, requestJoinClass } from '../../services/api/studentService'; 
+import { searchLocations } from '../../services/api/locationService';
 import ClassCard from '../molecules/ClassCard';
 import ClassDetailView from '../molecules/ClassDetailView';
+import ConfirmationModal from '../molecules/ConfirmationModal';
+import { GRADE_GROUPS } from '../../utils/constants';
+import SelectField from '../molecules/SelectField';
+import { formatTime } from '../../utils/helpers';
 
-const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
+const ClassSearchModal = ({ isOpen, onClose, user }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState(null);
   const [availableClasses, setAvailableClasses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Fetch Data when Modal Opens or Search/Grade changes
+  // Filters
+  const [selectedGrade, setSelectedGrade] = useState(user?.grade || '');
+
+  // Locations Hierarchical Search
+  const [locationQuery, setLocationQuery] = useState('');
+  const [locationResults, setLocationResults] = useState([]);
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [selectedCityId, setSelectedCityId] = useState(null);
+  const [selectedDistrictId, setSelectedDistrictId] = useState(user?.districtId || null);
+  const [selectedLocationName, setSelectedLocationName] = useState('');
+
+  // Confirmation state
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingClassId, setPendingClassId] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const PAGE_SIZE = 10;
+
+  // Handle Grade Change
+  const handleGradeChange = (e) => {
+    setSelectedGrade(e.target.value);
+  };
+
+
+  // Update filters when modal opens or user data changes
+  useEffect(() => {
+    if (isOpen && user) {
+      // Use camelCase first, fallback to PascalCase if from raw API
+      let profileGrade = user.grade || user.Grade;
+      const profileDistrictId = user.districtId || user.DistrictId;
+
+      // Robust check for Grade normalization (e.g., if it's "6", convert to "Grade 6")
+      if (profileGrade && typeof profileGrade === 'string' && !profileGrade.startsWith('Grade') && !isNaN(profileGrade)) {
+          profileGrade = `Grade ${profileGrade}`;
+      } else if (profileGrade && typeof profileGrade === 'number') {
+          profileGrade = `Grade ${profileGrade}`;
+      }
+
+      if (profileGrade) setSelectedGrade(profileGrade);
+      if (profileDistrictId) setSelectedDistrictId(profileDistrictId);
+    }
+  }, [isOpen, user]);
+
+  // Fetch Data when Search/Grade/District changes
+  const fetchClasses = React.useCallback(async (isLoadMore = false, currentPage = 1) => {
+    if (!isLoadMore) {
+        setLoading(true);
+    } else {
+        setIsLoadingMore(true);
+    }
+    setError('');
+
+    try {
+        const data = await searchClasses(selectedGrade, searchTerm, selectedDistrictId, selectedCityId, currentPage, PAGE_SIZE);
+        const newClasses = data.items || [];
+        
+        if (isLoadMore) {
+            setAvailableClasses(prev => [...prev, ...newClasses]);
+        } else {
+            setAvailableClasses(newClasses);
+        }
+        
+        setHasMore(data.hasNextPage || false);
+    } catch (err) {
+        console.error("Search failed", err);
+        setError('Failed to load classes.');
+    } finally {
+        setLoading(false);
+        setIsLoadingMore(false);
+    }
+  }, [selectedGrade, searchTerm, selectedDistrictId, selectedCityId, PAGE_SIZE]);
+
   useEffect(() => {
     if (!isOpen) {
         setSearchTerm('');
         setSelectedClass(null);
         setAvailableClasses([]);
+        setPage(1);
+        setHasMore(true);
         return;
     }
 
-    const fetchClasses = async () => {
-        try {
-            setLoading(true);
-            setError('');
-            // Call Backend
-            const data = await searchClasses(userGrade, searchTerm);
-            setAvailableClasses(data);
-        } catch (err) {
-            console.error("Search failed", err);
-            setError('Failed to load classes.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Debounce search to prevent too many API calls while typing
+    // Reset pagination and fetch fresh results when filters change
+    setPage(1);
     const delayDebounceFn = setTimeout(() => {
-        fetchClasses();
+        fetchClasses(false, 1);
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, isOpen, selectedGrade, selectedDistrictId, selectedCityId, fetchClasses]);
 
-  }, [searchTerm, isOpen, userGrade]);
+  const handleScroll = (e) => {
+    const { scrollTop, clientHeight, scrollHeight } = e.target;
+    if (scrollHeight - scrollTop <= clientHeight + 50 && hasMore && !isLoadingMore && !loading) {
+        const nextPage = page + 1;
+        setPage(nextPage);
+        fetchClasses(true, nextPage);
+    }
+  };
 
-  const handleRequestJoin = async (classId) => {
+  // Fetch Locations as user types
+  useEffect(() => {
+    if (!locationQuery || locationQuery.length < 2) {
+      setLocationResults([]);
+      return;
+    }
+
+    const fetchLocations = async () => {
+      try {
+        const data = await searchLocations(locationQuery);
+        setLocationResults(data);
+      } catch (err) {
+        console.error("Location search failed", err);
+      }
+    };
+
+    const debounceTimer = setTimeout(fetchLocations, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [locationQuery]);
+
+  const handleLocationSelect = (type, id, name) => {
+    if (type === 'city') {
+      setSelectedCityId(id);
+      setSelectedDistrictId(null);
+      setSelectedLocationName(name);
+    } else if (type === 'district') {
+      setSelectedCityId(null);
+      setSelectedDistrictId(id);
+      setSelectedLocationName(name);
+    }
+    setLocationQuery('');
+    setLocationResults([]);
+    setShowLocationDropdown(false);
+  };
+
+  // Handle clicking outside location dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.location-search-container')) {
+        setShowLocationDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const initiateJoinRequest = (classId) => {
+    setPendingClassId(classId);
+    setShowConfirmModal(true);
+  };
+
+  const confirmJoinRequest = async () => {
+    if (!pendingClassId) return;
+    
     try {
-        await requestJoinClass(classId);
-        alert("Request to join sent successfully! Please wait for tutor approval.");
-        onClose();
+        setIsSubmitting(true);
+        await requestJoinClass(pendingClassId);
+        
+        // Update local state immediately
+        setAvailableClasses(prev => prev.map(cls => 
+            (cls.id === pendingClassId || cls.classId === pendingClassId) 
+            ? { ...cls, enrollmentStatus: 'Pending' } 
+            : cls
+        ));
+
+        // If a class is currently selected in detail view, update it too
+        if (selectedClass && (selectedClass.id === pendingClassId || selectedClass.classId === pendingClassId)) {
+            setSelectedClass(prev => ({ ...prev, enrollmentStatus: 'Pending' }));
+        }
+
+        setShowConfirmModal(false);
+        setPendingClassId(null);
     } catch (err) {
         alert(err.message || "Failed to send request.");
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -66,9 +211,6 @@ const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                 {selectedClass ? 'Class Details' : 'Find a New Class'}
             </h2>
-            {!selectedClass && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">Showing classes for <span className="font-bold text-blue-600 dark:text-blue-400">{userGrade}</span></p>
-            )}
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
             <X size={20} className="text-gray-500 dark:text-gray-400" />
@@ -76,13 +218,16 @@ const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
         </div>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-6 bg-white dark:bg-gray-800 custom-scrollbar">
+        <div 
+          className="flex-1 overflow-y-auto p-6 bg-white dark:bg-gray-800 custom-scrollbar"
+          onScroll={handleScroll}
+        >
           
           {selectedClass ? (
             <ClassDetailView 
                 classData={selectedClass} 
                 onBack={() => setSelectedClass(null)}
-                onRequestJoin={handleRequestJoin}
+                onRequestJoin={initiateJoinRequest}
             />
           ) : (
             <div className="space-y-6">
@@ -94,11 +239,105 @@ const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
                 <input
                   type="text"
                   placeholder="Search by Subject, Tutor Name or Tutor ID (TUT)..."
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all font-medium"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   autoFocus
                 />
+              </div>
+
+              {/* Filters Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Grade Selection */}
+                <SelectField
+                    id="grade"
+                    label="Grade / Course"
+                    value={selectedGrade}
+                    onChange={handleGradeChange}
+                    groups={GRADE_GROUPS}
+                    placeholder="All Grades"
+                />
+
+                {/* Location Selection */}
+                <div className="relative location-search-container">
+                   <div className="flex items-center justify-between">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Location (Town or District)
+                      </label>
+                      {selectedLocationName && (
+                        <button 
+                          onClick={() => {
+                            setSelectedCityId(null);
+                            setSelectedDistrictId(null);
+                            setSelectedLocationName('');
+                          }}
+                          className="text-[10px] text-red-500 hover:text-red-600 font-bold uppercase tracking-wider mb-1 px-1"
+                        >
+                          Clear
+                        </button>
+                      )}
+                   </div>
+                   
+                   <div className="relative">
+                      <input
+                        type="text"
+                        placeholder={selectedLocationName ? `Selected: ${selectedLocationName}` : "Search Town or District..."}
+                        className={`w-full px-4 py-3 bg-white dark:bg-gray-800 border rounded-lg text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-200 dark:focus:ring-blue-900 focus:border-blue-500 dark:focus:border-blue-500 ${selectedLocationName ? 'ring-2 ring-blue-500/20 border-blue-500 placeholder-blue-600 dark:placeholder-blue-400' : 'border-gray-200 dark:border-gray-700'}`}
+                        value={locationQuery}
+                        onChange={(e) => {
+                          setLocationQuery(e.target.value);
+                          setShowLocationDropdown(true);
+                        }}
+                        onFocus={() => setShowLocationDropdown(true)}
+                      />
+                      
+                      {/* Search Icon or Chevron for consistent look */}
+                      <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-400 dark:text-gray-500">
+                        <MapPin size={16} />
+                      </div>
+                      
+                      {/* Search Results Dropdown */}
+                      {showLocationDropdown && (locationResults.length > 0 || (locationQuery.length >= 2)) && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-xl z-50 max-h-[300px] overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200">
+                          {locationResults.length > 0 ? (
+                            locationResults.map((prov) => (
+                              <div key={prov.provinceId} className="p-2 border-b last:border-0 border-gray-100 dark:border-gray-700">
+                                <div className="px-3 py-1 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 dark:bg-gray-900/50 rounded-md mb-1">
+                                   {prov.provinceName} Province
+                                </div>
+                                {prov.districts.map((dist) => (
+                                  <div key={dist.districtId} className="ml-1 mb-2">
+                                    <button
+                                       onClick={() => handleLocationSelect('district', dist.districtId, dist.districtName)}
+                                       className="w-full text-left px-3 py-1.5 text-sm sm:text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md flex items-center justify-between group"
+                                    >
+                                      {dist.districtName} District
+                                      <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </button>
+                                    <div className="ml-2 mt-1 flex flex-wrap gap-1 px-2">
+                                      {dist.cities.map((city) => (
+                                        <button
+                                          key={city.cityId}
+                                          onClick={() => handleLocationSelect('city', city.cityId, city.cityName)}
+                                          className="text-left px-2 py-1 text-[13px] sm:text-[11px] text-gray-600 dark:text-gray-300 bg-gray-100/50 dark:bg-gray-700/50 border border-transparent hover:border-blue-200 dark:hover:border-blue-900 hover:bg-white dark:hover:bg-gray-700 rounded-md transition-all font-medium"
+                                        >
+                                          {city.cityName}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ))
+                          ) : locationQuery.length >= 2 ? (
+                            <div className="p-6 text-center text-gray-400 italic text-sm">
+                              No matching locations found...
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
+                   </div>
+                </div>
               </div>
 
               {/* Error State */}
@@ -113,7 +352,7 @@ const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
 
               {/* Results Grid */}
               {!loading && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
                     {availableClasses.length > 0 ? (
                       availableClasses.map((cls) => (
                         <div 
@@ -125,11 +364,14 @@ const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
                             subject={cls.subject}
                             grade={cls.grade}
                             className={cls.tutorName} 
-                            time={`${cls.dayOfWeek} ${cls.startTime}`}
-                            students={0}
+                            time={`${cls.dayOfWeek} ${formatTime(cls.startTime)}`}
+                            students={cls.studentCount}
                             status={cls.status}
                             fee={cls.fee}
                             classType={cls.classType}
+                            tutorImage={cls.tutorImageUrl}
+                            instituteName={cls.instituteName}
+                            hallName={cls.hallName}
                           />
                         </div>
                       ))
@@ -142,10 +384,34 @@ const ClassSearchModal = ({ isOpen, onClose, userGrade }) => {
                     )}
                   </div>
               )}
+
+              {/* Loading more indicator */}
+              {isLoadingMore && (
+                <div className="flex items-center justify-center p-6 text-blue-500 gap-2">
+                    <Loader size={18} className="animate-spin" />
+                    <span className="text-sm font-medium">Loading more classes...</span>
+                </div>
+              )}
+
+              {!hasMore && availableClasses.length > 0 && (
+                <div className="text-center p-8 text-sm text-gray-400 dark:text-gray-500 border-t border-gray-50 dark:border-gray-800/50 mt-4">
+                    No more classes matching your search.
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmJoinRequest}
+        title="Join Class?"
+        message="Are you sure you want to send a request to join this class? The tutor will need to approve your request."
+        confirmLabel="Send Request"
+        isSubmitting={isSubmitting}
+      />
     </div>
   );
 };

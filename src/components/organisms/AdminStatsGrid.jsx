@@ -1,9 +1,25 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { TrendingUp, Building2, Users, AlertCircle } from 'lucide-react';
 import StatCard from '../molecules/StatCard';
+import { getAdminDashboardStats } from '../../services/api/adminService';
 
 const AdminStatsGrid = () => {
-  // Mock Data based on SRS requirements (Real data would come from AdminService)
+  const [totalUsers, setTotalUsers] = useState("Loading...");
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await getAdminDashboardStats();
+        setTotalUsers(data.totalUsers.toLocaleString());
+      } catch (error) {
+        console.error("Failed to fetch admin stats:", error);
+        setTotalUsers("Error");
+      }
+    };
+    fetchStats();
+  }, []);
+
+  // Mock Data based on SRS requirements mixed with real data
   const stats = [
     {
       label: "Total Platform Income",
@@ -22,7 +38,7 @@ const AdminStatsGrid = () => {
     },
     {
       label: "Total Users",
-      value: "8,540",
+      value: totalUsers,
       icon: Users,
       color: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
       change: "+120"

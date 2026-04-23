@@ -104,9 +104,9 @@ const UserProfile = () => {
         }
     }, []);
 
-    // Resolve location names when institute or student profile loads
+    // Resolve location names when profile loads
     useEffect(() => {
-        if ((role !== ROLES.INSTITUTE && role !== ROLES.STUDENT) || !profile) return;
+        if (!profile || !role) return;
 
         const resolveLocationNames = async () => {
             try {
@@ -225,40 +225,40 @@ const UserProfile = () => {
                     <InfoCard icon={Globe} label="Website" value={profile?.website || "No website"} />
                 )}
 
-                {/* Shared Hierarchical Address (Institute & Student) */}
-                {(role === ROLES.INSTITUTE || role === ROLES.STUDENT) && (
-                    <div className="group flex items-start gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700 transition-colors">
-                        <div className="p-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm text-blue-600 dark:text-blue-400">
-                            <MapPin size={20} />
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1 uppercase tracking-wide">Address</p>
-                            <div className="space-y-1">
-                                {locationNames.province && (
-                                    <p className="text-xs text-gray-400 dark:text-gray-500">
-                                        <span className="font-medium text-gray-500 dark:text-gray-400">Province: </span>
-                                        {locationNames.province}
-                                    </p>
-                                )}
-                                {locationNames.district && (
-                                    <p className="text-xs text-gray-400 dark:text-gray-500">
-                                        <span className="font-medium text-gray-500 dark:text-gray-400">District: </span>
-                                        {locationNames.district}
-                                    </p>
-                                )}
-                                {locationNames.city && (
-                                    <p className="text-xs text-gray-400 dark:text-gray-500">
-                                        <span className="font-medium text-gray-500 dark:text-gray-400">City/Town: </span>
-                                        {locationNames.city}
-                                    </p>
-                                )}
-                                <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                                    {profile?.address || 'No street address'}
+                {/* Shared Hierarchical Address (All Roles) */}
+                <div className="group flex items-start gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700 transition-colors">
+                    <div className="p-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm text-blue-600 dark:text-blue-400">
+                        <MapPin size={20} />
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1 uppercase tracking-wide">
+                            {role === ROLES.TUTOR ? 'Home/Office Address' : 'Address'}
+                        </p>
+                        <div className="space-y-1">
+                            {locationNames.province && (
+                                <p className="text-xs text-gray-400 dark:text-gray-500">
+                                    <span className="font-medium text-gray-500 dark:text-gray-400">Province: </span>
+                                    {locationNames.province}
                                 </p>
-                            </div>
+                            )}
+                            {locationNames.district && (
+                                <p className="text-xs text-gray-400 dark:text-gray-500">
+                                    <span className="font-medium text-gray-500 dark:text-gray-400">District: </span>
+                                    {locationNames.district}
+                                </p>
+                            )}
+                            {locationNames.city && (
+                                <p className="text-xs text-gray-400 dark:text-gray-500">
+                                    <span className="font-medium text-gray-500 dark:text-gray-400">City/Town: </span>
+                                    {locationNames.city}
+                                </p>
+                            )}
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                {profile?.address || 'No street address provided'}
+                            </p>
                         </div>
                     </div>
-                )}
+                </div>
 
                 {/* Student Specific: Guardian & DOB */}
                 {role === ROLES.STUDENT && (

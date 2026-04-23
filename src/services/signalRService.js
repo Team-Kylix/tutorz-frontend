@@ -40,6 +40,24 @@ class SignalRService {
       }
     });
 
+    conn.on('ForceLogout', async (data) => {
+      console.warn('[SignalR] ForceLogout received:', data);
+      
+      // 1. Purge the entire redux-persist store (from IndexedDB)
+      // Note: We avoid dispatching logout() here because 'persistor' does it better and we don't have it imported easily.
+      // But we can clear storage manually to be safe.
+      localStorage.clear();
+      sessionStorage.clear();
+
+      if ('caches' in window) {
+        await caches.delete('user-data-cache').catch(() => {});
+        await caches.delete('transactional-api-cache').catch(() => {});
+      }
+
+      // Hard redirect to login — clears React state in memory
+      window.location.replace('/login');
+    });
+
     try {
       await conn.start();
       console.log('[SignalR] Connected successfully.');

@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, CreditCard } from 'lucide-react';
-import ClassCard from '../../../components/molecules/ClassCard';
+import { Search, CreditCard } from 'lucide-react';
 import StudentStatsGrid from '../../../components/organisms/StudentStatsGrid';
 import StudentQuickActions from '../../../components/organisms/StudentQuickActions';
-import StudentUpcomingClasses from '../../../components/organisms/StudentUpcomingClasses';
+import UnifiedSchedule from '../../../components/organisms/UnifiedSchedule';
 import ClassSearchModal from '../../../components/organisms/ClassSearchModal';
 import PayFeesModal from '../../../components/organisms/PayFeesModal';
 import useApi from '../../../hooks/useApi';
@@ -14,20 +13,27 @@ const StudentDashboard = ({ user, setActivePage }) => {
   const [isPayFeesModalOpen, setIsPayFeesModalOpen] = useState(false);
   const [enrolledClasses, setEnrolledClasses] = useState([]);
   const [attendanceStats, setAttendanceStats] = useState(0);
-  const { request: fetchClasses, loading: isLoading } = useApi();
+  const [fullProfile, setFullProfile] = useState(null);
+  const { loading: isLoading } = useApi();
   
-  const userGrade = user?.grade;
+  const userGrade = fullProfile?.grade || user?.grade;
 
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
-        const [classesRes, attendanceRes] = await Promise.all([
+        const [classesRes, attendanceRes, profileRes] = await Promise.all([
           studentService.getStudentClasses(),
-          studentService.getStudentAttendanceHistory()
+          studentService.getStudentAttendanceHistory(),
+          studentService.getStudentProfile()
         ]);
         
         if (classesRes.success) {
           setEnrolledClasses(classesRes.data || []);
+        }
+
+        if (profileRes.success !== false) {
+           // On some endpoints it might be profileRes.data, on others the object itself
+           setFullProfile(profileRes.data || profileRes);
         }
 
         if (attendanceRes.success !== false) {
@@ -101,59 +107,16 @@ const StudentDashboard = ({ user, setActivePage }) => {
         <div className="lg:col-span-2 space-y-6">
           
           {/* 1. Schedule */}
-          <div className="h-80"> 
-            <StudentUpcomingClasses 
+          <div className="h-[26rem]"> 
+            <UnifiedSchedule 
+              title="My Schedule"
               onNavigate={() => setActivePage('classes')} 
               classes={enrolledClasses} 
               isLoading={isLoading} 
             />
           </div>
 
-          {/* 2. Enrolled Classes Preview */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-900 dark:text-white text-lg">My Classes</h3>
-              <button 
-                onClick={() => setActivePage('classes')} 
-                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                See All
-              </button>
-            </div>
-            
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
-                <Loader2 size={24} className="animate-spin text-blue-500" />
-              </div>
-            ) : enrolledClasses.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {enrolledClasses.slice(0, 2).map((cls) => (
-                  <div key={cls.classId} className="h-full">
-                    <ClassCard 
-                      subject={cls.subject}
-                      grade={cls.grade}
-                      className={cls.className} 
-                      time={`${cls.dayOfWeek || ''} ${cls.startTime}`}
-                      students={0} // We don't have student count in this DTO yet
-                      status={cls.status}
-                      fee={cls.fee}
-                      classType={cls.classType}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-12 text-center bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                <p className="text-gray-500 dark:text-gray-400">You haven't joined any classes yet.</p>
-                <button 
-                  onClick={() => setIsSearchModalOpen(true)}
-                  className="mt-2 text-sm text-blue-600 dark:text-blue-400 font-medium hover:underline"
-                >
-                  Find a class to join
-                </button>
-              </div>
-            )}
-          </div>
+
 
         </div>
 
@@ -174,7 +137,7 @@ const StudentDashboard = ({ user, setActivePage }) => {
       <ClassSearchModal 
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
-        userGrade={userGrade}
+        user={{...user, ...fullProfile}}
       />
       <PayFeesModal 
         isOpen={isPayFeesModalOpen}

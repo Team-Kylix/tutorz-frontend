@@ -154,14 +154,14 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
     const handleTriggerSave = (e) => {
         e.preventDefault();
 
-        // Validate phone number before showing confirmation dialog
-        // Skip for institute and student as they use the dedicated UpdateCredentialModal
-        if (normalizedRole !== 'institute' && normalizedRole !== 'student') {
-            const phoneValidation = validatePhoneNumber(formData.phoneNumber);
-            if (!phoneValidation.isValid) {
-                setErrors(prev => ({ ...prev, phoneNumber: phoneValidation.message }));
-                return;
-            }
+        // Validate phone number before showing confirmation dialog.
+        // Tutors have a DISABLED phone field (changed via UpdateCredentialModal)
+        // so we must NOT validate it here — it may be empty for new tutors.
+        // Institute uses contactNumber. Student uses the dedicated modal too.
+        // → Only validate for roles that have an editable phoneNumber in THIS form.
+        // (Currently no role has an editable phone here, but guard for future changes.)
+        if (normalizedRole === 'student') {
+            // Students edit their phone via the credential modal (disabled in form)
         }
 
         setShowSaveConfirm(true);
@@ -170,50 +170,35 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
     const executeSave = () => {
         setShowSaveConfirm(false);
         
-        // Ensure clean payload for Institute and Student ([FromForm] backend validation)
-        if (normalizedRole === 'institute' || normalizedRole === 'student') {
-            const submitData = new FormData();
-            
-            const expectedFields = normalizedRole === 'institute'
-                ? ['instituteName', 'address', 'contactNumber', 'website', 'isSmsEnabled', 'provinceId', 'districtId', 'cityId']
-                : ['firstName', 'lastName', 'schoolName', 'grade', 'parentName', 'dateOfBirth', 'address', 'provinceId', 'districtId', 'cityId'];
+        // Ensure clean payload for ALL roles using [FromForm] backend validation
+        const submitData = new FormData();
+        
+        let expectedFields = [];
+        switch (normalizedRole) {
+            case 'institute':
+                expectedFields = ['instituteName', 'address', 'contactNumber', 'website', 'isSmsEnabled', 'provinceId', 'districtId', 'cityId'];
+                break;
+            case 'student':
+                expectedFields = ['firstName', 'lastName', 'schoolName', 'grade', 'parentName', 'dateOfBirth', 'address', 'provinceId', 'districtId', 'cityId'];
+                break;
+            case 'tutor':
+                expectedFields = ['firstName', 'lastName', 'bio', 'address', 'cityId'];
+                break;
+        }
 
-            expectedFields.forEach(key => {
-                const val = formData[key];
-                // Append only if value is present. IDs should be numbers or strings.
-                // FormData.append converts everything to string correctly.
-                if (val !== null && val !== undefined && val !== '') {
-                    submitData.append(key, val);
-                }
-            });
-            
-            if (selectedFile) {
-                // Key name must match the property in backend DTO
-                submitData.append('profilePicture', selectedFile);
+        expectedFields.forEach(key => {
+            const val = formData[key];
+            // Only append if truly non-empty; prevents sending literal 'null' / 'undefined' strings
+            if (val !== null && val !== undefined && val !== '' && val !== 'null') {
+                submitData.append(key, val);
             }
-            
-            onSave(submitData);
-            return;
-        }
-
-        // Check if a file is selected for other roles
+        });
+        
         if (selectedFile) {
-            const submitData = new FormData();
-            
-            // Append all text data
-            Object.keys(formData).forEach(key => {
-                // Prevent appending null/undefined which might become string "null"
-                submitData.append(key, formData[key] === null || formData[key] === undefined ? '' : formData[key]);
-            });
-            
-            // Append the file
             submitData.append('profilePicture', selectedFile);
-            
-            onSave(submitData);
-        } else {
-            // If no file changed, send standard JSON object
-            onSave(formData);
         }
+        
+        onSave(submitData);
     };
 
     return (
@@ -269,34 +254,24 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                         )}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {normalizedRole === 'institute' || normalizedRole === 'student' ? (
-                                <>
-                                    <div className="flex items-end gap-2">
-                                        <div className="flex-1">
-                                            <FormField id="email" label="Email" value={formData.email} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
-                                        </div>
-                                        <Button type="button" variant="outline" className="mb-px" onClick={() => setShowEmailModal(true)}>Change</Button>
-                                    </div>
-                                    <div className="flex items-end gap-2">
-                                        <div className="flex-1">
-                                            <FormField id="contactNumber" label={normalizedRole === 'student' ? "Phone Number" : "Contact Number"} value={formData.contactNumber} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
-                                        </div>
-                                        <Button type="button" variant="outline" className="mb-px" onClick={() => setShowMobileModal(true)}>Change</Button>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
+                            <div className="flex items-end gap-2">
+                                <div className="flex-1">
                                     <FormField id="email" label="Email" value={formData.email} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
+                                </div>
+                                <Button type="button" variant="outline" className="mb-px" onClick={() => setShowEmailModal(true)}>Change</Button>
+                            </div>
+                            <div className="flex items-end gap-2">
+                                <div className="flex-1">
                                     <FormField 
-                                        id="phoneNumber" 
-                                        label="Phone Number" 
-                                        value={formData.phoneNumber} 
-                                        onChange={handleChange} 
-                                        onBlur={handlePhoneBlur}
-                                        error={errors.phoneNumber}
+                                        id={normalizedRole === 'tutor' ? "phoneNumber" : "contactNumber"} 
+                                        label={normalizedRole === 'student' ? "Phone Number" : normalizedRole === 'tutor' ? "Phone Number" : "Contact Number"} 
+                                        value={normalizedRole === 'tutor' ? formData.phoneNumber : formData.contactNumber} 
+                                        disabled 
+                                        className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" 
                                     />
-                                </>
-                            )}
+                                </div>
+                                <Button type="button" variant="outline" className="mb-px" onClick={() => setShowMobileModal(true)}>Change</Button>
+                            </div>
                         </div>
 
                         {/* Student Specific Fields */}
@@ -319,12 +294,20 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                             {normalizedRole === 'tutor' ? 'Financial Details' : normalizedRole === 'institute' ? 'Location & Web' : 'Academic Details'}
                         </h3>
 
-                        {/* A. TUTOR FIELDS */}
+                        {/* A. TUTOR FIELDS (Now standardized with location) */}
                         {normalizedRole === 'tutor' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField id="bankName" label="Bank Name" value={formData.bankName} onChange={handleChange} placeholder="e.g. Bank of Ceylon" />
-                                <FormField id="bankAccountNumber" label="Account Number" value={formData.bankAccountNumber} onChange={handleChange} />
-                            </div>
+                            <>
+                                <LocationSelector 
+                                    onProvinceChange={(provinceId) => setFormData(prev => ({ ...prev, provinceId }))}
+                                    onDistrictChange={(districtId) => setFormData(prev => ({ ...prev, districtId }))}
+                                    onCityChange={(cityId) => setFormData(prev => ({ ...prev, cityId }))}
+                                    initialProvinceId={formData.provinceId}
+                                    initialDistrictId={formData.districtId}
+                                    initialCityId={formData.cityId}
+                                    error={null} 
+                                />
+                                <FormField id="address" label="Home/Office Street Address" value={formData.address} onChange={handleChange} placeholder="e.g. No 15, Main Street" />
+                            </>
                         )}
 
                         {/* B. STUDENT FIELDS */}
@@ -392,17 +375,15 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
 
                     {/* --- Footer Buttons --- */}
                     <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
-                        {(normalizedRole === 'institute' || normalizedRole === 'student') && (
-                            <Button 
-                                type="button" 
-                                variant="primary" 
-                                onClick={() => setShowPasswordModal(true)}
-                                className="w-full sm:w-auto order-2 sm:order-none"
-                            >
-                                <Key size={18} className="mr-2"/>
-                                Change Password
-                            </Button>
-                        )}
+                        <Button 
+                            type="button" 
+                            variant="primary" 
+                            onClick={() => setShowPasswordModal(true)}
+                            className="w-full sm:w-auto order-2 sm:order-none"
+                        >
+                            <Key size={18} className="mr-2"/>
+                            Change Password
+                        </Button>
                         <Button 
                             type="button" 
                             variant="primary" 

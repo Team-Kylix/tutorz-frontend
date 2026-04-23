@@ -9,7 +9,8 @@ const LocationSelector = ({
     initialProvinceId, 
     initialDistrictId, 
     initialCityId, 
-    error 
+    error,
+    showCity = true
 }) => {
     const [provinces, setProvinces] = useState([]);
     const [districts, setDistricts] = useState([]);
@@ -174,21 +175,23 @@ const LocationSelector = ({
             </div>
 
             {/* City */}
-            <div className={`transition-opacity duration-300 ${!selectedDistrict ? 'opacity-50' : 'opacity-100'}`}>
-                <Label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    City / Town <span className="text-red-500">*</span>
-                </Label>
-                <select 
-                    required
-                    value={selectedCity} 
-                    onChange={handleCityChange} 
-                    className={selectClass}
-                    disabled={!selectedDistrict}
-                >
-                    <option value="">Select City</option>
-                    {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-            </div>
+            {showCity && (
+                <div className={`transition-opacity duration-300 ${!selectedDistrict ? 'opacity-50' : 'opacity-100'}`}>
+                    <Label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        City / Town <span className="text-red-500">*</span>
+                    </Label>
+                    <select 
+                        required
+                        value={selectedCity} 
+                        onChange={handleCityChange} 
+                        className={selectClass}
+                        disabled={!selectedDistrict}
+                    >
+                        <option value="">Select City</option>
+                        {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                </div>
+            )}
 
             {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
         </div>

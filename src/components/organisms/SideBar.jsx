@@ -79,7 +79,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     logout();
     setShowLogoutModal(false);
     setShowPendingWarning(false);
-    navigate('/login');
+    navigate('/');
   };
 
   // --- Menu Definitions ---
