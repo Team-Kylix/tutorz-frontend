@@ -124,6 +124,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const adminMenu = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'institutes', label: 'Institutes', icon: Building },
+    { id: 'admin-students', label: 'Students', icon: GraduationCap },
     { id: 'users', label: 'User Management', icon: UserCog },
     { id: 'approvals', label: 'Pending Approvals', icon: CheckSquare },
     { id: 'financials', label: 'Platform Finance', icon: DollarSign },
