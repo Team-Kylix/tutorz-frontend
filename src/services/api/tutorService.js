@@ -31,27 +31,87 @@ export const getTutorProfile = async () => {
 };
 
 export const updateTutorProfile = async (formData) => {
-    // The browser automatically sets 'Content-Type': 'multipart/form-data' 
-    // when you pass a FormData object to axios.
-    const response = await apiClient.put('/tutor/profile', formData); 
-    return response.data;
+  // NOTE: Do NOT set Content-Type manually here.
+  // Axios auto-sets 'multipart/form-data; boundary=...' when it receives FormData.
+  // Overriding it would break the boundary and cause [FromForm] binding to fail on ASP.NET Core.
+  const response = await apiClient.put('/tutor/profile', formData);
+  return response.data;
 };
 
 export const getStudentRequests = async () => {
-    const response = await apiClient.get('/tutor/requests');
-    return response.data;
+  const response = await apiClient.get('/tutor/requests');
+  return response.data;
 };
 
 export const processStudentRequests = async (enrollmentIds, action) => {
-    // action should be "Accepted" or "Declined"
-    const response = await apiClient.post('/tutor/requests/process', { 
-        enrollmentIds, 
-        action 
-    });
-    return response.data;
+  const response = await apiClient.post('/tutor/requests/process', {
+    enrollmentIds,
+    action
+  });
+  return response.data;
 };
 
 export const getStudentProfileForTutor = async (studentId) => {
-    const response = await apiClient.get(`/tutor/student-profile/${studentId}`);
+  const response = await apiClient.get(`/tutor/student-profile/${studentId}`);
+  return response.data;
+};
+
+// --- Institute Join Requests ---
+
+export const requestJoinInstitute = async (instituteId) => {
+  try {
+    const response = await apiClient.post(`/tutor/institutes/${instituteId}/request`);
     return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to send institute join request' };
+  }
+};
+
+export const getInstituteRequests = async () => {
+  try {
+    const response = await apiClient.get('/tutor/requests/institutes');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch institute requests' };
+  }
+};
+
+export const processInstituteRequest = async (requestId, action) => {
+  try {
+    const response = await apiClient.post(`/tutor/requests/institutes/${requestId}/process`, { action });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to process institute request' };
+  }
+};
+
+// --- Institutes & Halls ---
+
+export const getJoinedInstitutes = async () => {
+  try {
+    const response = await apiClient.get('/tutor/institutes');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch joined institutes' };
+  }
+};
+
+export const getInstituteHalls = async (instituteId) => {
+  try {
+    const response = await apiClient.get(`/institute/halls/${instituteId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch institute halls' };
+  }
+};
+
+/**
+ * Searches for students enrolled in classes conducted by this tutor.
+ * @param {string} query - Search term
+ */
+export const searchEnrolledStudents = async (query) => {
+  const response = await apiClient.get('/tutor/students/search', {
+    params: { query }
+  });
+  return response.data;
 };

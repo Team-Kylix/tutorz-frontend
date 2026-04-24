@@ -1,15 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, UserPlus, Search } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Edit2, UserPlus, Search, RefreshCw, BookOpen } from 'lucide-react';
+import Button from '../../components/atoms/Button';
+import Input from '../../components/atoms/Input';
+import StatCard from '../../components/molecules/StatCard';
 import ClassCard from '../../components/molecules/ClassCard';
 import ClassFormModal from '../../components/organisms/ClassFormModal';
 import AddStudentModal from '../../components/organisms/AddStudentModal';
-import ConfirmationModal from '../../components/molecules/ConfirmationModal'; 
+import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 import useApi from '../../hooks/useApi';
 import * as tutorService from '../../services/api/tutorService';
+import { useDispatch, useSelector } from 'react-redux';
+import { enqueueAction, SYNC_ACTION_TYPES, selectPendingCount } from '../../store/syncSlice';
+import { setClassesData, addTutorClass, updateTutorClass, removeTutorClass } from '../../store/tutorSlice';
 
 const ClassesPage = () => {
+  const dispatch = useDispatch();
+  const pendingCount = useSelector(selectPendingCount);
+  const prevPendingRef = React.useRef(pendingCount);
+  const { classes, isFetched } = useSelector(state => state.tutorData);
+
   // State
-  const [classes, setClasses] = useState([]);
   const [isClassModalOpen, setClassModalOpen] = useState(false);
   const [isStudentModalOpen, setStudentModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
@@ -19,7 +29,7 @@ const ClassesPage = () => {
   // Confirmation & Success Modal States
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
-  const [successMessage, setSuccessMessage] = useState(""); 
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Delete States
   const [classToDelete, setClassToDelete] = useState(null);
@@ -28,23 +38,47 @@ const ClassesPage = () => {
   // NEW: Status Change States
   const [statusCandidate, setStatusCandidate] = useState(null);
   const [isStatusConfirmOpen, setStatusConfirmOpen] = useState(false);
-  
+
   const [pendingFormData, setPendingFormData] = useState(null);
 
+  // For showing backend conflict/error message inline in the class modal
+  const [classFormError, setClassFormError] = useState('');
+
   // API Hooks
-  const { request: fetchClasses, loading: isLoading } = useApi();
+  const { request: fetchClasses } = useApi();
   const { request: saveClass, loading: isSaving } = useApi();
-  const { request: removeClass, loading: isDeleting } = useApi();
+
+  // Mirror InstituteDashboard pattern: local loading state initialized from cache flag
+  // If isFetched is already true (data in memory), loading starts as false → instant render
+  const [isLoading, setIsLoading] = useState(!isFetched);
+
+  const loadClasses = useCallback(async (force = false) => {
+    if (!force && isFetched) {
+      setIsLoading(false);
+      return;
+    }
+    const { data } = await fetchClasses(tutorService.getClasses);
+    if (data) dispatch(setClassesData(data));
+    setIsLoading(false);
+  }, [isFetched, fetchClasses, dispatch]);
 
   // Load Classes
   useEffect(() => {
-    loadClasses();
-  }, []);
+    if (!isFetched) {
+      loadClasses();
+    } else {
+      // Data already cached in Redux — skip fetch, hide loading immediately
+      setIsLoading(false);
+    }
+  }, [isFetched, loadClasses]);
 
-  const loadClasses = async () => {
-    const { data } = await fetchClasses(tutorService.getClasses);
-    if (data) setClasses(data);
-  };
+  // Listen for sync completion to replace temp IDs with real IDs
+  useEffect(() => {
+    if (prevPendingRef.current > 0 && pendingCount === 0) {
+      loadClasses(true);
+    }
+    prevPendingRef.current = pendingCount;
+  }, [pendingCount, loadClasses]);
 
   // --- HANDLERS ---
 
@@ -59,16 +93,16 @@ const ClassesPage = () => {
   };
 
   const handleDeleteClick = (classId) => {
-    setClassModalOpen(false); 
+    setClassModalOpen(false);
     setClassToDelete(classId);
-    setDeleteConfirmOpen(true); 
+    setDeleteConfirmOpen(true);
   };
 
   const handleAddStudentClick = (classId) => {
     setSelectedClassId(classId);
     setStudentModalOpen(true);
   };
-  
+
   // Triggered when toggle is clicked in Modal
   const handleStatusChangeRequest = (currentFormData) => {
     setStatusCandidate(currentFormData);
@@ -91,86 +125,97 @@ const ClassesPage = () => {
     if (!statusCandidate) return;
 
     const newStatus = !statusCandidate.isActive;
-    
-    // Prepare the payload
     const cleanPayload = preparePayload(statusCandidate);
-    
-    // Toggle the status
-    cleanPayload.isActive = newStatus; 
+    cleanPayload.isActive = newStatus;
 
-    // Call API
-    const result = await saveClass(tutorService.updateClass, statusCandidate.classId, cleanPayload);
+    dispatch(updateTutorClass({ classId: statusCandidate.classId, isActive: newStatus }));
 
-    if (result.data) {
-        setStatusConfirmOpen(false);
-        setEditingClass(result.data); 
-        loadClasses(); 
-        setSuccessMessage(`Class ${newStatus ? 'activated' : 'deactivated'} successfully!`);
-        setIsSuccessOpen(true);
+    dispatch(enqueueAction({
+      actionType: SYNC_ACTION_TYPES.TOGGLE_CLASS_STATUS,
+      payload: { id: statusCandidate.classId, classData: cleanPayload },
+      label: `Toggle Status: ${cleanPayload.className}`
+    }));
+
+    if (editingClass && editingClass.classId === statusCandidate.classId) {
+      setEditingClass(prev => ({ ...prev, isActive: newStatus }));
     }
+
+    setStatusConfirmOpen(false);
+    setStatusCandidate(null);
+    setSuccessMessage(`Class ${newStatus ? 'activated' : 'deactivated'} offline (Syncing...)!`);
+    setIsSuccessOpen(true);
   };
 
   const handleClassSubmit = (formData) => {
+    setClassFormError('');
     setPendingFormData(formData);
     setIsConfirmOpen(true);
   };
 
   const handleConfirmSave = async () => {
-    console.log("1. Starting Save..."); 
-    
     // Ensure payload is prepared
     const cleanPayload = preparePayload(pendingFormData);
-    console.log("2. Payload:", cleanPayload); 
 
-    let result;
+    setIsConfirmOpen(false);
+    setClassModalOpen(false);
+    setClassFormError('');
+    setPendingFormData(null);
+
     if (editingClass) {
       // Update Mode
-      result = await saveClass(tutorService.updateClass, editingClass.classId, cleanPayload);
+      dispatch(updateTutorClass({ classId: editingClass.classId, ...cleanPayload }));
+      
+      dispatch(enqueueAction({
+        actionType: SYNC_ACTION_TYPES.UPDATE_CLASS,
+        payload: { id: editingClass.classId, classData: cleanPayload },
+        label: `Update Class: ${cleanPayload.className}`,
+      }));
+      setSuccessMessage("Class updated offline (Syncing...)!");
     } else {
       // Create Mode
-      result = await saveClass(tutorService.createClass, cleanPayload);
+      const tempId = `temp_${Date.now()}`;
+      const newClass = {
+        ...cleanPayload,
+        classId: tempId,
+        studentCount: 0,
+        isOptimistic: true
+      };
+      
+      dispatch(addTutorClass(newClass));
+      
+      dispatch(enqueueAction({
+        actionType: SYNC_ACTION_TYPES.CREATE_CLASS,
+        payload: { classData: cleanPayload },
+        label: `Create Class: ${cleanPayload.className}`,
+      }));
+      setSuccessMessage("Class added offline (Syncing...)!");
     }
 
-    console.log("3. API Result:", result);
-
-    if (result && result.data) {
-      console.log("4. Success! Opening Success Modal."); 
-      
-      // Close the Confirmation Modal & Form
-      setIsConfirmOpen(false);
-      setClassModalOpen(false);
-      
-      // Clear Form Data
-      setPendingFormData(null);
-      
-      // Refresh the list
-      loadClasses();
-
-      // Set Success Message & Open Success Modal
-      const msg = editingClass ? "Class updated successfully!" : "Class added successfully!";
-      setSuccessMessage(msg);
-      setIsSuccessOpen(true);
-    } else {
-      console.error("5. Save failed or no data returned", result);
-    }
+    setIsSuccessOpen(true);
   };
 
   const handleConfirmDelete = async () => {
-      if (!classToDelete) return;
-      const result = await removeClass(tutorService.deleteClass, classToDelete);
-      if (result) {
-          setDeleteConfirmOpen(false);
-          setClassToDelete(null);
-          loadClasses(); 
-          setSuccessMessage("Class deleted successfully!");
-          setIsSuccessOpen(true);
-      }
+    if (!classToDelete) return;
+    const clsName = classes.find(c => c.classId === classToDelete)?.className || 'Class';
+
+    dispatch(removeTutorClass(classToDelete));
+
+    dispatch(enqueueAction({
+      actionType: SYNC_ACTION_TYPES.DELETE_CLASS,
+      payload: { id: classToDelete },
+      label: `Delete Class: ${clsName}`
+    }));
+
+    setDeleteConfirmOpen(false);
+    setClassToDelete(null);
+    setSuccessMessage("Class deleted offline (Syncing...)!");
+    setIsSuccessOpen(true);
   };
 
   const handleStudentSubmit = async (regNo) => {
-    const { data } = await saveClass(tutorService.addStudentToClass, { 
-        classId: selectedClassId, 
-        studentRegistrationNumber: regNo 
+    const { data } = await saveClass(tutorService.addStudentToClass, {
+      classId: selectedClassId,
+      studentRegistrationNumber: regNo
     });
     if (data) {
       setSuccessMessage("Student added successfully!");
@@ -179,89 +224,119 @@ const ClassesPage = () => {
     }
   };
 
-  const filteredClasses = classes.filter(c => 
-    c.subject.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredClasses = classes.filter(c =>
+    c.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.grade.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Classes</h1>
-            <p className="text-gray-500 dark:text-gray-400">Manage your subjects and schedules</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Classes</h1>
+          <p className="text-gray-500 dark:text-gray-400">Manage your subjects and schedules</p>
         </div>
-        <button 
-            onClick={handleCreateClick}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-500 transition"
-        >
-            <Plus size={20} /> Create Class
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setIsLoading(true); loadClasses(true); }}
+            disabled={isLoading}
+            className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
+          </button>
+          <Button variant="primary" onClick={handleCreateClick}>
+            <Plus size={18} className="mr-2" /> Create Class
+          </Button>
+        </div>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-        <input 
-            type="text" 
-            placeholder="Search by subject or grade..." 
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-colors"
+      {/* Stats Banner & Search */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="w-full md:w-64">
+          <StatCard
+            label="Total Classes"
+            value={classes.length}
+            change={`${classes.filter(c => c.isActive).length} Active`}
+            icon={BookOpen}
+            color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+          />
+        </div>
+
+        <div className="relative w-full max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <Input
+            type="text"
+            placeholder="Search by subject or grade..."
+            className="pl-10 shadow-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-        />
+          />
+        </div>
       </div>
 
       {isLoading ? (
         <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading classes...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredClasses.map((cls) => (
-                <div key={cls.classId} className="relative group">
-                    <ClassCard 
-                        className={cls.className}
-                        subject={cls.subject} 
-                        grade={cls.grade} 
-                        classType={cls.classType} 
-                        time={`${cls.dayOfWeek || (cls.date ? cls.date.split('T')[0] : '')} ${cls.startTime} - ${cls.endTime}`} 
-                        students={cls.studentCount} 
-                        fee={cls.fee}
-                        status={cls.isActive ? 'active' : 'inactive'}
-                    />
-                    <div className="absolute top-4 right-4 flex gap-2">
-                        <button 
-                            onClick={() => handleEditClick(cls)} 
-                            className="p-1.5 bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-                            title="Edit Class"
-                        >
-                            <Edit2 size={16} />
-                        </button>
-                        <button 
-                            onClick={() => handleAddStudentClick(cls.classId)} 
-                            className="p-1.5 bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 text-blue-600 dark:text-blue-400 transition-colors"
-                            title="Add Student"
-                        >
-                            <UserPlus size={16} />
-                        </button>
-                    </div>
-                </div>
-            ))}
-            {filteredClasses.length === 0 && (
-                <div className="col-span-full text-center py-10 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 transition-colors">
-                    No classes found. Create one to get started!
-                </div>
-            )}
+          {filteredClasses.map((cls) => {
+            const isTemp = cls.isOptimistic || cls.classId.toString().startsWith('temp_');
+            return (
+            <div key={cls.classId} className="relative group">
+              <ClassCard
+                className={cls.className}
+                subject={cls.subject}
+                grade={cls.grade}
+                classType={cls.classType}
+                time={`${cls.dayOfWeek || (cls.date ? cls.date.split('T')[0] : '')} ${cls.startTime} - ${cls.endTime}`}
+                students={cls.studentCount}
+                fee={cls.fee}
+                status={cls.isActive ? 'active' : 'inactive'}
+                instituteName={cls.instituteName}
+              />
+              <div className="absolute top-4 right-4 flex gap-2">
+                <button
+                  onClick={() => !isTemp && handleEditClick(cls)}
+                  disabled={isTemp}
+                  className={`p-1.5 shadow-sm border border-gray-100 dark:border-gray-700 rounded-full transition-colors ${
+                    isTemp ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+                  }`}
+                  title={isTemp ? "Syncing to server..." : "Edit Class"}
+                >
+                  <Edit2 size={16} />
+                </button>
+                <button
+                  onClick={() => handleAddStudentClick(cls.classId)}
+                  className="p-1.5 bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 text-blue-600 dark:text-blue-400 transition-colors"
+                  title="Add Student"
+                >
+                  <UserPlus size={16} />
+                </button>
+              </div>
+            </div>
+            );
+          })}
+          {filteredClasses.length === 0 && (
+            <div className="col-span-full text-center py-10 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 transition-colors">
+              No classes found. Create one to get started!
+            </div>
+          )}
         </div>
       )}
 
       {/* --- MODALS --- */}
 
-      <ClassFormModal 
-        isOpen={isClassModalOpen} 
-        onClose={() => setClassModalOpen(false)} 
+      <ClassFormModal
+        isOpen={isClassModalOpen}
+        onClose={() => { setClassModalOpen(false); setClassFormError(''); }}
         onSubmit={handleClassSubmit}
-        onDelete={handleDeleteClick} 
+        onDelete={handleDeleteClick}
         onStatusChange={handleStatusChangeRequest}
         initialData={editingClass}
         isSubmitting={isSaving}
+        existingClasses={classes}
+        backendError={classFormError}
       />
 
       <AddStudentModal
@@ -276,9 +351,9 @@ const ClassesPage = () => {
         onClose={() => setIsConfirmOpen(false)}
         onConfirm={handleConfirmSave}
         title={editingClass ? "Update Class" : "Create Class"}
-        message={editingClass 
-            ? "Are you sure you want to update this class details?" 
-            : "Are you sure you want to create this new class?"}
+        message={editingClass
+          ? "Are you sure you want to update this class details?"
+          : "Are you sure you want to create this new class?"}
         confirmLabel={editingClass ? "Update" : "Create"}
         cancelLabel="Cancel"
         variant="primary"
@@ -290,7 +365,7 @@ const ClassesPage = () => {
         onConfirm={handleConfirmDelete}
         title="Delete Class?"
         message="Are you sure you want to delete this class? This action cannot be undone."
-        confirmLabel={isDeleting ? "Deleting..." : "Delete"}
+        confirmLabel="Delete"
         cancelLabel="Cancel"
         variant="danger"
       />
@@ -301,9 +376,9 @@ const ClassesPage = () => {
         onClose={() => setStatusConfirmOpen(false)}
         onConfirm={handleConfirmStatusChange}
         title={statusCandidate?.isActive ? "Deactivate Class?" : "Activate Class?"}
-        message={statusCandidate?.isActive 
-            ? "This will hide the class from the schedule. Are you sure?" 
-            : "This will make the class visible in the schedule again. Are you sure?"}
+        message={statusCandidate?.isActive
+          ? "This will hide the class from the schedule. Are you sure?"
+          : "This will make the class visible in the schedule again. Are you sure?"}
         confirmLabel={statusCandidate?.isActive ? "Deactivate" : "Activate"}
         cancelLabel="Cancel"
         variant={statusCandidate?.isActive ? "danger" : "success"}
@@ -314,7 +389,7 @@ const ClassesPage = () => {
         onClose={() => setIsSuccessOpen(false)}
         onConfirm={() => setIsSuccessOpen(false)}
         title="Success"
-        message={successMessage} 
+        message={successMessage}
         confirmLabel="OK"
         cancelLabel="Close"
         variant="success"

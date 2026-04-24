@@ -19,7 +19,7 @@ export const handleGoogleResponse = (tokenResponse) => {
     return tokenResponse;
 };
 
-export const getGoogleUserProfile = async (accessToken) => {
+export const getGoogleUserProfile = async (accessToken, idToken) => {
     try {
         const response = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo`, {
             headers: { Authorization: `Bearer ${accessToken}` },
@@ -30,7 +30,7 @@ export const getGoogleUserProfile = async (accessToken) => {
             firstName: data.given_name,
             lastName: data.family_name,
             picture: data.picture,
-            idToken: null 
+            idToken: idToken
         };
     } catch (error) {
         throw new Error("Failed to fetch Google profile");

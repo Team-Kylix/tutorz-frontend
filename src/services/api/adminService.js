@@ -1,1 +1,38 @@
-// Nothing Implemented Yet
+import apiClient from './apiClient';
+
+export const getMinTokenDate = async () => {
+  const response = await apiClient.get('/system/min-token-date');
+  return response.data;
+};
+
+export const getOnlineCount = async () => {
+  const response = await apiClient.get('/system/online-count');
+  return response.data;
+};
+
+export const forceLogoutAll = async (versionNumber, releaseNotes) => {
+  const response = await apiClient.post('/system/force-logout', {
+    versionNumber,
+    releaseNotes
+  });
+  return response.data;
+};
+
+export const getAdminDashboardStats = async () => {
+  const response = await apiClient.get('/system/dashboard-stats');
+  return response.data;
+};
+
+export const getAllStudents = async (searchQuery = '', page = 1, pageSize = 10) => {
+  try {
+    const params = new URLSearchParams({
+      searchQuery: searchQuery,
+      page: page.toString(),
+      pageSize: pageSize.toString()
+    });
+    const response = await apiClient.get(`/system/students?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch students' };
+  }
+};

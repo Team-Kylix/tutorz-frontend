@@ -6,29 +6,27 @@ const QuickActions = ({ onActionClick }) => (
   <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm h-full transition-colors">
     <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
     <div className="grid grid-cols-2 gap-3">
-      <QuickActionCard 
-        icon={Award} 
-        label="Give Medals" 
-        colorClass="text-purple-500 dark:text-purple-400" 
+      <QuickActionCard
+        icon={Award}
+        label="Give Medals"
+        colorClass="text-purple-500 dark:text-purple-400"
       />
-      <QuickActionCard 
-        icon={FileText} 
-        label="Generate Invoice" 
-        colorClass="text-orange-500 dark:text-orange-400" 
+      <QuickActionCard
+        icon={FileText}
+        label="Generate Invoice"
+        colorClass="text-orange-500 dark:text-orange-400"
       />
-      
-      {/*Ensure this onClick is present */}
-      <QuickActionCard 
-        icon={Users} 
-        label="Student Request" 
+
+      <QuickActionCard
+        icon={Users}
+        label="Student Request"
         colorClass="text-green-500 dark:text-green-400"
-        onClick={() => onActionClick && onActionClick('studentRequests')} 
       />
-      
-      <QuickActionCard 
-        icon={LogOut} 
-        label="Withdraw Funds" 
-        colorClass="text-red-500 dark:text-red-400" 
+
+      <QuickActionCard
+        icon={LogOut}
+        label="Withdraw Funds"
+        colorClass="text-red-500 dark:text-red-400"
       />
     </div>
 
@@ -37,11 +35,11 @@ const QuickActions = ({ onActionClick }) => (
         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Active Coupons</span>
         <button className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Manage</button>
       </div>
-      
+
       <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/50 rounded-lg p-3 flex justify-between items-center transition-colors">
         <span className="font-mono font-bold text-orange-700 dark:text-orange-400">NEWYEAR25</span>
         <span className="text-xs bg-white dark:bg-gray-800 px-2 py-1 rounded border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400">
-            10% OFF
+          10% OFF
         </span>
       </div>
     </div>

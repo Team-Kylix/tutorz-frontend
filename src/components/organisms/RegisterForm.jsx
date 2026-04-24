@@ -13,6 +13,7 @@ import { getGoogleUserProfile } from '../../services/auth/googleAuthService.js';
 import { validateSocialProvider } from '../../utils/validators.js';
 
 const RegisterForm = ({ onSwitchToLogin }) => {
+    // state and hooks
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -30,8 +31,9 @@ const RegisterForm = ({ onSwitchToLogin }) => {
     const [showOtpModal, setShowOtpModal] = useState(false);
     const [existingUser, setExistingUser] = useState(null);
     const [tempSocialProfile, setTempSocialProfile] = useState(null);
+    const [otpFlowType, setOtpFlowType] = useState(null); // 'sibling' or 'new_mobile'
 
-    // --- HANDLERS ---
+    // handleAppleClick, validateRoleSelection, googleRegister, handleGoogleClick
     const handleAppleClick = () => {
         setAppleError('');
         if (!validateRoleSelection()) return;
@@ -54,41 +56,33 @@ const RegisterForm = ({ onSwitchToLogin }) => {
             setEmailError('');
             try {
                 const profile = await getGoogleUserProfile(tokenResponse.access_token);
-                const statusResponse = await checkUserStatus(profile.email); 
-                const status = statusResponse.status;
+
+                const response = await checkUserStatus({ email: profile.email }); 
                 
-                // If the user exists (Student or Other), but they are trying to register as Tutor/Institute
-                // We BLOCK them. Sibling flow is only for Students.
-                if (status !== 'NOT_FOUND' && role !== 'Student') {
-                    setEmailError('You are already registered. Please log in.');
-                    setIsChecking(false);
+                // User Found
+                if (response.exists) {
+                    // Exists as Student AND trying to register as Student
+                    if (response.role === 'Student' && role === 'Student') {
+                        setEmail(profile.email);
+                        setExistingUser({ identifier: profile.email, name: response.name });
+                        
+                        setTempSocialProfile({
+                            firstName: profile.firstName,
+                            lastName: profile.lastName,
+                            email: profile.email,
+                            idToken: tokenResponse.access_token
+                        });
+
+                        setShowDuplicateModal(true);
+                        return;
+                    }
+
+                    // Block other cases
+                    setEmailError(`This account belongs to ${response.name} and is already registered. Please log in.`);
                     return;
                 }
 
-                // User exists as Student AND is registering as Student -> Trigger Sibling Flow
-                if (status === 'EXISTS_AS_STUDENT') {
-                    setEmail(profile.email); // Sync local state
-                    setExistingUser({ identifier: profile.email });
-
-                    // Save Google data to pass it after OTP verification
-                    setTempSocialProfile({
-                        firstName: profile.firstName,
-                        lastName: profile.lastName,
-                        email: profile.email,
-                        idToken: tokenResponse.access_token
-                    });
-
-                    setShowDuplicateModal(true);
-                    return;
-                }
-
-                // User exists as Other Role (and tried to register as Student) -> Block
-                if (status === 'EXISTS_OTHER_ROLE') {
-                    setEmailError('You are already registered. Please log in.');
-                    return;
-                }
-
-                // New User -> Proceed to Details
+                // User Not Found -> Proceed
                 navigate('/register-details', {
                     state: {
                         stepOneData: {
@@ -145,31 +139,35 @@ const RegisterForm = ({ onSwitchToLogin }) => {
 
         setIsChecking(true);
         try {
-            const response = await checkUserStatus(email);
-            const status = response.status;
+            // Pass object structure required by your updated authService
+            let checkPayload = {};
+            if (isEmail) checkPayload = { email: email };
+            else checkPayload = { phoneNumber: email };
 
-            // If found AND user is NOT trying to be a student, block them immediately.
-            if (status !== 'NOT_FOUND' && role !== 'Student') {
-                 setEmailError("This account already exists. Please log in.");
-                 setIsChecking(false);
-                 return;
-            }
-
-            // Only show Sibling Modal if they exist as a student AND are trying to register as a student
-            if (status === 'EXISTS_AS_STUDENT') {
-                setExistingUser({ identifier: email });
-                setShowDuplicateModal(true);
+            const response = await checkUserStatus(checkPayload);
+            
+            // Use 'response.exists' instead of 'response.status'
+            if (response.exists) {
+                // Sibling Flow
+                if (response.role === 'Student' && role === 'Student') {
+                    setExistingUser({ identifier: email, name: response.name });
+                    setShowDuplicateModal(true);
+                } else {
+                    // Block Tutor/Institute re-registration or role mismatch
+                    setEmailError(`This account belongs to ${response.name} and is already registered as a ${response.role}. Please log in.`);
+                }
             } 
-            else if (status === 'EXISTS_OTHER_ROLE') {
-                // If they exist as a Tutor/Institute, they cannot use this flow
-                setEmailError("This account already exists. Please log in.");
-            } 
+            // User Not Found -> Proceed
             else {
-                // New User (NOT_FOUND)
-                const stepOneData = { email, password, role, isSocial: false };
+                const stepOneData = { 
+                    email: isEmail ? email : '', 
+                    phoneNumber: isPhone ? email : '',
+                    password, 
+                    role, 
+                    isSocial: false 
+                };
                 navigate('/register-details', { state: { stepOneData } });
             }
-
 
         } catch (error) {
             setEmailError(error.message || 'Something went wrong. Please try again.');
@@ -178,7 +176,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
         }
     };
 
-    // Modal Actions
+    // Modal Actions: handleItsMe, handleItsParent, handleVerifyOtp
     const handleItsMe = () => {
         alert("Please log in using your existing credentials.");
         navigate('/login');
@@ -189,6 +187,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
         setIsChecking(true);
         try {
             await sendOtp(email);
+            setOtpFlowType('sibling');
             setShowOtpModal(true);
         } catch (error) {
             setEmailError("Failed to send verification code.");
@@ -202,7 +201,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
             const response = await verifyOtp(email, otpCode);
 
             setShowOtpModal(false);
-            let backendPhone = response.phoneNumber;
+            let backendPhone = response.phoneNumber || email;
             let formattedPhone = backendPhone;
             
             if (backendPhone && backendPhone.startsWith('+94')) {
@@ -218,7 +217,6 @@ const RegisterForm = ({ onSwitchToLogin }) => {
                 linkedPhoneNumber: formattedPhone
             };
             
-            // If it was a Google flow that triggered this, merge the social data back
             if (tempSocialProfile) {
                 navigate('/register-details', {
                     state: {
@@ -244,7 +242,7 @@ const RegisterForm = ({ onSwitchToLogin }) => {
         }
     };
 
-    // Icons
+    // Modal Actions: handleItsMe, handleItsParent, handleVerifyOtp
     const icons = {
         Student: (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-2"><path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.499 5.24 50.552 50.552 0 01-2.478.783M12 10.147a3.896 3.896 0 100-7.792 3.896 3.896 0 000 7.792z" /></svg>),
         Tutor: (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-2"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>),

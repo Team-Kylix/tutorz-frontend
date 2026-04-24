@@ -5,17 +5,19 @@ export const getDayIndex = (dayName) => {
 
 export const getClassStatus = (cls) => {
   const now = new Date();
-  const currentDayIndex = now.getDay(); 
+  const currentDayIndex = now.getDay();
   const classDayIndex = getDayIndex(cls.dayOfWeek);
 
-  // If today is NOT the class day, it's just "Upcoming" (or "Later")
-  if (currentDayIndex !== classDayIndex) {
-    return 'upcoming'; 
+  // If today is NOT the class day or if class day is missing
+  if (currentDayIndex !== classDayIndex || classDayIndex === -1) {
+    return 'upcoming';
   }
 
   // Parse Time (assuming "HH:mm" format, e.g., "14:30")
-  const [startH, startM] = cls.startTime.split(':').map(Number);
-  const [endH, endM] = cls.endTime.split(':').map(Number);
+  const startStr = cls.startTime || "00:00";
+  const endStr = cls.endTime || "23:59";
+  const [startH, startM] = startStr.split(':').map(Number);
+  const [endH, endM] = endStr.split(':').map(Number);
 
   const startTime = new Date();
   startTime.setHours(startH, startM, 0);
@@ -29,6 +31,6 @@ export const getClassStatus = (cls) => {
   } else if (now > endTime) {
     return 'completed';
   } else {
-    return 'next'; 
+    return 'next';
   }
 };
