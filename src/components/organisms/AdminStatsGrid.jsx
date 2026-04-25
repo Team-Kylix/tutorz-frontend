@@ -5,15 +5,20 @@ import { getAdminDashboardStats } from '../../services/api/adminService';
 
 const AdminStatsGrid = () => {
   const [totalUsers, setTotalUsers] = useState("Loading...");
+  const [totalInstitutes, setTotalInstitutes] = useState("Loading...");
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const data = await getAdminDashboardStats();
         setTotalUsers(data.totalUsers.toLocaleString());
+        if (data.totalInstitutes !== undefined) {
+          setTotalInstitutes(data.totalInstitutes.toLocaleString());
+        }
       } catch (error) {
         console.error("Failed to fetch admin stats:", error);
         setTotalUsers("Error");
+        setTotalInstitutes("Error");
       }
     };
     fetchStats();
@@ -31,7 +36,7 @@ const AdminStatsGrid = () => {
     },
     {
       label: "Registered Institutes",
-      value: "124",
+      value: totalInstitutes,
       icon: Building2,
       color: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
       change: "+4"
