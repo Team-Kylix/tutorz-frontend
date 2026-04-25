@@ -27,6 +27,7 @@ import FinancialsPage from './FinancialsPage';
 import StudentFinancialsPage from './StudentFinancialsPage';
 import SettingsPage from './SettingsPage';
 import AdminStudentsPage from './AdminStudentsPage';
+import AdminTeachersPage from './AdminTeachersPage';
 import AboutUsContent from '../../components/organisms/AboutUsContent';
 
 const DashboardHome = ({ activePage, setActivePage }) => {
@@ -62,6 +63,10 @@ const DashboardHome = ({ activePage, setActivePage }) => {
 
   if (activePage === 'admin-students') {
     return <AdminStudentsPage />;
+  }
+
+  if (activePage === 'admin-teachers') {
+    return <AdminTeachersPage />;
   }
 
   if (activePage === 'institute-requests') {

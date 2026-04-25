@@ -35,4 +35,18 @@ export const getAllStudents = async (searchQuery = '', page = 1, pageSize = 10) 
   } catch (error) {
     throw error.response?.data || { message: 'Failed to fetch students' };
   }
+};
+
+export const getAllTutors = async (searchQuery = '', page = 1, pageSize = 10) => {
+  try {
+    const params = new URLSearchParams({
+      searchQuery: searchQuery,
+      page: page.toString(),
+      pageSize: pageSize.toString()
+    });
+    const response = await apiClient.get(`/system/tutors?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch tutors' };
+  }
 };
