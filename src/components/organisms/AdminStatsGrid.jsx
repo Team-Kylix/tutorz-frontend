@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Building2, Users, AlertCircle } from 'lucide-react';
+import { TrendingUp, Building2, Users, GraduationCap } from 'lucide-react';
 import StatCard from '../molecules/StatCard';
 import { getAdminDashboardStats } from '../../services/api/adminService';
 
 const AdminStatsGrid = () => {
   const [totalUsers, setTotalUsers] = useState("Loading...");
   const [totalInstitutes, setTotalInstitutes] = useState("Loading...");
+  const [totalTutors, setTotalTutors] = useState("Loading...");
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -15,10 +16,14 @@ const AdminStatsGrid = () => {
         if (data.totalInstitutes !== undefined) {
           setTotalInstitutes(data.totalInstitutes.toLocaleString());
         }
+        if (data.totalTutors !== undefined) {
+          setTotalTutors(data.totalTutors.toLocaleString());
+        }
       } catch (error) {
         console.error("Failed to fetch admin stats:", error);
         setTotalUsers("Error");
         setTotalInstitutes("Error");
+        setTotalTutors("Error");
       }
     };
     fetchStats();
@@ -49,11 +54,11 @@ const AdminStatsGrid = () => {
       change: "+120"
     },
     {
-      label: "Pending Approvals",
-      value: "15",
-      icon: AlertCircle,
+      label: "Total Tutors",
+      value: totalTutors,
+      icon: GraduationCap,
       color: "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400",
-      change: "Action Req"
+      change: "+12"
     }
   ];
 
