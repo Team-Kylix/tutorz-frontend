@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   LayoutDashboard, Users, BookOpen, Calendar, DollarSign,
   FileText, QrCode, Settings, ChevronRight, ChevronLeft, LogOut,
-  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus, Clock, Info, CloudOff
+  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus, Clock, Info, CloudOff, MessageSquareWarning
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SidebarItem from '../molecules/SidebarItem';
@@ -94,6 +94,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'profile', label: 'Profile & QR', icon: QrCode },
+    { id: 'complains', label: 'Complains', icon: MessageSquareWarning },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -104,6 +105,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'attendance', label: 'My Attendance', icon: Calendar },
     { id: 'financials', label: 'My Financials', icon: DollarSign },
     { id: 'profile', label: 'My Profile', icon: QrCode },
+    { id: 'complains', label: 'Complains', icon: MessageSquareWarning },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -118,6 +120,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
     { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
     { id: 'profile', label: 'Profile & QR', icon: QrCode },
+    { id: 'complains', label: 'Complains', icon: MessageSquareWarning },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
