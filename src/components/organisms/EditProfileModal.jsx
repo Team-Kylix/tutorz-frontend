@@ -184,6 +184,10 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
             case 'tutor':
                 expectedFields = ['firstName', 'lastName', 'bio', 'address', 'cityId'];
                 break;
+            case 'admin':
+            case 'superadmin':
+                expectedFields = ['firstName', 'lastName', 'address'];
+                break;
         }
 
         expectedFields.forEach(key => {
@@ -246,7 +250,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                                 <FormField id="instituteName" label="Institute Name" value={formData.instituteName} onChange={handleChange} required />
                             </div>
                         ) : (
-                            // Tutor/Student Top Fields
+                            // Admin/Tutor/Student Top Fields
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required />
                                 <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required />
@@ -291,7 +295,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                     {/* --- SECTION 3: Role Specific Details --- */}
                     <div className="space-y-4">
                         <h3 className="text-sm font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">
-                            {normalizedRole === 'tutor' ? 'Financial Details' : normalizedRole === 'institute' ? 'Location & Web' : 'Academic Details'}
+                            {normalizedRole === 'tutor' ? 'Financial Details' : normalizedRole === 'institute' ? 'Location & Web' : normalizedRole === 'student' ? 'Academic Details' : 'Additional Details'}
                         </h3>
 
                         {/* A. TUTOR FIELDS (Now standardized with location) */}
@@ -360,18 +364,27 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                                 <FormField id="website" label="Website" value={formData.website} onChange={handleChange} placeholder="https://..." />
                             </>
                         )}
+
+                        {/* D. ADMIN FIELDS */}
+                        {(normalizedRole === 'admin' || normalizedRole === 'superadmin') && (
+                            <>
+                                <FormField id="address" label="Street Address" value={formData.address} onChange={handleChange} placeholder="e.g. No 15, Main Street" />
+                            </>
+                        )}
                     </div>
 
                     {/* --- SECTION 4: Payment & Banking --- */}
-                    <div className="space-y-4 border-t border-gray-100 dark:border-gray-700 pt-6">
-                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2">
-                            <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-                                Payment &amp; Banking
-                            </h3>
-                            <span className="text-xs text-gray-400 dark:text-gray-500">Manage your saved accounts</span>
+                    {(normalizedRole !== 'admin' && normalizedRole !== 'superadmin') && (
+                        <div className="space-y-4 border-t border-gray-100 dark:border-gray-700 pt-6">
+                            <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2">
+                                <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                                    Payment &amp; Banking
+                                </h3>
+                                <span className="text-xs text-gray-400 dark:text-gray-500">Manage your saved accounts</span>
+                            </div>
+                            <FinancialsSection role={role} readOnly={false} />
                         </div>
-                        <FinancialsSection role={role} readOnly={false} />
-                    </div>
+                    )}
 
                     {/* --- Footer Buttons --- */}
                     <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">

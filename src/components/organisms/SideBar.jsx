@@ -19,6 +19,7 @@ import { updateUser } from '../../store/authSlice';
 import { getTutorProfile } from '../../services/api/tutorService';
 import { getStudentProfile } from '../../services/api/studentService';
 import { getInstituteProfile } from '../../services/api/instituteService';
+import { getAdminProfile } from '../../services/api/adminService';
 
 const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const navigate = useNavigate();
@@ -39,6 +40,8 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
           case ROLES.TUTOR: result = await getTutorProfile(); break;
           case ROLES.STUDENT: result = await getStudentProfile(); break;
           case ROLES.INSTITUTE: result = await getInstituteProfile(); break;
+          case ROLES.ADMIN:
+          case ROLES.SUPERADMIN: result = await getAdminProfile(); break;
           default: return;
         }
 
@@ -134,12 +137,14 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'financials', label: 'Platform Finance', icon: DollarSign },
     { id: 'disputes', label: 'Disputes', icon: ShieldAlert },
     { id: 'reports', label: 'System Reports', icon: FileText },
+    { id: 'profile', label: 'My Profile', icon: QrCode },
     { id: 'settings', label: 'System Config', icon: Settings },
   ];
 
   const getMenuItems = () => {
     switch (user?.role) {
-      case ROLES.ADMIN: return adminMenu;
+      case ROLES.ADMIN:
+      case ROLES.SUPERADMIN: return adminMenu;
       case ROLES.TUTOR: return tutorMenu;
       case ROLES.INSTITUTE: return instituteMenu;
       case ROLES.STUDENT: return studentMenu;

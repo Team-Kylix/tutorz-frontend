@@ -63,4 +63,35 @@ export const getAllInstitutes = async (searchQuery = '', page = 1, pageSize = 10
   } catch (error) {
     throw error.response?.data || { message: 'Failed to fetch institutes' };
   }
-};
+};
+
+export const createAdmin = async (adminData) => {
+  try {
+    const response = await apiClient.post('/system/admin', adminData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to create admin' };
+  }
+};
+
+export const getAdminProfile = async () => {
+  try {
+    const response = await apiClient.get('/system/admin/profile');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch admin profile' };
+  }
+};
+
+export const updateAdminProfile = async (formData) => {
+  try {
+    const response = await apiClient.put('/system/admin/profile', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to update admin profile' };
+  }
+};

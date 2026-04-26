@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, CheckCircle2, UserPlus, Loader2, AlertCircle, GraduationCap, Save } from 'lucide-react';
+import { Search, CheckCircle2, UserPlus, Loader2, AlertCircle, GraduationCap, Save, ShieldAlert } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { enqueueAction, SYNC_ACTION_TYPES } from '../../store/syncSlice';
 import Modal from '../molecules/Modal';
@@ -24,9 +24,9 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
     const dispatch = useDispatch();
     
     // Flow states
-    // steps: 'role-picker' | 'choice' | 'search' | 'check' | 'register-student' | 'register-tutor' | 'success'
+    // steps: 'role-picker' | 'choice' | 'search' | 'check' | 'register-student' | 'register-tutor' | 'register-admin' | 'success'
     const [step, setStep] = useState('role-picker');
-    const [selectedRole, setSelectedRole] = useState(type); // 'Student' or 'Tutor'
+    const [selectedRole, setSelectedRole] = useState(type); // 'Student', 'Tutor', or 'Admin'
 
     // Institute Profile
     const [instituteProfile, setInstituteProfile] = useState(null);
@@ -105,8 +105,8 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             setSiblingVerificationToken(null);
             setIsRegistering(false);
 
-            // Fetch profile if needed
-            if (!instituteProfile && user?.userId) {
+            // Fetch profile if needed (only for Institutes)
+            if (user?.role === 'Institute' && !instituteProfile && user?.userId) {
                 getInstituteProfile(user.userId).then(res => {
                     if (res?.success) setInstituteProfile(res.data);
                 }).catch(err => console.error("Failed to fetch institute profile", err));
@@ -127,6 +127,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
         debounceTimer.current = setTimeout(async () => {
             setIsSearching(true);
             try {
+                // Admins don't have a lookup yet in this modal
                 const searchFn = selectedRole === 'Student' ? searchStudents : searchTutors;
                 const res = await searchFn(query.trim());
                 setResults(res.data || []);
@@ -173,7 +174,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
         if (step === 'check') {
             if (type) onClose(); // If type was forced, closing goes back completely
             else setStep('role-picker'); // Otherwise back to role picker
-        } else if (step === 'search' || step === 'register-student' || step === 'register-tutor') {
+        } else if (step === 'search' || step.startsWith('register-')) {
             setStep('check');
         } else {
             onClose();
@@ -181,7 +182,6 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
     };
 
     const handleResetToChoice = () => {
-        // Specifically used after "Done" or "Add Another" in Success view
         setCheckData({ email: '', mobile: '' });
         setFormData({ mobile: '', firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
         setErrors({});
@@ -235,7 +235,6 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             
             await Promise.all(checkPromises);
 
-            // Cross-validation if both are entered
             if (mobileStr && emailStr) {
                  if (mobileRes?.exists && emailRes?.exists) {
                       if (mobileRes.userId !== emailRes.userId) {
@@ -258,7 +257,8 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
 
             if (result.exists) {
                 setExistingUser(result);
-                if (result.role === selectedRole) {
+                // Admins don't have a "search and link" flow in this project yet, so if an Admin account exists, we just stop.
+                if (result.role === selectedRole && selectedRole !== 'Admin') {
                     setQuery(mobileStr || emailStr);
                     setStep('search');
                 } else {
@@ -268,7 +268,10 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 setFormData({ mobile: mobileStr, firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
                 setErrors({});
                 setGlobalError(null);
-                setStep(selectedRole === 'Student' ? 'register-student' : 'register-tutor');
+                
+                if (selectedRole === 'Student') setStep('register-student');
+                else if (selectedRole === 'Tutor') setStep('register-tutor');
+                else if (selectedRole === 'Admin') setStep('register-admin');
             }
         } catch {
             setCheckError("Failed to verify user. Please try again.");
@@ -305,7 +308,6 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 setErrors({});
                 setStep('register-student');
             } else {
-                // New registration - OTP is verified DURING the actual register call
                 setIsOtpModalOpen(false);
                 await performFinalRegistration(otpCode);
             }
@@ -320,25 +322,25 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
         try {
             const isSibling = isSiblingRegistration && selectedRole === 'Student';
             
-            // Background sync queue dispatch
+            let actionType = SYNC_ACTION_TYPES.REGISTER_USER;
+            let actualPayload = { isSibling, registrationData: payload };
+            let dedupeKey = `register_${payload.phoneNumber || payload.identifier}`;
+
+            if (selectedRole === 'Admin') {
+                actionType = SYNC_ACTION_TYPES.CREATE_ADMIN;
+                actualPayload = { adminData: payload };
+                dedupeKey = `create_admin_${payload.phoneNumber}`;
+            }
+
             dispatch(enqueueAction({
-                actionType: SYNC_ACTION_TYPES.REGISTER_USER,
-                payload: {
-                    isSibling,
-                    registrationData: payload
-                },
+                actionType,
+                payload: actualPayload,
                 label: `Register ${selectedRole}: ${payload.firstName}`,
-                dedupeKey: `register_${payload.phoneNumber || payload.identifier}`
+                dedupeKey
             }));
             
-            // Instantly transition to Success view
             setStep('success');
-            
-            try {
-                if (onAssigned) onAssigned();
-            } catch (e) {
-                console.error("Callback error after registration:", e);
-            }
+            if (onAssigned) onAssigned();
         } catch (err) {
             setGlobalError(err.message || "Registration Failed");
         } finally {
@@ -371,7 +373,6 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
         }
 
         if (!isSiblingRegistration && !checkData.mobile) {
-            // They entered mobile directly here, so we must check if it already exists
             setIsRegistering(true);
             try {
                 const result = await checkUserStatus({ phoneNumber: formData.mobile.trim() });
@@ -391,8 +392,6 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
         if (isSiblingRegistration) {
             await performFinalRegistration(siblingVerificationToken);
         } else {
-            // New Registration - By Institute, no OTP required.
-            // Backend handles account creation and sends welcome SMS automatically.
             setRegistrationMode('new');
             await performFinalRegistration(null);
         }
@@ -402,6 +401,20 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
         const mobileStr = formData.mobile.trim();
         const generatedPassword = mobileStr && mobileStr.length >= 6 ? mobileStr.slice(-6) : "123456";
         const instId = instituteProfile?.instituteId || user?.instituteId;
+
+        if (selectedRole === 'Admin') {
+            await executeRegister({
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                phoneNumber: mobileStr,
+                email: checkData.email ? checkData.email : null
+            });
+            setSuccessMessage({ 
+                title: "Admin Created Successfully!", 
+                message: `The new Admin account has been provisioned.\n\nCredentials have been sent to ${mobileStr} via SMS.` 
+            });
+            return;
+        }
 
         if (selectedRole === 'Student') {
             if (isSiblingRegistration) {
@@ -573,13 +586,15 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                         onChange={(e) => setCheckData({ ...checkData, mobile: e.target.value })}
                         autoFocus
                     />
-                    <FormField
-                        id="email"
-                        label="Email Address (Optional)"
-                        placeholder={`${selectedRole?.toLowerCase() || 'user'}@example.com`}
-                        value={checkData.email}
-                        onChange={(e) => setCheckData({ ...checkData, email: e.target.value })}
-                    />
+                    {selectedRole !== 'Admin' && (
+                        <FormField
+                            id="email"
+                            label="Email Address (Optional)"
+                            placeholder={`${selectedRole?.toLowerCase() || 'user'}@example.com`}
+                            value={checkData.email}
+                            onChange={(e) => setCheckData({ ...checkData, email: e.target.value })}
+                        />
+                    )}
                 </div>
                 {checkError && <p className="text-xs text-red-500 flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> {checkError}</p>}
                 <Button type="submit" fullWidth disabled={isChecking}>
@@ -591,22 +606,25 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
 
     const renderRegisterForm = () => {
         const isTutor = selectedRole === 'Tutor';
-        const color = isTutor ? 'purple' : 'blue';
+        const isAdmin = selectedRole === 'Admin';
+        const isStudent = selectedRole === 'Student';
+        const color = isTutor ? 'purple' : (isAdmin ? 'red' : 'blue');
+        const icon = isAdmin ? ShieldAlert : (isTutor ? UserPlus : GraduationCap);
 
         return (
             <>
                 {renderHeader(`New ${selectedRole} Registration`)}
                 <form onSubmit={handleRegisterSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
-                    {(checkData.email || isTutor) && (
+                    {(checkData.email || isTutor || isAdmin) && (
                         <div className={`bg-${color}-50 dark:bg-${color}-900/20 p-3 rounded-lg border border-${color}-100 dark:border-${color}-800 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4`}>
                             {checkData.email && (
                                 <div><p className={`text-[10px] text-${color}-600 dark:text-${color}-400 font-semibold uppercase`}>Email</p><p className={`font-mono text-sm font-bold text-${color}-800 dark:text-${color}-300 truncate`}>{checkData.email}</p></div>
                             )}
-                            {isTutor && (
+                            {(isTutor || isAdmin) && (
                                 <div className="min-w-0">
-                                    <p className={`text-[10px] text-${color}-600 dark:text-${color}-400 font-semibold uppercase`}>Affiliation</p>
+                                    <p className={`text-[10px] text-${color}-600 dark:text-${color}-400 font-semibold uppercase`}>{isAdmin ? 'Control Level' : 'Affiliation'}</p>
                                     <p className={`truncate text-sm font-bold text-${color}-800 dark:text-${color}-300`}>
-                                        {instituteProfile?.instituteName ? `Linked to ${instituteProfile.instituteName}` : "Institute Primary Location"}
+                                        {isAdmin ? "Full System Access" : (instituteProfile?.instituteName ? `Linked to ${instituteProfile.instituteName}` : "Institute Primary Location")}
                                     </p>
                                 </div>
                             )}
@@ -631,7 +649,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                         <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={(e) => handleFormChange('lastName', e.target.value)} error={errors.lastName} required />
                     </div>
 
-                    {!isTutor && (
+                    {isStudent && (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Grade <span className="text-red-500 dark:text-red-400">*</span></label>
                             <Select value={formData.grade} onChange={(e) => handleFormChange('grade', e.target.value)} required 
@@ -647,8 +665,6 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                             {errors.grade && <p className="text-xs text-red-500 dark:text-red-400 mt-1">{errors.grade}</p>}
                         </div>
                     )}
-
-
 
                     {globalError && <p className="text-sm font-medium text-red-500 dark:text-red-400 mt-2 text-center">{globalError}</p>}
 
@@ -672,7 +688,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{successMessage.title}</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 whitespace-pre-line">{successMessage.message}</p>
             <div className="flex gap-3 justify-center">
-                <Button variant="secondary" onClick={handleResetToChoice}>Add Another</Button>
+                {type !== 'Admin' && <Button variant="secondary" onClick={handleResetToChoice}>Add Another</Button>}
                 <Button variant="primary" onClick={onClose}>Done</Button>
             </div>
         </div>
@@ -685,7 +701,8 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             case 'search': content = renderSearch(); break;
             case 'check': content = renderCheck(); break;
             case 'register-student': 
-            case 'register-tutor': content = renderRegisterForm(); break;
+            case 'register-tutor':
+            case 'register-admin': content = renderRegisterForm(); break;
             case 'success': content = renderSuccess(); break;
             default: content = null;
         }
@@ -697,7 +714,6 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 {content}
             </Modal>
 
-            {/* Sub Modals rendered outside so they overlay properly if needed */}
             <ConfirmationModal
                 isOpen={isExistingUserModalOpen}
                 onClose={() => setIsExistingUserModalOpen(false)}

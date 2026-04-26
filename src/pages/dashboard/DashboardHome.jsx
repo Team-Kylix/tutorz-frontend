@@ -143,6 +143,7 @@ const DashboardHome = ({ activePage, setActivePage }) => {
       return <InstituteDashboard user={user} setActivePage={setActivePage} />;
 
     case ROLES.ADMIN:
+    case ROLES.SUPERADMIN:
       return <AdminDashboard user={user} />;
 
     default:

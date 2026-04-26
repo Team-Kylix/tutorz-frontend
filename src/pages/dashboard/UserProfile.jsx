@@ -12,6 +12,7 @@ import { enqueueAction, SYNC_ACTION_TYPES } from '../../store/syncSlice';
 import { getTutorProfile, updateTutorProfile } from '../../services/api/tutorService';
 import { getStudentProfile, updateStudentProfile } from '../../services/api/studentService';
 import { getInstituteProfile, updateInstituteProfile } from '../../services/api/instituteService';
+import { getAdminProfile, updateAdminProfile } from '../../services/api/adminService';
 import { getProvinces, getDistricts, getCities } from '../../services/api/locationService';
 
 // Components
@@ -47,6 +48,8 @@ const UserProfile = () => {
                 case ROLES.TUTOR: result = await getTutorProfile(); break;
                 case ROLES.STUDENT: result = await getStudentProfile(); break;
                 case ROLES.INSTITUTE: result = await getInstituteProfile(); break;
+                case ROLES.ADMIN:
+                case ROLES.SUPERADMIN: result = await getAdminProfile(); break;
                 default: throw new Error("Unknown Role");
             }
 
@@ -169,6 +172,8 @@ const UserProfile = () => {
                     case ROLES.TUTOR:     updateFn = updateTutorProfile; break;
                     case ROLES.STUDENT:   updateFn = updateStudentProfile; break;
                     case ROLES.INSTITUTE: updateFn = updateInstituteProfile; break;
+                    case ROLES.ADMIN:
+                    case ROLES.SUPERADMIN: updateFn = updateAdminProfile; break;
                     default: throw new Error(`Unknown role: ${role}`);
                 }
 
@@ -348,6 +353,7 @@ const UserProfile = () => {
         if (role === ROLES.TUTOR) return "Financial Information";
         if (role === ROLES.STUDENT) return "Academic & Payment";
         if (role === ROLES.INSTITUTE) return "Location & Financials";
+        if (role === ROLES.ADMIN || role === ROLES.SUPERADMIN) return "Role Information";
         return "Details";
     };
 
