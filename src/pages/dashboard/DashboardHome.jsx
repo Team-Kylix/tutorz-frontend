@@ -30,8 +30,7 @@ import AdminStudentsPage from './AdminStudentsPage';
 import AdminTeachersPage from './AdminTeachersPage';
 import AdminInstitutesPage from './AdminInstitutesPage';
 import AboutUsContent from '../../components/organisms/AboutUsContent';
-import ComplaintsContent from '../../components/organisms/ComplaintsContent';
-import AdminDisputesContent from '../../components/organisms/AdminDisputesContent';
+import DisputesPage from './DisputesPage';
 
 const DashboardHome = ({ activePage, setActivePage }) => {
   const { user } = useAuth();
@@ -121,14 +120,9 @@ const DashboardHome = ({ activePage, setActivePage }) => {
     );
   }
 
-  // Complaints — available for Tutor, Student, Institute
-  if (activePage === 'complains') {
-    return <ComplaintsContent />;
-  }
-
-  // Disputes — admin view
-  if (activePage === 'disputes') {
-    return <AdminDisputesContent />;
+  // Complaints & Disputes — unified view for all roles
+  if (activePage === 'complains' || activePage === 'disputes') {
+    return <DisputesPage />;
   }
 
   // --- DASHBOARD RENDERING ---
