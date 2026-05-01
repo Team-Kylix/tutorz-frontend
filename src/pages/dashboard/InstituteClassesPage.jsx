@@ -263,6 +263,7 @@ const InstituteClassesPage = () => {
                                 <th className="px-6 py-4 font-semibold">Date / Day</th>
                                 <th className="px-6 py-4 font-semibold">Hall Number</th>
                                 <th className="px-6 py-4 font-semibold">Fees (Rs)</th>
+                                <th className="px-6 py-4 font-semibold text-center">Commission %</th>
                                 <th className="px-6 py-4 font-semibold text-center">Students</th>
                             </tr>
                         </thead>
@@ -319,6 +320,11 @@ const InstituteClassesPage = () => {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-center">
+                                            <div className="inline-flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 px-2.5 py-1 rounded-full text-xs font-bold min-w-[3rem]">
+                                                {Number(cls.instituteCommissionRate ?? 0).toFixed(0)}%
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
                                             <div className="inline-flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full text-sm font-bold min-w-[3rem]">
                                                 {cls.studentRegisteredCount || 0}
                                             </div>
@@ -327,7 +333,7 @@ const InstituteClassesPage = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center">
+                                    <td colSpan={8} className="px-6 py-12 text-center">
                                         {isLoading ? (
                                             <div className="flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
                                                 <RefreshCw size={24} className="animate-spin text-blue-500 mb-3" />

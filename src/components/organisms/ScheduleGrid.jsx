@@ -3,6 +3,7 @@ import { format, isSameDay } from 'date-fns';
 import { ArrowLeft, CalendarDays, RefreshCw } from 'lucide-react';
 import { getTimetableByDate as getInstituteTimetable } from '../../services/api/instituteService';
 import { getTimetableByDate as getStudentTimetable } from '../../services/api/studentService';
+import { getClasses as getTutorClasses } from '../../services/api/tutorService';
 import HallColumn from '../molecules/HallColumn';
 import ClassFormModal from './ClassFormModal';
 import { useAuth } from '../../hooks/useAuth';
@@ -91,15 +92,43 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
             setIsLoading(true);
             setError(null);
             try {
-                let res;
+                let rawList = [];
+
                 if (user?.role === ROLES.STUDENT) {
-                    res = await getStudentTimetable(viewDate);
+                    // Student: fetch enrolled classes for this specific date
+                    const res = await getStudentTimetable(viewDate);
+                    rawList = res?.data || [];
+
+                } else if (user?.role === ROLES.INSTITUTE) {
+                    // Institute: fetch all institute classes for this specific date
+                    const res = await getInstituteTimetable(viewDate);
+                    rawList = res?.data || [];
+
+                } else if (user?.role === ROLES.TUTOR) {
+                    // Tutor: fetch ALL tutor classes then filter client-side by the selected date.
+                    // The backend has no date-filtered tutor timetable endpoint, so we filter here:
+                    //   - For recurring classes (classType === 'Class'): match by day-of-week
+                    //   - For one-time classes (Workshop/Seminar/etc.): match by exact date
+                    const res = await getTutorClasses();
+                    const allClasses = res?.data || res || [];
+                    const dayName = format(viewDate, 'EEEE'); // e.g. "Monday"
+                    const dateStr = format(viewDate, 'yyyy-MM-dd');
+                    rawList = allClasses.filter((c) => {
+                        if (c.classType === 'Class') {
+                            return c.dayOfWeek === dayName;
+                        }
+                        // One-time session: compare date portion only
+                        const classDate = c.date ? c.date.split('T')[0] : null;
+                        return classDate === dateStr;
+                    });
+
                 } else {
-                    res = await getInstituteTimetable(viewDate);
+                    // Unknown role — show nothing, make no API call
+                    rawList = [];
                 }
-                const rawClasses = res?.data || [];
-                setRawClasses(rawClasses);
-                setClasses(rawClasses.map(mapClassToCard));
+
+                setRawClasses(rawList);
+                setClasses(rawList.map(mapClassToCard));
             } catch (err) {
                 console.error('Failed to load timetable:', err);
                 setError('Failed to load classes. Please try again.');
@@ -109,7 +138,7 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
             }
         };
         fetchClasses();
-    }, [viewDate]);
+    }, [viewDate, user?.role]);
 
     // Scroll to current time after classes render (grid only shows when classes.length > 0)
     useEffect(() => {

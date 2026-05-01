@@ -39,7 +39,8 @@ const ClassFormModal = ({
     tutorId: '', // Added for Institute mode
     tutorName: '', // Added for Institute mode
     fee: '',
-    isActive: true
+    isActive: true,
+    instituteCommissionRate: 0  // Commission rate: editable for institute, read-only for tutor
   });
 
   const [timeError, setTimeError] = useState('');
@@ -181,7 +182,8 @@ const ClassFormModal = ({
         tutorId: initialData.tutorId || '', // Ensure tutorId gets mapped
         dayOfWeek: initialData.dayOfWeek || 'Monday',
         date: initialData.date ? initialData.date.split('T')[0] : '',
-        isActive: initialData.isActive ?? true
+        isActive: initialData.isActive ?? true,
+        instituteCommissionRate: Number(initialData.instituteCommissionRate ?? 0)
       };
 
       if (isInstituteMode && instituteProfile) {
@@ -211,12 +213,15 @@ const ClassFormModal = ({
         tutorId: '',
         tutorName: '',
         fee: '',
-        isActive: true
+        isActive: true,
+        instituteCommissionRate: 0
       };
 
       if (isInstituteMode && instituteProfile) {
         newFormData.instituteId = instituteProfile.instituteId || instituteProfile.id;
         newFormData.instituteName = instituteProfile.instituteName || instituteProfile.name;
+        // Default commission rate from the institute's configured setting
+        newFormData.instituteCommissionRate = Number(instituteProfile.commissionPercentage ?? 25);
       }
       setFormData(newFormData);
       setTutorQuery('');
@@ -246,14 +251,20 @@ const ClassFormModal = ({
     setFormData((prev) => {
       const updates = { [name]: type === 'checkbox' ? checked : value };
 
-      // If changing institute, also capture the text name
+      // If changing institute (tutor mode), also capture commission rate from the institutes list
       if (name === 'instituteId') {
         if (value === 'OWN_PLACE') {
           updates.instituteName = 'My Own Place';
           updates.hallId = null;
           updates.hallName = 'N/A';
+          updates.instituteCommissionRate = 0;
         } else {
           updates.instituteName = options[selectedIndex].text;
+          // Auto-populate commission rate from the selected institute's data
+          const selectedInst = institutes.find(
+            (i) => String(i.instituteId || i.id) === String(value)
+          );
+          updates.instituteCommissionRate = Number(selectedInst?.commissionPercentage ?? 0);
         }
       }
       // If changing hall, also capture the text name
@@ -419,6 +430,7 @@ const ClassFormModal = ({
       tutorId: formData.tutorId === '' ? null : formData.tutorId,
       hallId: formData.hallId === '' ? null : formData.hallId,
       fee: parseFloat(formData.fee),
+      instituteCommissionRate: parseFloat(formData.instituteCommissionRate ?? 0),
       dayOfWeek: finalDayString,
       date: finalDate
     };
@@ -739,6 +751,54 @@ const ClassFormModal = ({
               />
             </div>
 
+            {/* 4b. Commission Rate — shown for both Institute and Tutor modes */}
+            {isInstituteMode ? (
+              /* Institute mode: editable commission rate field */
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>
+                  Institute Commission Rate <span className="text-xs text-gray-400 font-normal">(0–100%)</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="instituteCommissionRate"
+                    name="instituteCommissionRate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={formData.instituteCommissionRate}
+                    onChange={handleChange}
+                    className={`${inputClass} max-w-[140px]`}
+                    placeholder="e.g. 25"
+                  />
+                  <span className="text-sm font-bold text-gray-500 dark:text-gray-400">%</span>
+                  {Number(formData.instituteCommissionRate) > 0 && (
+                    <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                      Institute keeps {formData.instituteCommissionRate}% of fee revenue
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* Tutor mode: read-only commission rate info badge */
+              formData.instituteId && formData.instituteId !== 'OWN_PLACE' && (
+                <div className="flex flex-col gap-1">
+                  <label className={labelClass}>Institute Commission Rate</label>
+                  <div className="flex items-center gap-2">
+                    <div className="px-3 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800/50 flex items-center gap-2">
+                      <span className="text-indigo-700 dark:text-indigo-300 font-bold text-sm">
+                        {Number(formData.instituteCommissionRate ?? 0)}%
+                      </span>
+                      <span className="text-xs text-indigo-500 dark:text-indigo-400">
+                        institute commission
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-400 italic">Set by institute — not editable</span>
+                  </div>
+                </div>
+              )
+            )}
+
             {/* 5. Auto-generated Name (Read Only) */}
             <div className="flex flex-col gap-1 pt-2">
               <label className={labelClass}>
@@ -825,6 +885,7 @@ const ClassFormModal = ({
                         initialData.hallName === formData.hallName &&
                         initialData.fee == formData.fee &&
                         (initialData.isActive ?? true) === formData.isActive &&
+                        Number(initialData.instituteCommissionRate ?? 0) === Number(formData.instituteCommissionRate ?? 0) &&
                         (!isInstituteMode || initialData.tutorId === formData.tutorId)
                       )}
                       className={`w-full sm:w-auto px-6 py-2 rounded-lg text-sm font-medium transition-colors ${isSubmitting || (
@@ -840,6 +901,7 @@ const ClassFormModal = ({
                         initialData.hallName === formData.hallName &&
                         initialData.fee == formData.fee &&
                         (initialData.isActive ?? true) === formData.isActive &&
+                        Number(initialData.instituteCommissionRate ?? 0) === Number(formData.instituteCommissionRate ?? 0) &&
                         (!isInstituteMode || initialData.tutorId === formData.tutorId)
                       )
                         ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed'

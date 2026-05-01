@@ -1,7 +1,8 @@
 import axios from 'axios';
-import { store } from '../../store';
+import { store, persistor } from '../../store';
 import { logout } from '../../store/authSlice';
 import { invalidateDashboard, clearDashboard } from '../../store/dashboardSlice';
+import { clearSyncQueue } from '../../store/syncSlice';
 
 // IMPORTANT: Update this URL to match backend!
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'https://localhost:7010';
@@ -47,9 +48,20 @@ apiClient.interceptors.response.use(
     if (error.response) {
       // The server responded with an error status code
       if (error.response.status === 401) {
-        // Session expired or invalid token — log the user out immediately
-        store.dispatch(logout());
-        store.dispatch(clearDashboard());
+        // Session expired or invalid token — full nuclear wipe then redirect
+        (async () => {
+          await persistor.purge();
+          store.dispatch(logout());
+          store.dispatch(clearDashboard());
+          store.dispatch(clearSyncQueue());
+          if ('caches' in window) {
+            const names = await caches.keys();
+            await Promise.all(names.map((n) => caches.delete(n)));
+          }
+          localStorage.clear();
+          sessionStorage.clear();
+          window.location.href = '/';
+        })();
       }
       // For all other server errors (403, 500, etc.), reject as normal
       return Promise.reject(error);
