@@ -4,7 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   LayoutDashboard, Users, BookOpen, Calendar, DollarSign,
   FileText, QrCode, Settings, ChevronRight, ChevronLeft, LogOut,
-  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus, Clock, Info, CloudOff, MessageSquareWarning
+  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus, Clock, Info, CloudOff, MessageSquareWarning,
+  Bell, Receipt, CreditCard, HelpCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SidebarItem from '../molecules/SidebarItem';
@@ -105,8 +106,10 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
     { id: 'timetable', label: 'Timetable', icon: Clock },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
+    { id: 'financials', label: 'Financials', icon: CreditCard },
     { id: 'attendance', label: 'My Attendance', icon: Calendar },
-    { id: 'financials', label: 'My Financials', icon: DollarSign },
     { id: 'profile', label: 'My Profile', icon: QrCode },
     { id: 'complains', label: 'Complains', icon: MessageSquareWarning },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -134,8 +137,10 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'admin-teachers', label: 'Teachers', icon: UserCheck },
     { id: 'users', label: 'User Management', icon: UserCog },
     { id: 'approvals', label: 'Pending Approvals', icon: CheckSquare },
-    { id: 'financials', label: 'Platform Finance', icon: DollarSign },
-    { id: 'disputes', label: 'Disputes', icon: ShieldAlert },
+    { id: 'financials', label: 'Financials', icon: CreditCard },
+    { id: 'platform-finance', label: 'Platform Finance', icon: DollarSign },
+    { id: 'system-config', label: 'System Configuration', icon: Settings },
+    { id: 'disputes', label: 'Disputes', icon: HelpCircle },
     { id: 'reports', label: 'System Reports', icon: FileText },
     { id: 'profile', label: 'My Profile', icon: QrCode },
     { id: 'settings', label: 'System Config', icon: Settings },

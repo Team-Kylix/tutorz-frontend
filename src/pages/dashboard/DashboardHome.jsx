@@ -29,6 +29,9 @@ import SettingsPage from './SettingsPage';
 import AdminStudentsPage from './AdminStudentsPage';
 import AdminTeachersPage from './AdminTeachersPage';
 import AdminInstitutesPage from './AdminInstitutesPage';
+import AdminPlatformFinancePage from './AdminPlatformFinancePage';
+import UserPlatformFinancePage from './UserPlatformFinancePage';
+import AdminSystemConfigPage from './AdminSystemConfigPage';
 import AboutUsContent from '../../components/organisms/AboutUsContent';
 import DisputesPage from './DisputesPage';
 
@@ -108,6 +111,20 @@ const DashboardHome = ({ activePage, setActivePage }) => {
   }
 
   if (activePage === 'settings') {
+    return <SettingsPage user={user} />;
+  }
+
+  if (activePage === 'platform-finance') {
+    if (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'superadmin') {
+      return <AdminPlatformFinancePage />;
+    }
+    return <UserPlatformFinancePage />;
+  }
+
+  if (activePage === 'system-config') {
+    if (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'superadmin') {
+      return <AdminSystemConfigPage />;
+    }
     return <SettingsPage user={user} />;
   }
 
