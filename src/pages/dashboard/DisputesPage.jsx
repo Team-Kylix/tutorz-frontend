@@ -16,11 +16,11 @@ import CreateComplaintModal from '../../components/organisms/CreateComplaintModa
 // ─── Shared Components & Config ───────────────────────────────────────────────
 
 const STATUS_CONFIG = {
-  0: { label: 'Pending',      color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',   icon: Clock },
-  1: { label: 'Under Review', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',       icon: ShieldAlert },
-  2: { label: 'Resolved',     color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',   icon: CheckCircle },
-  3: { label: 'Rejected',     color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',           icon: XCircle },
-  4: { label: 'Closed',       color: 'bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:text-gray-400',       icon: XCircle },
+  0: { label: 'Pending', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', icon: Clock },
+  1: { label: 'Under Review', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', icon: ShieldAlert },
+  2: { label: 'Resolved', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', icon: CheckCircle },
+  3: { label: 'Rejected', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', icon: XCircle },
+  4: { label: 'Closed', color: 'bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:text-gray-400', icon: XCircle },
 };
 
 const StatusBadge = ({ status, label }) => {
@@ -36,10 +36,10 @@ const StatusBadge = ({ status, label }) => {
 // ─── ADMIN VIEW COMPONENTS ───────────────────────────────────────────────────
 
 const AdminDisputeDetailModal = ({ dispute, onClose, onStatusUpdated, isSuperAdmin, currentUserId }) => {
-  const [status, setStatus]       = useState(dispute.status);
+  const [status, setStatus] = useState(dispute.status);
   const [adminNote, setAdminNote] = useState(dispute.adminNote || '');
   const [isUpdating, setIsUpdating] = useState(false);
-  const [updateError, setUpdateError]   = useState('');
+  const [updateError, setUpdateError] = useState('');
   const [updateSuccess, setUpdateSuccess] = useState('');
 
   const isLockedByOtherAdmin =
@@ -83,9 +83,8 @@ const AdminDisputeDetailModal = ({ dispute, onClose, onStatusUpdated, isSuperAdm
 
         <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
           {dispute.assignedAdminUserId && (
-            <div className={`flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-medium ${
-              isLockedByOtherAdmin ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 border border-amber-200' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 border border-blue-200'
-            }`}>
+            <div className={`flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-medium ${isLockedByOtherAdmin ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 border border-amber-200' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 border border-blue-200'
+              }`}>
               {isLockedByOtherAdmin ? <Lock size={15} /> : <UserCheck size={15} />}
               <span>{isLockedByOtherAdmin ? `Handled by ${dispute.assignedAdminName}` : `You are handling this dispute`}</span>
             </div>
@@ -93,12 +92,14 @@ const AdminDisputeDetailModal = ({ dispute, onClose, onStatusUpdated, isSuperAdm
 
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: 'Submitted By', value: (
-                <div className="flex flex-col">
-                  <span className="font-semibold">{dispute.raisedByName}</span>
-                  <span className="text-xs opacity-60">{dispute.raisedByRole} • {dispute.raisedByPhone}</span>
-                </div>
-              )},
+              {
+                label: 'Submitted By', value: (
+                  <div className="flex flex-col">
+                    <span className="font-semibold">{dispute.raisedByName}</span>
+                    <span className="text-xs opacity-60">{dispute.raisedByRole} • {dispute.raisedByPhone}</span>
+                  </div>
+                )
+              },
               { label: 'Category', value: dispute.categoryLabel },
               { label: 'Date', value: date },
               { label: 'Current Status', value: <StatusBadge status={dispute.status} /> }
@@ -181,9 +182,8 @@ const TrackingTimeline = ({ status }) => {
         return (
           <React.Fragment key={step.key}>
             <div className="flex flex-col items-center">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
-                isCompleted ? 'bg-indigo-600 border-indigo-600 text-white' : isActive ? 'border-indigo-400 text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-300 dark:border-gray-600 text-gray-400 bg-gray-50 dark:bg-gray-800'
-              }`}>
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${isCompleted ? 'bg-indigo-600 border-indigo-600 text-white' : isActive ? 'border-indigo-400 text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-300 dark:border-gray-600 text-gray-400 bg-gray-50 dark:bg-gray-800'
+                }`}>
                 {isCompleted ? <CheckCircle size={14} /> : idx + 1}
               </div>
               <span className={`text-[10px] mt-1 font-medium ${isCompleted ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`}>
@@ -262,15 +262,15 @@ const DisputesPage = () => {
   const isSuperAdmin = user?.role === ROLES.SUPERADMIN;
   const currentUserId = user?.id || user?.userId;
 
-  const [disputes, setDisputes]         = useState([]);
-  const [totalCount, setTotalCount]     = useState(0);
-  const [isLoading, setIsLoading]       = useState(true);
+  const [disputes, setDisputes] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError]               = useState('');
-  const [searchTerm, setSearchTerm]     = useState('');
+  const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [page, setPage]                 = useState(1);
-  const [hasMore, setHasMore]           = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [selectedDispute, setSelectedDispute] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState(isAdmin ? '1' : 'all'); // Default "Under Review" for admin, "All" for user
@@ -329,12 +329,12 @@ const DisputesPage = () => {
 
   if (isAdmin) {
     const STATUS_TABS = [
-      { key: '1', label: 'Under Review', color: 'text-blue-600',   bg: 'bg-blue-50' },
-      { key: '0', label: 'Pending',      color: 'text-amber-600',  bg: 'bg-amber-50' },
-      { key: '2', label: 'Resolved',     color: 'text-green-600',  bg: 'bg-green-50' },
-      { key: '3', label: 'Rejected',     color: 'text-red-600',    bg: 'bg-red-50' },
-      { key: '4', label: 'Closed',       color: 'text-gray-500',   bg: 'bg-gray-100' },
-      { key: 'all', label: 'All',        color: 'text-slate-600', bg: 'bg-slate-100' },
+      { key: '1', label: 'Under Review', color: 'text-blue-600', bg: 'bg-blue-50' },
+      { key: '0', label: 'Pending', color: 'text-amber-600', bg: 'bg-amber-50' },
+      { key: '2', label: 'Resolved', color: 'text-green-600', bg: 'bg-green-50' },
+      { key: '3', label: 'Rejected', color: 'text-red-600', bg: 'bg-red-50' },
+      { key: '4', label: 'Closed', color: 'text-gray-500', bg: 'bg-gray-100' },
+      { key: 'all', label: 'All', color: 'text-slate-600', bg: 'bg-slate-100' },
     ];
 
     const visibleDisputes = statusFilter === 'all'
@@ -358,9 +358,8 @@ const DisputesPage = () => {
             <button
               key={tab.key}
               onClick={() => setStatusFilter(tab.key)}
-              className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all ${
-                statusFilter === tab.key ? `${tab.bg} border-current ${tab.color}` : 'border-gray-200 text-gray-400 hover:bg-gray-50'
-              }`}
+              className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all ${statusFilter === tab.key ? `${tab.bg} border-current ${tab.color}` : 'border-gray-200 text-gray-400 hover:bg-gray-50'
+                }`}
             >
               {tab.label}
             </button>
@@ -380,7 +379,7 @@ const DisputesPage = () => {
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
           <div className="overflow-x-auto overflow-y-auto max-h-[600px]" onScroll={handleScroll}>
             <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0 z-10">
+              <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0 z-20">
                 <tr>
                   <th className="px-5 py-4">Number</th>
                   <th className="px-5 py-4">Title</th>

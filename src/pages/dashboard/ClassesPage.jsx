@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, UserPlus, Search, RefreshCw, BookOpen } from 'lucide-react';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
-import StatCard from '../../components/molecules/StatCard';
 import ClassCard from '../../components/molecules/ClassCard';
 import ClassFormModal from '../../components/organisms/ClassFormModal';
 import AddStudentModal from '../../components/organisms/AddStudentModal';
@@ -252,34 +251,28 @@ const ClassesPage = () => {
         </div>
       </div>
 
-      {/* Stats Banner & Search */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="w-full md:w-64">
-          <StatCard
-            label="Total Classes"
-            value={classes.length}
-            change={`${classes.filter(c => c.isActive).length} Active`}
-            icon={BookOpen}
-            color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-          />
+      {/* Main Content Container */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+        
+        {/* Top Bar with Search */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
+            <div className="relative w-full max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <Input
+                    type="text"
+                    placeholder="Search by subject or grade..."
+                    className="pl-10 shadow-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
         </div>
 
-        <div className="relative w-full max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <Input
-            type="text"
-            placeholder="Search by subject or grade..."
-            className="pl-10 shadow-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading classes...</div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Content Area */}
+        {isLoading ? (
+          <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading classes...</div>
+        ) : (
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-gray-50/50 dark:bg-gray-900/50">
           {filteredClasses.map((cls) => {
             const isTemp = cls.isOptimistic || cls.classId.toString().startsWith('temp_');
             return (
@@ -324,6 +317,7 @@ const ClassesPage = () => {
           )}
         </div>
       )}
+      </div>
 
       {/* --- MODALS --- */}
 

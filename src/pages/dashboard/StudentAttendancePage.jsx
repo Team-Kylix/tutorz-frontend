@@ -79,7 +79,7 @@ const StudentAttendancePage = () => {
             // Wait, we can just let the backend handle it or we pass the specific classId.
             // For now, if a specific class is selected, pass that.
             let cId = selectedClassId || undefined;
-            
+
             // Note: The backend endpoint is expecting tutorId (Guid). Since we don't have it,
             // we will fetch all attendance if no class is selected, and filter locally if a tutor is selected.
             // Or we just send classId if one is selected.
@@ -92,7 +92,7 @@ const StudentAttendancePage = () => {
             const normalizeDate = (isoString) => isoString.split('T')[0];
 
             let normalizedDates = (response.conductedDates || []).map(normalizeDate);
-            
+
             let normalizedClasses = (response.classes || []).map(cls => {
                 const normalizedAttendance = {};
                 if (cls.attendanceRecord) {
@@ -113,14 +113,14 @@ const StudentAttendancePage = () => {
             // If a tutor (name) is selected but no class is selected, filter the rows locally.
             if (selectedTutorId && !selectedClassId) {
                 normalizedClasses = normalizedClasses.filter(cls => cls.regNo === selectedTutorId);
-                
+
                 // Recompute conducted dates from the filtered classes
                 const newDatesSet = new Set();
                 normalizedClasses.forEach(c => {
                     // We don't have the exact conducted dates for just these classes in the dto unless we look at the raw attendances.
                     // Actually, if we filter classes, maybe the generic conductedDates handles it, but let's just use the global one.
                 });
-                
+
                 // Wait, if we filter locally, the stats from backend (DaysHeld) will be wrong. 
                 // Let's re-calculate stats locally if we filter
                 let localTotalHeld = 0;
@@ -153,7 +153,7 @@ const StudentAttendancePage = () => {
     const visualStats = useMemo(() => {
         const totalSlots = classesRows.length * classDates.length;
         let totalAttended = 0;
-        
+
         classesRows.forEach(cls => {
             classDates.forEach(date => {
                 if (cls.attendance && cls.attendance[date]) {
@@ -313,7 +313,7 @@ const StudentAttendancePage = () => {
                     <AttendanceTable
                         students={classesRows}
                         classDates={classDates}
-                        // We intentionally do not pass onMarkAttendance for students (read-only)
+                    // We intentionally do not pass onMarkAttendance for students (read-only)
                     />
                 )}
             </div>

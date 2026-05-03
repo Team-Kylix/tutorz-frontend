@@ -3,6 +3,7 @@ import {
     Users, Check, X, Loader2, Search, Filter,
     RefreshCw, AlertCircle, Clock, Trash2
 } from 'lucide-react';
+import RowActions from '../../components/molecules/RowActions';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import StatCard from '../../components/molecules/StatCard';
@@ -192,7 +193,7 @@ const StudentRequestsPage = () => {
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
                     <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
                         <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
-                            <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 backdrop-blur-sm">
+                            <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                                 <tr>
                                     <th className="px-6 py-4 w-10 font-semibold">
                                         <input
@@ -205,7 +206,7 @@ const StudentRequestsPage = () => {
                                     <th className="px-6 py-4 font-semibold">Student Info</th>
                                     <th className="px-6 py-4 font-semibold">Grade</th>
                                     <th className="px-6 py-4 font-semibold">Requesting For</th>
-                                    <th className="px-6 py-4 text-right font-semibold">Actions</th>
+                                    <th className="px-3 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-900/50"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -236,21 +237,11 @@ const StudentRequestsPage = () => {
                                             <div className="text-sm font-medium text-blue-600 dark:text-blue-400">{req.targetClass}</div>
                                             <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">{req.classType}</div>
                                         </td>
-                                        <td className="px-6 py-4 text-right flex justify-end gap-2">
-                                            <Button
-                                                variant="outline"
-                                                className="border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 py-1.5 px-3"
-                                                onClick={(e) => { e.stopPropagation(); handleAction('Accepted', [req.enrollmentId]); }}
-                                            >
-                                                <Check size={16} className="mr-1.5" /> Accept
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                className="border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 py-1.5 px-3"
-                                                onClick={(e) => { e.stopPropagation(); handleAction('Declined', [req.enrollmentId]); }}
-                                            >
-                                                <X size={16} className="mr-1.5" /> Decline
-                                            </Button>
+                                        <td className="px-3 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                            <RowActions actions={[
+                                                { label: 'Accept', icon: Check, onClick: (e) => { e.stopPropagation(); handleAction('Accepted', [req.enrollmentId]); }, success: true },
+                                                { label: 'Decline', icon: X, onClick: (e) => { e.stopPropagation(); handleAction('Declined', [req.enrollmentId]); }, danger: true },
+                                            ]} />
                                         </td>
                                     </tr>
                                 ))}

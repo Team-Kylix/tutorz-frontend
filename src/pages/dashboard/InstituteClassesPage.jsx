@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar, User } from 'lucide-react';
+import { Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar, User, Edit } from 'lucide-react';
 import Button from '../../components/atoms/Button';
+import RowActions from '../../components/molecules/RowActions';
 import Input from '../../components/atoms/Input';
-import StatCard from '../../components/molecules/StatCard';
 import ClassFormModal from '../../components/organisms/ClassFormModal';
 import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 import useApi from '../../hooks/useApi';
@@ -224,38 +224,30 @@ const InstituteClassesPage = () => {
                 </div>
             </div>
 
-            {/* Stats Banner & Search */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="w-full md:w-64">
-                    <StatCard
-                        label="Total Classes"
-                        value={classes.length}
-                        change="Viewing loaded records"
-                        icon={BookOpen}
-                        color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-                    />
-                </div>
-
-                <div className="relative w-full max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <Input
-                        type="text"
-                        placeholder="Search by Class Name, Subject, or Tutor..."
-                        className="pl-10 shadow-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-            </div>
-
-            {/* Table View */}
+            {/* Main Content Container */}
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm flex flex-col">
+                
+                {/* Top Bar with Search */}
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
+                    <div className="relative w-full max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <Input
+                            type="text"
+                            placeholder="Search by Class Name, Subject, or Tutor..."
+                            className="pl-10 shadow-sm"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                {/* Table View */}
                 <div
                     className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar"
                     onScroll={handleScroll}
                 >
                     <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
-                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 backdrop-blur-sm">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                             <tr>
                                 <th className="px-6 py-4 font-semibold">Class Name</th>
                                 <th className="px-6 py-4 font-semibold">Subject</th>
@@ -265,6 +257,7 @@ const InstituteClassesPage = () => {
                                 <th className="px-6 py-4 font-semibold">Fees (Rs)</th>
                                 <th className="px-6 py-4 font-semibold text-center">Commission %</th>
                                 <th className="px-6 py-4 font-semibold text-center">Students</th>
+                                <th className="px-3 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-900/50"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -328,6 +321,11 @@ const InstituteClassesPage = () => {
                                             <div className="inline-flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full text-sm font-bold min-w-[3rem]">
                                                 {cls.studentRegisteredCount || 0}
                                             </div>
+                                        </td>
+                                        <td className="px-3 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                            <RowActions actions={[
+                                                { label: 'Edit Class', icon: Edit, onClick: () => handleEditClick(cls) },
+                                            ]} />
                                         </td>
                                     </tr>
                                 ))

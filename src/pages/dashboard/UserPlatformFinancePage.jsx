@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Receipt, Download, CheckCircle, Clock, AlertCircle, 
-    RefreshCw, Loader2, Info
+    RefreshCw, Loader2, Info, Search
 } from 'lucide-react';
 import { getMyBills, downloadBillPdf } from '../../services/api/billingService';
 import Button from '../../components/atoms/Button';
+import Input from '../../components/atoms/Input';
+import RowActions from '../../components/molecules/RowActions';
 
 const UserPlatformFinancePage = () => {
     const [bills, setBills] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const fetchBills = async () => {
         setIsLoading(true);
@@ -37,6 +40,11 @@ const UserPlatformFinancePage = () => {
         }
     };
 
+    const filteredBills = bills.filter(bill => 
+        bill.billReference.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        bill.monthYear.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
         <div className="p-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -62,40 +70,51 @@ const UserPlatformFinancePage = () => {
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                    <h2 className="font-bold text-gray-900 dark:text-white">Billing History</h2>
-                    <button onClick={fetchBills} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500">
-                        <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
-                    </button>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
+                    <div className="relative w-full max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <Input
+                            type="text"
+                            placeholder="Search by reference or month..."
+                            className="pl-10 shadow-sm"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button onClick={fetchBills} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500">
+                            <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
+                        </button>
+                    </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
+                <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
+                    <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                             <tr>
                                 <th className="px-6 py-4 font-semibold">Reference</th>
                                 <th className="px-6 py-4 font-semibold">Billing Period</th>
                                 <th className="px-6 py-4 font-semibold text-right">Payable Amount</th>
                                 <th className="px-6 py-4 font-semibold">Status</th>
-                                <th className="px-6 py-4 font-semibold text-right">Invoice</th>
+                                <th className="px-3 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-900/50"></th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
                             {isLoading ? (
                                 Array(3).fill(0).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
                                         <td colSpan={5} className="px-6 py-4 h-16 bg-gray-50/50 dark:bg-gray-800/50"></td>
                                     </tr>
                                 ))
-                            ) : bills.length === 0 ? (
+                            ) : filteredBills.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 italic">No invoices generated yet.</td>
+                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 italic">No invoices found.</td>
                                 </tr>
                             ) : (
-                                bills.map((bill) => (
-                                    <tr key={bill.billId} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                        <td className="px-6 py-4 font-mono text-xs text-gray-500">{bill.billReference}</td>
+                                filteredBills.map((bill) => (
+                                    <tr key={bill.billId} className="hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors group">
+                                        <td className="px-6 py-4 font-mono text-xs text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300">{bill.billReference}</td>
                                         <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">{bill.monthYear}</td>
                                         <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white text-lg">
                                             Rs {bill.payableAmount.toLocaleString('en-LK', { minimumFractionDigits: 2 })}
@@ -103,15 +122,10 @@ const UserPlatformFinancePage = () => {
                                         <td className="px-6 py-4">
                                             {getStatusBadge(bill.status)}
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <Button 
-                                                variant="outline" 
-                                                size="sm"
-                                                onClick={() => downloadBillPdf(bill.billId, bill.billReference)}
-                                                className="inline-flex items-center gap-2"
-                                            >
-                                                <Download size={14} /> PDF
-                                            </Button>
+                                        <td className="px-3 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                            <RowActions actions={[
+                                                { label: 'Download PDF', icon: Download, onClick: () => downloadBillPdf(bill.billId, bill.billReference) },
+                                            ]} />
                                         </td>
                                     </tr>
                                 ))

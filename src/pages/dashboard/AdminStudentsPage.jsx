@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     GraduationCap, Loader2, Search,
-    RefreshCw, AlertCircle
+    RefreshCw, AlertCircle, Eye
 } from 'lucide-react';
+import RowActions from '../../components/molecules/RowActions';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
-import StatCard from '../../components/molecules/StatCard';
 import { getAllStudents } from '../../services/api/adminService';
 import { BASE_URL } from '../../services/api/apiClient';
 
@@ -124,66 +124,58 @@ const AdminStudentsPage = () => {
                 </div>
             </div>
 
-            {/* Stats Banner & Search */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="w-full md:w-64">
-                    <StatCard
-                        label="Total Registered"
-                        value={totalCount}
-                        change="All students"
-                        icon={GraduationCap}
-                        color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-                    />
+            {/* Main Content Container */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+                
+                {/* Top Bar with Search */}
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
+                    <div className="relative w-full max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <Input
+                            type="text"
+                            placeholder="Search students by name, reg no, or mobile..."
+                            className="pl-10 shadow-sm"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
 
-                <div className="relative w-full max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <Input
-                        type="text"
-                        placeholder="Search students by name, reg no, or mobile..."
-                        className="pl-10 shadow-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-            </div>
-
-            {/* Content Table */}
-            {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400">
-                    <Loader2 size={32} className="animate-spin text-blue-500" />
-                    <span className="text-sm font-medium">Loading students...</span>
-                </div>
-            ) : error ? (
-                <div className="flex flex-col items-center gap-3 py-16 text-red-500 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30">
-                    <AlertCircle size={36} strokeWidth={1.5} />
-                    <p className="text-sm font-medium">{error}</p>
-                    <Button variant="outline" onClick={() => fetchStudents(false, 1, debouncedSearchTerm)}>Retry</Button>
-                </div>
-            ) : students.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 transition-colors">
-                    <GraduationCap size={48} className="mx-auto mb-4 opacity-20" />
-                    <p className="font-medium text-gray-600 dark:text-gray-400">
-                        {debouncedSearchTerm ? 'No matching students found.' : 'No students registered in the system.'}
-                    </p>
-                    {debouncedSearchTerm && (
-                        <p className="text-sm mt-2 text-gray-400">Try a different search term.</p>
-                    )}
-                </div>
-            ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
-                    {/* Fixed Height Scrollable Container */}
+                {/* Content Area */}
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400">
+                        <Loader2 size={32} className="animate-spin text-blue-500" />
+                        <span className="text-sm font-medium">Loading students...</span>
+                    </div>
+                ) : error ? (
+                    <div className="flex flex-col items-center gap-3 py-16 text-red-500 bg-red-50 dark:bg-red-900/10">
+                        <AlertCircle size={36} strokeWidth={1.5} />
+                        <p className="text-sm font-medium">{error}</p>
+                        <Button variant="outline" onClick={() => fetchStudents(false, 1, debouncedSearchTerm)}>Retry</Button>
+                    </div>
+                ) : students.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50">
+                        <GraduationCap size={48} className="mx-auto mb-4 opacity-20" />
+                        <p className="font-medium text-gray-600 dark:text-gray-400">
+                            {debouncedSearchTerm ? 'No matching students found.' : 'No students registered in the system.'}
+                        </p>
+                        {debouncedSearchTerm && (
+                            <p className="text-sm mt-2 text-gray-400">Try a different search term.</p>
+                        )}
+                    </div>
+                ) : (
                     <div
                         className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar"
                         onScroll={handleScroll}
                     >
                         <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
-                            <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 backdrop-blur-sm">
+                            <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                                 <tr>
                                     <th className="px-6 py-4 font-semibold">Student Name</th>
                                     <th className="px-6 py-4 font-semibold">Registration No</th>
                                     <th className="px-6 py-4 font-semibold">Mobile Number</th>
                                     <th className="px-6 py-4 font-semibold">Grade</th>
+                                    <th className="px-3 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-900/50"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -221,6 +213,11 @@ const AdminStudentsPage = () => {
                                                     {student.grade || '-'}
                                                 </span>
                                             </td>
+                                            <td className="px-3 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
+                                                <RowActions actions={[
+                                                    { label: 'View Profile', icon: Eye, onClick: () => {} },
+                                                ]} />
+                                            </td>
                                         </tr>
                                     );
                                 })}
@@ -240,8 +237,8 @@ const AdminStudentsPage = () => {
                             </div>
                         )}
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 };

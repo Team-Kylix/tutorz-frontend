@@ -5,7 +5,10 @@ import {
 } from 'lucide-react';
 import { getAllBills, markBillAsPaid, downloadBillPdf } from '../../services/api/billingService';
 import Button from '../../components/atoms/Button';
+import Input from '../../components/atoms/Input';
 import SectionTitle from '../../components/atoms/SectionTitle';
+import RowActions from '../../components/molecules/RowActions';
+import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 
 const AdminPlatformFinancePage = () => {
     const [bills, setBills] = useState([]);
@@ -14,6 +17,8 @@ const AdminPlatformFinancePage = () => {
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [actionStatus, setActionStatus] = useState({ type: '', message: '' });
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [selectedBill, setSelectedBill] = useState(null);
 
     const fetchBills = async () => {
         setIsLoading(true);
@@ -31,13 +36,24 @@ const AdminPlatformFinancePage = () => {
 
 
 
-    const handleMarkPaid = async (billId) => {
-        if (!window.confirm("Mark this bill as paid?")) return;
+    const handleOpenConfirm = (bill) => {
+        setSelectedBill(bill);
+        setIsConfirmOpen(true);
+    };
+
+    const handleConfirmMarkPaid = async () => {
+        if (!selectedBill) return;
         
-        const response = await markBillAsPaid(billId);
+        const response = await markBillAsPaid(selectedBill.billId);
         if (response.success) {
+            setActionStatus({ type: 'success', message: 'Bill marked as paid successfully.' });
             fetchBills();
+            setTimeout(() => setActionStatus({ type: '', message: '' }), 3000);
+        } else {
+            setActionStatus({ type: 'error', message: 'Failed to mark bill as paid.' });
         }
+        setIsConfirmOpen(false);
+        setSelectedBill(null);
     };
 
     const getStatusBadge = (status) => {
@@ -73,38 +89,36 @@ const AdminPlatformFinancePage = () => {
                 </div>
             )}
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row gap-4 justify-between">
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input
+            {/* Main Content Container */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+                
+                {/* Top Bar with Search */}
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
+                    <div className="relative w-full max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <Input
                             type="text"
                             placeholder="Search by Reg ID, Mobile, Name or Reference..."
-                            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                            className="pl-10 shadow-sm"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={fetchBills} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500">
-                            <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
-                        </button>
-                    </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
+                <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
+                    <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                             <tr>
                                 <th className="px-6 py-4 font-semibold">User / Email</th>
                                 <th className="px-6 py-4 font-semibold">Reference</th>
                                 <th className="px-6 py-4 font-semibold">Month</th>
                                 <th className="px-6 py-4 font-semibold text-right">Payable</th>
                                 <th className="px-6 py-4 font-semibold">Status</th>
-                                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                                <th className="px-3 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-900/50"></th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
                             {isLoading ? (
                                 Array(5).fill(0).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
@@ -135,23 +149,11 @@ const AdminPlatformFinancePage = () => {
                                         <td className="px-6 py-4">
                                             {getStatusBadge(bill.status)}
                                         </td>
-                                        <td className="px-6 py-4 text-right space-x-2">
-                                            <button 
-                                                onClick={() => downloadBillPdf(bill.billId, bill.billReference)}
-                                                className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
-                                                title="Download PDF"
-                                            >
-                                                <Download size={18} />
-                                            </button>
-                                            {bill.status !== 'Paid' && (
-                                                <button 
-                                                    onClick={() => handleMarkPaid(bill.billId)}
-                                                    className="p-2 hover:bg-green-50 text-green-600 rounded-lg transition-colors"
-                                                    title="Mark as Paid"
-                                                >
-                                                    <CheckCircle size={18} />
-                                                </button>
-                                            )}
+                                        <td className="px-3 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
+                                            <RowActions actions={[
+                                                { label: 'Download PDF', icon: Download, onClick: () => downloadBillPdf(bill.billId, bill.billReference) },
+                                                ...(bill.status !== 'Paid' ? [{ label: 'Mark as Paid', icon: CheckCircle, onClick: () => handleOpenConfirm(bill), success: true }] : []),
+                                            ]} />
                                         </td>
                                     </tr>
                                 ))
@@ -182,6 +184,24 @@ const AdminPlatformFinancePage = () => {
                     </div>
                 </div>
             </div>
+
+            <ConfirmationModal
+                isOpen={isConfirmOpen}
+                title="Mark Bill as Paid"
+                message={selectedBill ? `Are you sure you want to mark this bill as paid? The payable amount is Rs ${selectedBill.payableAmount.toLocaleString('en-LK', { minimumFractionDigits: 2 })}.` : ''}
+                confirmLabel="Yes, Mark as Paid"
+                cancelLabel="Cancel"
+                variant="success"
+                onConfirm={handleConfirmMarkPaid}
+                onCancel={() => {
+                    setIsConfirmOpen(false);
+                    setSelectedBill(null);
+                }}
+                onClose={() => {
+                    setIsConfirmOpen(false);
+                    setSelectedBill(null);
+                }}
+            />
         </div>
     );
 };
