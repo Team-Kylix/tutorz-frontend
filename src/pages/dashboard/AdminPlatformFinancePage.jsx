@@ -79,7 +79,7 @@ const AdminPlatformFinancePage = () => {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                         <input
                             type="text"
-                            placeholder="Search by email or reference..."
+                            placeholder="Search by Reg ID, Mobile, Name or Reference..."
                             className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
