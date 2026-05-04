@@ -102,3 +102,12 @@ export const initiateOnlinePayment = async (data) => {
     throw error.response?.data || { message: 'Failed to initiate payment' };
   }
 };
+
+export const initiateBillPayment = async (data) => {
+  try {
+    const response = await apiClient.post('/financials/initiate-bill-payment', data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to initiate bill payment' };
+  }
+};

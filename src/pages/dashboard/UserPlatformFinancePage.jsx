@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Receipt, Download, CheckCircle, Clock, AlertCircle, 
-    RefreshCw, Loader2, Info, Search
+    RefreshCw, Loader2, Info, Search, CreditCard
 } from 'lucide-react';
 import { getMyBills, downloadBillPdf } from '../../services/api/billingService';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import RowActions from '../../components/molecules/RowActions';
+import BillPaymentModal from '../../components/organisms/BillPaymentModal';
 
 const UserPlatformFinancePage = () => {
     const [bills, setBills] = useState([]);
@@ -14,6 +15,10 @@ const UserPlatformFinancePage = () => {
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
+    
+    // Payment Modal State
+    const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+    const [selectedBill, setSelectedBill] = useState(null);
 
     const fetchBills = async () => {
         setIsLoading(true);
@@ -56,19 +61,6 @@ const UserPlatformFinancePage = () => {
                 </div>
             </div>
 
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4 flex gap-4">
-                <div className="p-3 bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300 rounded-lg shrink-0 h-fit">
-                    <Info size={20} />
-                </div>
-                <div className="text-sm">
-                    <h3 className="font-bold text-blue-900 dark:text-blue-100">Billing Information</h3>
-                    <p className="text-blue-800/70 dark:text-blue-200/60 mt-1">
-                        Invoices are updated in real-time based on your platform usage. 
-                        Your bill includes platform commissions, SMS dispatch costs, and API usage fees. 
-                        Please settle any unpaid invoices to ensure uninterrupted service.
-                    </p>
-                </div>
-            </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
@@ -96,6 +88,7 @@ const UserPlatformFinancePage = () => {
                                 <th className="px-6 py-4 font-semibold">Reference</th>
                                 <th className="px-6 py-4 font-semibold">Billing Period</th>
                                 <th className="px-6 py-4 font-semibold text-right">Payable Amount</th>
+                                <th className="px-6 py-4 font-semibold text-right">Paid Amount</th>
                                 <th className="px-6 py-4 font-semibold">Status</th>
                                 <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                             </tr>
@@ -104,12 +97,12 @@ const UserPlatformFinancePage = () => {
                             {isLoading ? (
                                 Array(3).fill(0).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td colSpan={5} className="px-6 py-4 h-16 bg-gray-50/50 dark:bg-gray-800/50"></td>
+                                        <td colSpan={6} className="px-6 py-4 h-16 bg-gray-50/50 dark:bg-gray-800/50"></td>
                                     </tr>
                                 ))
                             ) : filteredBills.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 italic">No invoices found.</td>
+                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500 italic">No invoices found.</td>
                                 </tr>
                             ) : (
                                 filteredBills.map((bill) => (
@@ -119,12 +112,20 @@ const UserPlatformFinancePage = () => {
                                         <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white text-lg">
                                             Rs {bill.payableAmount.toLocaleString('en-LK', { minimumFractionDigits: 2 })}
                                         </td>
+                                        <td className="px-6 py-4 text-right font-bold text-green-600 dark:text-green-400 text-lg">
+                                            {bill.paidAmount ? `Rs ${bill.paidAmount.toLocaleString('en-LK', { minimumFractionDigits: 2 })}` : '-'}
+                                        </td>
                                         <td className="px-6 py-4">
                                             {getStatusBadge(bill.status)}
                                         </td>
                                         <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
                                             <RowActions actions={[
                                                 { label: 'Download PDF', icon: Download, onClick: () => downloadBillPdf(bill.billId, bill.billReference) },
+                                                ...(bill.status !== 'Paid' ? [{
+                                                    label: 'Pay Bill', 
+                                                    icon: CreditCard, 
+                                                    onClick: () => { setSelectedBill(bill); setIsPayModalOpen(true); }
+                                                }] : [])
                                             ]} />
                                         </td>
                                     </tr>
@@ -158,6 +159,16 @@ const UserPlatformFinancePage = () => {
                     </div>
                 )}
             </div>
+            
+            <BillPaymentModal 
+                isOpen={isPayModalOpen}
+                onClose={() => {
+                    setIsPayModalOpen(false);
+                    setSelectedBill(null);
+                }}
+                bill={selectedBill}
+                onPaymentSuccess={fetchBills}
+            />
         </div>
     );
 };
