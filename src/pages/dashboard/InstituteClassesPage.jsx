@@ -257,7 +257,7 @@ const InstituteClassesPage = () => {
                                 <th className="px-6 py-4 font-semibold">Fees (Rs)</th>
                                 <th className="px-6 py-4 font-semibold text-center">Commission %</th>
                                 <th className="px-6 py-4 font-semibold text-center">Students</th>
-                                <th className="px-3 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-900/50"></th>
+                                <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -322,7 +322,7 @@ const InstituteClassesPage = () => {
                                                 {cls.studentRegisteredCount || 0}
                                             </div>
                                         </td>
-                                        <td className="px-3 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                        <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
                                             <RowActions actions={[
                                                 { label: 'Edit Class', icon: Edit, onClick: () => handleEditClick(cls) },
                                             ]} />

@@ -206,7 +206,7 @@ const StudentRequestsPage = () => {
                                     <th className="px-6 py-4 font-semibold">Student Info</th>
                                     <th className="px-6 py-4 font-semibold">Grade</th>
                                     <th className="px-6 py-4 font-semibold">Requesting For</th>
-                                    <th className="px-3 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-900/50"></th>
+                                    <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -237,7 +237,7 @@ const StudentRequestsPage = () => {
                                             <div className="text-sm font-medium text-blue-600 dark:text-blue-400">{req.targetClass}</div>
                                             <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">{req.classType}</div>
                                         </td>
-                                        <td className="px-3 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                        <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
                                             <RowActions actions={[
                                                 { label: 'Accept', icon: Check, onClick: (e) => { e.stopPropagation(); handleAction('Accepted', [req.enrollmentId]); }, success: true },
                                                 { label: 'Decline', icon: X, onClick: (e) => { e.stopPropagation(); handleAction('Declined', [req.enrollmentId]); }, danger: true },

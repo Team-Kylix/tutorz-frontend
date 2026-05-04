@@ -18,7 +18,7 @@ const RowActions = ({ actions = [] }) => {
     const containerRef = useRef(null);
     const menuRef = useRef(null);
     const buttonRef = useRef(null);
-    
+
     // Positioning state
     const [coords, setCoords] = useState({ top: 0, right: 0, bottom: 'auto' });
     const [isDropUp, setIsDropUp] = useState(false);
@@ -60,7 +60,7 @@ const RowActions = ({ actions = [] }) => {
             const spaceBelow = window.innerHeight - rect.bottom;
             const dropUpFlag = spaceBelow < 180;
             setIsDropUp(dropUpFlag);
-            
+
             setCoords({
                 right: window.innerWidth - rect.right,
                 top: dropUpFlag ? 'auto' : rect.bottom + 4,
@@ -95,15 +95,14 @@ const RowActions = ({ actions = [] }) => {
                             action.onClick(e);
                         }}
                         disabled={action.disabled}
-                        className={`w-full flex items-center gap-2.5 px-4 py-2 transition-colors text-left ${
-                            action.disabled
-                                ? 'opacity-40 cursor-not-allowed text-gray-400'
-                                : action.danger
+                        className={`w-full flex items-center gap-2 px-3 py-2 transition-colors text-left ${action.disabled
+                            ? 'opacity-40 cursor-not-allowed text-gray-400'
+                            : action.danger
                                 ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
                                 : action.success
-                                ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
-                                : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                        }`}
+                                    ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
+                                    : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                            }`}
                     >
                         {Icon && <Icon size={15} className="shrink-0" />}
                         <span>{action.label}</span>
@@ -118,7 +117,7 @@ const RowActions = ({ actions = [] }) => {
             <button
                 ref={buttonRef}
                 onClick={handleOpen}
-                className="w-8 h-8 flex items-center justify-center rounded-md bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 transition-colors focus:outline-none"
+                className="w-4 h-8 flex items-center justify-center rounded-md bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 transition-colors focus:outline-none"
                 title="Actions"
             >
                 <MoreVertical size={16} />

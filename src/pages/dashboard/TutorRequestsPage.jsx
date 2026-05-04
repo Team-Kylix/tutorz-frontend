@@ -193,7 +193,7 @@ const TutorRequestsPage = () => {
                                 <tr>
                                     <th className="px-6 py-4 font-semibold">Institute Name</th>
                                     <th className="px-6 py-4 font-semibold">Institute ID</th>
-                                    <th className="px-3 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-900/50"></th>
+                                    <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -218,7 +218,7 @@ const TutorRequestsPage = () => {
                                                     {request.instituteId || '-'}
                                                 </span>
                                             </td>
-                                            <td className="px-3 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
+                                            <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
                                                 <RowActions actions={[
                                                     { label: 'Accept', icon: Check, onClick: () => handleAccept(request.requestId), success: true },
                                                     { label: 'Decline', icon: X, onClick: () => handleDecline(request.requestId), danger: true },
