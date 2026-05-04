@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   CheckCircle2, 
   Loader2, 
@@ -15,8 +14,7 @@ import Modal from '../molecules/Modal';
 import Button from '../atoms/Button';
 import { getFinancialSummary, initiateBillPayment } from '../../services/api/financialService';
 
-const BillPaymentModal = ({ isOpen, onClose, bill, onPaymentSuccess }) => {
-  const navigate = useNavigate();
+const BillPaymentModal = ({ isOpen, onClose, bill, onPaymentSuccess, setActivePage }) => {
   const [loadingInitial, setLoadingInitial] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -275,7 +273,7 @@ const BillPaymentModal = ({ isOpen, onClose, bill, onPaymentSuccess }) => {
                       onClick={() => {
                         sessionStorage.setItem('profile_intent', 'edit');
                         onClose();
-                        navigate('/dashboard/profile');
+                        if (setActivePage) setActivePage('profile');
                       }}
                       className="group"
                    >

@@ -9,7 +9,7 @@ import Input from '../../components/atoms/Input';
 import RowActions from '../../components/molecules/RowActions';
 import BillPaymentModal from '../../components/organisms/BillPaymentModal';
 
-const UserPlatformFinancePage = () => {
+const UserPlatformFinancePage = ({ setActivePage }) => {
     const [bills, setBills] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [page, setPage] = useState(1);
@@ -168,6 +168,7 @@ const UserPlatformFinancePage = () => {
                 }}
                 bill={selectedBill}
                 onPaymentSuccess={fetchBills}
+                setActivePage={setActivePage}
             />
         </div>
     );

@@ -118,7 +118,7 @@ const DashboardHome = ({ activePage, setActivePage }) => {
     if (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'superadmin') {
       return <AdminPlatformFinancePage />;
     }
-    return <UserPlatformFinancePage />;
+    return <UserPlatformFinancePage setActivePage={setActivePage} />;
   }
 
   if (activePage === 'system-config') {
