@@ -124,3 +124,30 @@ export const searchJoinedTutors = async (query) => {
   });
   return response.data;
 };
+
+/**
+ * Triggers a browser download of the class payment PDF invoice.
+ * @param {string} paymentId - GUID of the ClassPayment record
+ * @param {string} reference - Display reference for the filename (e.g. "Science_Apr2026")
+ */
+export const downloadClassPaymentPdf = async (paymentId, reference = 'ClassFee') => {
+  try {
+    const response = await apiClient.get(`/student/class-payments/${paymentId}/pdf`, {
+      responseType: 'blob'
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Tutorz_${reference}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Class payment PDF download failed', error);
+    return { success: false, message: 'Failed to download invoice PDF.' };
+  }
+};

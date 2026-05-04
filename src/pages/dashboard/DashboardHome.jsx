@@ -105,7 +105,7 @@ const DashboardHome = ({ activePage, setActivePage }) => {
 
   if (activePage === 'financials') {
     if (user?.role === ROLES.STUDENT) {
-      return <StudentFinancialsPage />;
+      return <StudentFinancialsPage setActivePage={setActivePage} />;
     }
     return <FinancialsPage />;
   }
