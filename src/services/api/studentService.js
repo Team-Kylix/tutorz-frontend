@@ -15,9 +15,9 @@ export const updateStudentProfile = async (data) => {
  * @param {string} grade - User's grade (e.g., 'Grade 8')
  * @param {string} query - Search term (Subject, Tutor Name, TUT ID)
  */
-export const searchClasses = async (grade, query, districtId, cityId, page = 1, pageSize = 10) => {
+export const searchClasses = async (grade, query, provinceId, districtId, cityId, page = 1, pageSize = 10) => {
   const response = await apiClient.get('/student/search-classes', {
-    params: { grade, query, districtId, cityId, page, pageSize }
+    params: { grade, query, provinceId, districtId, cityId, page, pageSize }
   });
   return response.data;
 };

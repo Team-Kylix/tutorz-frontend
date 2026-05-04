@@ -24,7 +24,8 @@ const ClassSearchModal = ({ isOpen, onClose, user }) => {
   const [locationResults, setLocationResults] = useState([]);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [selectedCityId, setSelectedCityId] = useState(null);
-  const [selectedDistrictId, setSelectedDistrictId] = useState(user?.districtId || null);
+  const [selectedDistrictId, setSelectedDistrictId] = useState(null);
+  const [selectedProvinceId, setSelectedProvinceId] = useState(null);
   const [selectedLocationName, setSelectedLocationName] = useState('');
 
   // Confirmation state
@@ -49,7 +50,8 @@ const ClassSearchModal = ({ isOpen, onClose, user }) => {
     if (isOpen && user) {
       // Use camelCase first, fallback to PascalCase if from raw API
       let profileGrade = user.grade || user.Grade;
-      const profileDistrictId = user.districtId || user.DistrictId;
+      const profileProvinceId = user.provinceId || user.ProvinceId;
+      const profileProvinceName = user.provinceName || user.ProvinceName;
 
       // Robust check for Grade normalization (e.g., if it's "6", convert to "Grade 6")
       if (profileGrade && typeof profileGrade === 'string' && !profileGrade.startsWith('Grade') && !isNaN(profileGrade)) {
@@ -59,7 +61,10 @@ const ClassSearchModal = ({ isOpen, onClose, user }) => {
       }
 
       if (profileGrade) setSelectedGrade(profileGrade);
-      if (profileDistrictId) setSelectedDistrictId(profileDistrictId);
+      if (profileProvinceId) {
+          setSelectedProvinceId(profileProvinceId);
+          setSelectedLocationName(profileProvinceName ? `${profileProvinceName} Province` : 'Your Province');
+      }
     }
   }, [isOpen, user]);
 
@@ -73,7 +78,7 @@ const ClassSearchModal = ({ isOpen, onClose, user }) => {
     setError('');
 
     try {
-        const data = await searchClasses(selectedGrade, searchTerm, selectedDistrictId, selectedCityId, currentPage, PAGE_SIZE);
+        const data = await searchClasses(selectedGrade, searchTerm, selectedProvinceId, selectedDistrictId, selectedCityId, currentPage, PAGE_SIZE);
         const newClasses = data.items || [];
         
         if (isLoadMore) {
@@ -90,7 +95,7 @@ const ClassSearchModal = ({ isOpen, onClose, user }) => {
         setLoading(false);
         setIsLoadingMore(false);
     }
-  }, [selectedGrade, searchTerm, selectedDistrictId, selectedCityId, PAGE_SIZE]);
+  }, [selectedGrade, searchTerm, selectedProvinceId, selectedDistrictId, selectedCityId, PAGE_SIZE]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -109,7 +114,7 @@ const ClassSearchModal = ({ isOpen, onClose, user }) => {
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm, isOpen, selectedGrade, selectedDistrictId, selectedCityId, fetchClasses]);
+  }, [searchTerm, isOpen, selectedGrade, selectedProvinceId, selectedDistrictId, selectedCityId, fetchClasses]);
 
   const handleScroll = (e) => {
     const { scrollTop, clientHeight, scrollHeight } = e.target;
@@ -144,11 +149,18 @@ const ClassSearchModal = ({ isOpen, onClose, user }) => {
     if (type === 'city') {
       setSelectedCityId(id);
       setSelectedDistrictId(null);
+      setSelectedProvinceId(null);
       setSelectedLocationName(name);
     } else if (type === 'district') {
       setSelectedCityId(null);
       setSelectedDistrictId(id);
+      setSelectedProvinceId(null);
       setSelectedLocationName(name);
+    } else if (type === 'province') {
+      setSelectedCityId(null);
+      setSelectedDistrictId(null);
+      setSelectedProvinceId(id);
+      setSelectedLocationName(`${name} Province`);
     }
     setLocationQuery('');
     setLocationResults([]);
@@ -279,6 +291,7 @@ const ClassSearchModal = ({ isOpen, onClose, user }) => {
                           onClick={() => {
                             setSelectedCityId(null);
                             setSelectedDistrictId(null);
+                            setSelectedProvinceId(null);
                             setSelectedLocationName('');
                           }}
                           className="text-[10px] text-red-500 hover:text-red-600 font-bold uppercase tracking-wider mb-1 px-1"
@@ -312,7 +325,10 @@ const ClassSearchModal = ({ isOpen, onClose, user }) => {
                           {locationResults.length > 0 ? (
                             locationResults.map((prov) => (
                               <div key={prov.provinceId} className="p-2 border-b last:border-0 border-gray-100 dark:border-gray-700">
-                                <div className="px-3 py-1 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 dark:bg-gray-900/50 rounded-md mb-1">
+                                <div 
+                                  className="px-3 py-1 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 dark:bg-gray-900/50 rounded-md mb-1 cursor-pointer hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                  onClick={() => handleLocationSelect('province', prov.provinceId, prov.provinceName)}
+                                >
                                    {prov.provinceName} Province
                                 </div>
                                 {prov.districts.map((dist) => (
