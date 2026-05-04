@@ -5,7 +5,9 @@ import {
 } from 'lucide-react';
 import Button from '../atoms/Button';
 import StatusBadge from '../atoms/StatusBadge';
-import { formatTime } from '../../utils/helpers';
+import { formatTime, cleanClassName } from '../../utils/helpers';
+import { BASE_URL } from '../../services/api/apiClient';
+
 
 /**
  * ClassDetailView — a clean, read-only card for viewing class details.
@@ -148,10 +150,10 @@ const ClassDetailView = ({
             )}
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight truncate">
-            {classData.subject || classData.name || classData.className || 'Class'}
+            {classData.subject || classData.name || cleanClassName(classData.className) || 'Class'}
           </h2>
           {classData.className && classData.className !== classData.subject && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{classData.className}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{cleanClassName(classData.className)}</p>
           )}
         </div>
         <div className="text-right shrink-0">
@@ -169,8 +171,14 @@ const ClassDetailView = ({
       {/* ── Tutor Card ─────────────────────────────────────────────────── */}
       {classData.tutorName && (
         <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-100 dark:border-gray-700/50 flex items-start gap-4">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-sm">
-            {tutorInitial}
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-sm overflow-hidden border border-white/10">
+            {(() => {
+                const img = classData.tutorProfileImageUrlSmall || classData.tutorImageUrl || classData.tutorImage;
+                if (img) {
+                    return <img src={img.startsWith('http') ? img : `${BASE_URL}${img}`} alt={classData.tutorName} className="w-full h-full object-cover" />;
+                }
+                return tutorInitial;
+            })()}
           </div>
           <div className="min-w-0">
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Tutor</p>

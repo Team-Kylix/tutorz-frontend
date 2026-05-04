@@ -107,7 +107,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
     { id: 'timetable', label: 'Timetable', icon: Clock },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
     { id: 'financials', label: 'Financials', icon: CreditCard },
     { id: 'attendance', label: 'My Attendance', icon: Calendar },

@@ -7,7 +7,9 @@ import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 import ClassViewModal from '../../components/organisms/ClassViewModal';
 import useApi from '../../hooks/useApi';
 import * as studentService from '../../services/api/studentService';
-import { formatTime } from '../../utils/helpers';
+import { formatTime, cleanClassName } from '../../utils/helpers';
+import { BASE_URL } from '../../services/api/apiClient';
+
 
 const StudentClassesPage = () => {
     // State
@@ -135,7 +137,7 @@ const StudentClassesPage = () => {
                                     >
                                         <td className="px-6 py-4">
                                             <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                                <span>{cls.className || '-'}</span>
+                                                <span>{cleanClassName(cls.className)}</span>
                                                 {cls.status !== 'active' && (
                                                     <span className="px-2 py-0.5 text-[10px] tracking-wider font-bold bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md">
                                                         INACTIVE
@@ -143,7 +145,15 @@ const StudentClassesPage = () => {
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                <User size={12} />
+                                                <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center overflow-hidden shrink-0 border border-blue-200/50 dark:border-blue-800/50">
+                                                    {(() => {
+                                                        const img = cls.tutorProfileImageUrlSmall || cls.tutorImageUrl || cls.tutorImage;
+                                                        if (img) {
+                                                            return <img src={img.startsWith('http') ? img : `${BASE_URL}${img}`} alt="" className="w-full h-full object-cover" />;
+                                                        }
+                                                        return <User size={10} />;
+                                                    })()}
+                                                </div>
                                                 <span className="font-medium">{cls.tutorName || '-'}</span>
                                                 <span className="text-gray-300 dark:text-gray-600 px-0.5">•</span>
                                                 <div className="flex items-center gap-1">

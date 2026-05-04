@@ -57,3 +57,18 @@ export const formatTime = (timeStr) => {
     return `${hours}:${minutes} ${suffix}`;
   }
 };
+
+/**
+ * Cleans up the class name by removing redundant 'Class -' and 'Grade X -' prefixes.
+ * Example: "Class - Science - Grade 7 - Sunday" -> "Science - Sunday"
+ */
+export const cleanClassName = (className) => {
+  if (!className) return '';
+  return className
+    .split(' - ')
+    .filter(p => {
+        const lower = p.toLowerCase().trim();
+        return !lower.startsWith('class') && !lower.startsWith('grade');
+    })
+    .join(' - ') || className;
+};
