@@ -137,15 +137,16 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'institutes', label: 'Institutes', icon: Building },
     { id: 'admin-students', label: 'Students', icon: GraduationCap },
     { id: 'admin-teachers', label: 'Teachers', icon: UserCheck },
-    { id: 'users', label: 'User Management', icon: UserCog },
-    { id: 'approvals', label: 'Pending Approvals', icon: CheckSquare },
-    { id: 'financials', label: 'Financials', icon: CreditCard },
+
+
+
     { id: 'platform-finance', label: 'Platform Finance', icon: DollarSign },
-    { id: 'system-config', label: 'System Configuration', icon: Settings },
+
     { id: 'disputes', label: 'Disputes', icon: HelpCircle },
-    { id: 'reports', label: 'System Reports', icon: FileText },
+    { id: 'system-config', label: 'System Configuration', icon: Settings },
+
     { id: 'profile', label: 'My Profile', icon: QrCode },
-    { id: 'settings', label: 'System Config', icon: Settings },
+
   ];
 
   const getMenuItems = () => {
