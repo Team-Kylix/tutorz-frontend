@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X, Loader, Filter, MapPin, ChevronRight } from 'lucide-react';
+import { Search, X, Loader, Filter, MapPin, ChevronRight, ArrowLeft } from 'lucide-react';
 import { searchClasses, requestJoinClass } from '../../services/api/studentService'; 
 import { searchLocations } from '../../services/api/locationService';
 import ClassCard from '../molecules/ClassCard';
@@ -207,7 +207,16 @@ const ClassSearchModal = ({ isOpen, onClose, user }) => {
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-900">
-          <div>
+          <div className="flex items-center gap-3">
+            {selectedClass && (
+              <button
+                onClick={() => setSelectedClass(null)}
+                className="p-1.5 rounded-lg text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                title="Back to Search"
+              >
+                <ArrowLeft size={18} />
+              </button>
+            )}
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                 {selectedClass ? 'Class Details' : 'Find a New Class'}
             </h2>
@@ -226,7 +235,8 @@ const ClassSearchModal = ({ isOpen, onClose, user }) => {
           {selectedClass ? (
             <ClassDetailView 
                 classData={selectedClass} 
-                onBack={() => setSelectedClass(null)}
+                role="student"
+                enrollmentStatus={selectedClass?.enrollmentStatus}
                 onRequestJoin={initiateJoinRequest}
             />
           ) : (

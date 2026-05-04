@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Search, RefreshCw, Clock, Users, Building2, Calendar, User, Eye, LogOut } from 'lucide-react';
+import { Search, RefreshCw, Clock, Users, Building2, Calendar, User, Eye, LogOut, BookOpen } from 'lucide-react';
 import Button from '../../components/atoms/Button';
 import RowActions from '../../components/molecules/RowActions';
 import Input from '../../components/atoms/Input';
 import ConfirmationModal from '../../components/molecules/ConfirmationModal';
-import ClassFormModal from '../../components/organisms/ClassFormModal';
+import ClassViewModal from '../../components/organisms/ClassViewModal';
 import useApi from '../../hooks/useApi';
 import * as studentService from '../../services/api/studentService';
 import { formatTime } from '../../utils/helpers';
@@ -214,11 +214,12 @@ const StudentClassesPage = () => {
             </div>
 
             {/* Class Details Modal */}
-            <ClassFormModal
+            <ClassViewModal
                 isOpen={!!selectedClass && !showConfirm}
                 onClose={() => setSelectedClass(null)}
-                initialData={selectedClass}
-                viewOnly={true}
+                classData={selectedClass}
+                role="student"
+                enrollmentStatus="Approved"
                 onLeave={handleLeaveRequest}
                 isLeaving={isLeaving}
             />

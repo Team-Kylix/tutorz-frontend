@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
     DollarSign, Search, Download, CheckCircle, Clock, AlertCircle, 
     Filter, RefreshCw, FileText, ChevronRight, Loader2, Play
@@ -12,27 +12,77 @@ import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 
 const AdminPlatformFinancePage = () => {
     const [bills, setBills] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [error, setError] = useState('');
+
+    // Pagination and Search State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const PAGE_SIZE = 10;
+
     const [actionStatus, setActionStatus] = useState({ type: '', message: '' });
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-    const [selectedBill, setSelectedBill] = useState(null);
+        const [selectedBill, setSelectedBill] = useState(null);
 
-    const fetchBills = async () => {
-        setIsLoading(true);
-        const response = await getAllBills(searchQuery, page, 10);
-        if (response.success) {
-            setBills(response.data.items);
-            setTotalCount(response.data.totalCount);
+    // Debounce Search Term
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchTerm(searchQuery);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchQuery]);
+
+    const fetchBills = useCallback(async (isLoadMore = false, currentPage = 1, currentSearch = '') => {
+        if (!isLoadMore) {
+            setIsLoading(true);
+        } else {
+            setIsLoadingMore(true);
         }
-        setIsLoading(false);
+        setError('');
+
+        try {
+            const response = await getAllBills(currentSearch, currentPage, PAGE_SIZE);
+            if (response.success) {
+                const newBills = response.data.items || [];
+                if (isLoadMore) {
+                    setBills(prev => [...prev, ...newBills]);
+                } else {
+                    setBills(newBills);
+                }
+                setTotalCount(response.data.totalCount || 0);
+                setHasMore(currentPage * PAGE_SIZE < response.data.totalCount);
+            } else {
+                setError('Failed to load bills.');
+            }
+        } catch (err) {
+            setError('An error occurred while fetching bills.');
+        } finally {
+            setIsLoading(false);
+            setIsLoadingMore(false);
+        }
+    }, []);
+
+    // Effect for initial load and search term changes
+    useEffect(() => {
+        setPage(1); // Reset page on new search
+        fetchBills(false, 1, debouncedSearchTerm);
+    }, [debouncedSearchTerm, fetchBills]);
+
+    const handleScroll = (e) => {
+        const { scrollTop, clientHeight, scrollHeight } = e.target;
+        // If scrolled to the bottom (allow 50px buffer)
+        if (scrollHeight - scrollTop <= clientHeight + 50 && hasMore && !isLoadingMore && !isLoading) {
+            const nextPage = page + 1;
+            setPage(nextPage);
+            fetchBills(true, nextPage, debouncedSearchTerm);
+        }
     };
 
-    useEffect(() => {
-        fetchBills();
-    }, [page, searchQuery]);
+
 
 
 
@@ -106,7 +156,10 @@ const AdminPlatformFinancePage = () => {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
+                <div 
+                    className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar"
+                    onScroll={handleScroll}
+                >
                     <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
                         <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                             <tr>
@@ -125,9 +178,21 @@ const AdminPlatformFinancePage = () => {
                                         <td colSpan={6} className="px-6 py-4 h-16 bg-gray-50/50 dark:bg-gray-800/50"></td>
                                     </tr>
                                 ))
+                            ) : error ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-12 text-center text-red-500">
+                                        <div className="flex flex-col items-center gap-2">
+                                            <AlertCircle size={24} />
+                                            <span>{error}</span>
+                                            <Button variant="outline" size="sm" onClick={() => fetchBills(false, 1, debouncedSearchTerm)}>Retry</Button>
+                                        </div>
+                                    </td>
+                                </tr>
                             ) : bills.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">No bills found.</td>
+                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500 italic">
+                                        {debouncedSearchTerm ? 'No matching bills found.' : 'No bills found.'}
+                                    </td>
                                 </tr>
                             ) : (
                                 bills.map((bill) => (
@@ -160,28 +225,20 @@ const AdminPlatformFinancePage = () => {
                             )}
                         </tbody>
                     </table>
-                </div>
 
-                <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-sm text-gray-500">
-                    <div>Showing {bills.length} of {totalCount} bills</div>
-                    <div className="flex gap-2">
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            disabled={page === 1} 
-                            onClick={() => setPage(p => p - 1)}
-                        >
-                            Previous
-                        </Button>
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            disabled={page * 10 >= totalCount} 
-                            onClick={() => setPage(p => p + 1)}
-                        >
-                            Next
-                        </Button>
-                    </div>
+                    {/* Loading More Indicator */}
+                    {isLoadingMore && (
+                        <div className="flex items-center justify-center p-4 text-blue-500 space-x-2 bg-gray-50/30 dark:bg-gray-800/30">
+                            <Loader2 size={16} className="animate-spin" />
+                            <span className="text-sm font-medium">Loading more bills...</span>
+                        </div>
+                    )}
+
+                    {!hasMore && bills.length > 0 && (
+                        <div className="text-center p-6 text-sm text-gray-400 dark:text-gray-500 bg-gray-50/30 dark:bg-gray-800/30 border-t border-gray-100 dark:border-gray-700/50">
+                            No more bills to load.
+                        </div>
+                    )}
                 </div>
             </div>
 

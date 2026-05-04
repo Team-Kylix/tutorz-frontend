@@ -5,7 +5,7 @@ import { getTimetableByDate as getInstituteTimetable } from '../../services/api/
 import { getTimetableByDate as getStudentTimetable } from '../../services/api/studentService';
 import { getClasses as getTutorClasses } from '../../services/api/tutorService';
 import HallColumn from '../molecules/HallColumn';
-import ClassFormModal from './ClassFormModal';
+import ClassViewModal from './ClassViewModal';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLES } from '../../utils/constants';
 
@@ -287,14 +287,13 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
             )}
 
             {/* ── View-Only Class Detail Modal ── */}
-            {selectedClass && (
-                <ClassFormModal
-                    isOpen={!!selectedClass}
-                    onClose={() => setSelectedClass(null)}
-                    initialData={selectedClass}
-                    viewOnly={true}
-                />
-            )}
+            <ClassViewModal
+                isOpen={!!selectedClass}
+                onClose={() => setSelectedClass(null)}
+                classData={selectedClass}
+                role={user?.role?.toLowerCase() === 'student' ? 'student' : user?.role?.toLowerCase() || 'view'}
+                enrollmentStatus={selectedClass?.enrollmentStatus}
+            />
         </div>
     );
 };
