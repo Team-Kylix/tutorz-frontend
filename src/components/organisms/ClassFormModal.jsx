@@ -67,8 +67,18 @@ const ClassFormModal = ({
       setIsLoadingInstitutes(true);
       try {
         const res = await getJoinedInstitutes();
-        // Assuming API returns array of institutes directly or in res.data
-        const fetchedInstitutes = Array.isArray(res) ? res : (res?.data || []);
+        // Handle multiple API response shapes:
+        // { success, data: [...] } OR { items: [...] } OR [...]
+        let fetchedInstitutes = [];
+        if (Array.isArray(res)) {
+          fetchedInstitutes = res;
+        } else if (Array.isArray(res?.data)) {
+          fetchedInstitutes = res.data;
+        } else if (Array.isArray(res?.data?.items)) {
+          fetchedInstitutes = res.data.items;
+        } else if (Array.isArray(res?.items)) {
+          fetchedInstitutes = res.items;
+        }
         setInstitutes(fetchedInstitutes);
 
         // If initial data has instituteName but no instituteId, find it
@@ -78,8 +88,8 @@ const ClassFormModal = ({
             setFormData(prev => ({ ...prev, instituteId: found.instituteId || found.id }));
           }
         }
-        // If create mode and institutes available, select first by default
-        else if (!initialData && fetchedInstitutes.length > 0) {
+        // In create mode, default to OWN_PLACE
+        else if (!initialData) {
           setFormData(prev => ({
             ...prev,
             instituteId: 'OWN_PLACE',
@@ -97,7 +107,8 @@ const ClassFormModal = ({
 
   // Fetch Halls when instituteId changes
   useEffect(() => {
-    if (!isOpen || !formData.instituteId || viewOnly) {
+    // Skip hall fetching when not applicable
+    if (!isOpen || !formData.instituteId || viewOnly || formData.instituteId === 'OWN_PLACE') {
       setHalls([]);
       return;
     }
@@ -708,11 +719,18 @@ const ClassFormModal = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
                 <label className={labelClass}>
-                  Hall <span className="text-red-500">*</span>
+                  Hall {formData.instituteId !== 'OWN_PLACE' && <span className="text-red-500">*</span>}
+                  {formData.instituteId === 'OWN_PLACE' && <span className="text-xs font-normal text-gray-400 ml-1">(optional)</span>}
                 </label>
                 {viewOnly ? (
                   <div className={readOnlyBoxClass}>
                     {formData.hallName || 'Not Applicable'}
+                  </div>
+                ) : formData.instituteId === 'OWN_PLACE' ? (
+                  // Greyed-out placeholder when tutor teaches at their own place — updated to match input theme
+                  <div className={`${readOnlyBoxClass} !border-solid !bg-white dark:!bg-gray-800 flex items-center gap-2`}>
+                    <span className="text-gray-400 select-none"></span>
+                    <span className="text-gray-500 dark:text-gray-400 font-normal italic">Not required</span>
                   </div>
                 ) : (
                   <select
@@ -720,13 +738,10 @@ const ClassFormModal = ({
                     value={formData.hallId || ''}
                     onChange={handleChange}
                     className={inputClass}
-                    disabled={isLoadingHalls || !formData.instituteId || formData.instituteId === 'OWN_PLACE'}
-                    required={formData.instituteId !== 'OWN_PLACE'}
+                    disabled={isLoadingHalls}
                   >
                     <option value="">Select Hall</option>
-                    {formData.instituteId === 'OWN_PLACE' ? (
-                      <option value="" disabled>Not Applicable</option>
-                    ) : isLoadingHalls ? (
+                    {isLoadingHalls ? (
                       <option value="" disabled>Loading halls...</option>
                     ) : halls.length === 0 ? (
                       <option value="" disabled>No halls available</option>
@@ -753,47 +768,43 @@ const ClassFormModal = ({
 
             {/* 4b. Commission Rate — shown for both Institute and Tutor modes */}
             {isInstituteMode ? (
-              /* Institute mode: editable commission rate field */
+              /* Institute mode: editable commission rate field in standard box style */
               <div className="flex flex-col gap-1">
                 <label className={labelClass}>
                   Institute Commission Rate <span className="text-xs text-gray-400 font-normal">(0–100%)</span>
                 </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    id="instituteCommissionRate"
-                    name="instituteCommissionRate"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={formData.instituteCommissionRate}
-                    onChange={handleChange}
-                    className={`${inputClass} max-w-[140px]`}
-                    placeholder="e.g. 25"
-                  />
-                  <span className="text-sm font-bold text-gray-500 dark:text-gray-400">%</span>
-                  {Number(formData.instituteCommissionRate) > 0 && (
-                    <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-                      Institute keeps {formData.instituteCommissionRate}% of fee revenue
-                    </span>
-                  )}
+                <div className={`${inputClass} flex items-center justify-center relative !bg-white dark:!bg-gray-800 focus-within:ring-2 focus-within:ring-blue-500 transition-shadow`}>
+                  <div className="flex items-center gap-1">
+                    <input
+                      id="instituteCommissionRate"
+                      name="instituteCommissionRate"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={formData.instituteCommissionRate}
+                      onChange={handleChange}
+                      className="bg-transparent border-none outline-none w-12 font-bold text-blue-600 dark:text-blue-400 focus:ring-0 p-0 text-right"
+                    />
+                    <span className="font-bold text-blue-600 dark:text-blue-400">%</span>
+                    <span className="ml-2 font-normal text-gray-500 dark:text-gray-400 italic text-sm">institute commission</span>
+                  </div>
+                  <span className="absolute right-3 text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-tight select-none">editable</span>
                 </div>
               </div>
             ) : (
-              /* Tutor mode: read-only commission rate info badge */
+              /* Tutor mode: read-only commission rate in standard box style */
               formData.instituteId && formData.instituteId !== 'OWN_PLACE' && (
                 <div className="flex flex-col gap-1">
                   <label className={labelClass}>Institute Commission Rate</label>
-                  <div className="flex items-center gap-2">
-                    <div className="px-3 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800/50 flex items-center gap-2">
-                      <span className="text-indigo-700 dark:text-indigo-300 font-bold text-sm">
+                  <div className="flex items-center gap-3">
+                    <div className={`${readOnlyBoxClass} flex items-center justify-center relative !border-solid !bg-white dark:!bg-gray-800`}>
+                      <span className="font-bold text-blue-600 dark:text-blue-400">
                         {Number(formData.instituteCommissionRate ?? 0)}%
+                        <span className="ml-2 font-normal text-gray-500 dark:text-gray-400 italic">institute commission</span>
                       </span>
-                      <span className="text-xs text-indigo-500 dark:text-indigo-400">
-                        institute commission
-                      </span>
+                      <span className="absolute right-3 text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-tight select-none">not editable</span>
                     </div>
-                    <span className="text-xs text-gray-400 italic">Set by institute — not editable</span>
                   </div>
                 </div>
               )
