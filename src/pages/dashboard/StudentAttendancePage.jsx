@@ -100,13 +100,16 @@ const StudentAttendancePage = () => {
                         normalizedAttendance[normalizeDate(isoDate)] = cls.attendanceRecord[isoDate];
                     });
                 }
+                // Normalise classConductedDates to YYYY-MM-DD to match the date column keys
+                const normalizedClassConductedDates = (cls.classConductedDates || []).map(normalizeDate);
                 return {
                     ...cls,
                     id: cls.id,
                     name: cls.name,
                     regNo: cls.regNo, // Tutor Name
                     mobile: cls.mobile, // Class Type
-                    attendance: normalizedAttendance
+                    attendance: normalizedAttendance,
+                    classConductedDates: normalizedClassConductedDates
                 };
             });
 
@@ -148,28 +151,6 @@ const StudentAttendancePage = () => {
         }
     }, [selectedClassId, selectedTutorId, selectedDate]);
 
-
-    // Derived State: Compute visual stats
-    const visualStats = useMemo(() => {
-        const totalSlots = classesRows.length * classDates.length;
-        let totalAttended = 0;
-
-        classesRows.forEach(cls => {
-            classDates.forEach(date => {
-                if (cls.attendance && cls.attendance[date]) {
-                    totalAttended++;
-                }
-            });
-        });
-
-        const rate = totalSlots > 0 ? Math.round((totalAttended / totalSlots) * 100) : 0;
-
-        return {
-            classesHeld: totalSlots,
-            attendance: totalAttended,
-            attendanceRate: rate
-        };
-    }, [classesRows, classDates]);
 
     // Trigger fetch on filter change
     useEffect(() => {
@@ -260,39 +241,6 @@ const StudentAttendancePage = () => {
                 </div>
 
             </div>
-
-            {/* Summary Statistics Boxes */}
-            {!isLoadingAttendance && !error && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-4">
-                        <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-lg text-blue-600 dark:text-blue-400">
-                            <CalendarIcon size={24} />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Class Held</p>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{visualStats.classesHeld}</p>
-                        </div>
-                    </div>
-                    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-4">
-                        <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-lg text-green-600 dark:text-green-400">
-                            <BookOpen size={24} />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Attendance</p>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{visualStats.attendance}</p>
-                        </div>
-                    </div>
-                    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-4">
-                        <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded-lg text-purple-600 dark:text-purple-400">
-                            <Percent size={24} />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Attendance Rate</p>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{visualStats.attendanceRate}%</p>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Content Area */}
             <div className="mt-4">

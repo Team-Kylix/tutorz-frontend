@@ -56,7 +56,11 @@ const AttendanceTable = ({ students = [], classDates = [], onMarkAttendance }) =
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {students.map((student) => (
+                        {students.map((student) => {
+                            // Build a Set of dates the class was actually conducted for O(1) lookup
+                            const conductedSet = new Set(student.classConductedDates || []);
+
+                            return (
                             <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                 {/* Sticky Student Info Column */}
                                 <td className="px-3 py-3 md:px-6 md:py-4 sticky left-0 z-10 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]">
@@ -75,15 +79,18 @@ const AttendanceTable = ({ students = [], classDates = [], onMarkAttendance }) =
                                 {/* Scrollable Attendance Squares */}
                                 {sortedDates.map((dateString, index) => {
                                     const isPresent = !!(student.attendance && student.attendance[dateString]);
+                                    // Absent = class was held that day, but this student has no present record
+                                    const isAbsent = !isPresent && conductedSet.has(dateString);
 
                                     return (
                                         <td key={`student-${student.id}-date-${index}`} className="px-2 py-3 md:px-4 md:py-4 min-w-[60px] md:min-w-[80px]">
                                             <div className="flex justify-center">
                                                 <AttendanceSquare
                                                     isPresent={isPresent}
+                                                    isAbsent={isAbsent}
                                                     date={dateString}
                                                     onClick={() => {
-                                                        if (!isPresent && onMarkAttendance) {
+                                                        if (!isPresent && !isAbsent && onMarkAttendance) {
                                                             onMarkAttendance(student.id, dateString);
                                                         }
                                                     }}
@@ -93,7 +100,8 @@ const AttendanceTable = ({ students = [], classDates = [], onMarkAttendance }) =
                                     );
                                 })}
                             </tr>
-                        ))}
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
