@@ -26,3 +26,49 @@ export const formatCurrency = (amount) => {
     currency: 'LKR',
   }).format(amount);
 };
+
+/**
+ * Standardizes a time string to a readable 12-hour AM/PM format.
+ * Handles: "14:30" -> "2:30 PM", "08:00 AM" -> "8:00 AM", "11:30" -> "11:30 AM"
+ */
+export const formatTime = (timeStr) => {
+  if (!timeStr) return '';
+  
+  // Clean the input (remove extra spaces)
+  const cleanStr = timeStr.trim();
+  
+  // Try to match HH:mm (optional AM/PM)
+  // This regex matches "08:00", "14:30", "08:00 AM", "8:00PM"
+  const match = cleanStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!match) return cleanStr; 
+
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  const ampm = match[3] ? match[3].toUpperCase() : null;
+
+  if (ampm) {
+    // Already has AM/PM, just ensure normalized spacing and removal of leading zero for hours 1-9
+    return `${hours}:${minutes} ${ampm}`;
+  } else {
+    // 24-hour conversion
+    const suffix = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12; // the hour '0' should be '12'
+    return `${hours}:${minutes} ${suffix}`;
+  }
+};
+
+/**
+ * Cleans up the class name by removing redundant 'Class -' and 'Grade X -' prefixes.
+ * Example: "Class - Science - Grade 7 - Sunday" -> "Science - Sunday"
+ */
+export const cleanClassName = (className) => {
+  if (!className) return '';
+  return className
+    .split(' - ')
+    .filter(p => {
+        const lower = p.toLowerCase().trim();
+        return !lower.startsWith('class') && !lower.startsWith('grade');
+    })
+    .join(' - ') || className;
+};

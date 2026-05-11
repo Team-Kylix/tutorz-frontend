@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Upload, Save, Loader } from 'lucide-react';
+import { Camera, Upload, Save, Loader, Key, X } from 'lucide-react';
 
 // Atoms & Molecules
 import Button from '../atoms/Button';
@@ -10,6 +10,50 @@ import TextAreaField from '../molecules/TextAreaField';
 import UpdateCredentialModal from './UpdateCredentialModal';
 import ChangePasswordModal from './ChangePasswordModal';
 import LocationSelector from '../molecules/LocationSelector';
+import ConfirmationModal from '../molecules/ConfirmationModal';
+import FinancialsSection from './FinancialsSection';
+import { ROLES, GRADE_GROUPS } from '../../utils/constants';
+import { validatePhoneNumber } from '../../utils/validators';
+
+const SelectField = ({ id, label, value, onChange, groups, placeholder, required = false, error }) => {
+    const isPlaceholder = value === "";
+    return (
+        <div className="w-full">
+            <Label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {label} {required && <span className="text-red-500 dark:text-red-400">*</span>}
+            </Label>
+            <div className="relative">
+                <select
+                    id={id}
+                    value={value}
+                    onChange={onChange}
+                    required={required}
+                    className={`appearance-none w-full px-4 py-3 rounded-lg border bg-white dark:bg-gray-800
+                        text-sm font-medium transition-all duration-200 ease-in-out
+                        focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-200 dark:focus:ring-blue-900 focus:border-blue-500 dark:focus:border-blue-500
+                        ${error ? 'border-red-300 dark:border-red-500' : 'border-gray-300 dark:border-gray-700'}
+                        ${isPlaceholder ? 'text-gray-400' : 'text-gray-900 dark:text-white'}
+                    `}
+                >
+                    <option value="" disabled>{placeholder}</option>
+                    {groups.map((group, index) => (
+                        <optgroup key={index} label={group.label} className="font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">
+                            {group.options.map((opt) => (
+                                <option key={opt} value={opt} className="text-gray-900 dark:text-white font-normal bg-white dark:bg-gray-800">{opt}</option>
+                            ))}
+                        </optgroup>
+                    ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500 dark:text-gray-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+            </div>
+            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        </div>
+    );
+};
 
 const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role = 'tutor' }) => {
     
@@ -54,6 +98,8 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [showMobileModal, setShowMobileModal] = useState(false);
     const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+    const [errors, setErrors] = useState({});
 
     // Sync state when initialData changes or modal opens
     useEffect(() => {
@@ -85,6 +131,16 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
         const { id, value } = e.target;
         const key = id || e.target.name; 
         setFormData(prev => ({ ...prev, [key]: value }));
+        if (errors[key]) setErrors(prev => ({ ...prev, [key]: null }));
+    };
+
+    const handlePhoneBlur = () => {
+        if (normalizedRole !== 'institute' && formData.phoneNumber) {
+            const validation = validatePhoneNumber(formData.phoneNumber);
+            if (!validation.isValid) {
+                setErrors(prev => ({ ...prev, phoneNumber: validation.message }));
+            }
+        }
     };
 
     const handleImageChange = (e) => {
@@ -95,61 +151,64 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleTriggerSave = (e) => {
         e.preventDefault();
+
+        // Validate phone number before showing confirmation dialog.
+        // Tutors have a DISABLED phone field (changed via UpdateCredentialModal)
+        // so we must NOT validate it here — it may be empty for new tutors.
+        // Institute uses contactNumber. Student uses the dedicated modal too.
+        // → Only validate for roles that have an editable phoneNumber in THIS form.
+        // (Currently no role has an editable phone here, but guard for future changes.)
+        if (normalizedRole === 'student') {
+            // Students edit their phone via the credential modal (disabled in form)
+        }
+
+        setShowSaveConfirm(true);
+    };
+
+    const executeSave = () => {
+        setShowSaveConfirm(false);
         
-        // Ensure clean payload for Institute ([FromForm] backend validation)
-        if (normalizedRole === 'institute') {
-            const submitData = new FormData();
-            
-            // Fields expected by UpdateInstituteProfileDto (backend)
-            const expectedInstituteFields = [
-                'instituteName', 'address', 'contactNumber', 'website', 
-                'isSmsEnabled', 'provinceId', 'districtId', 'cityId'
-            ];
+        // Ensure clean payload for ALL roles using [FromForm] backend validation
+        const submitData = new FormData();
+        
+        let expectedFields = [];
+        switch (normalizedRole) {
+            case 'institute':
+                expectedFields = ['instituteName', 'address', 'contactNumber', 'website', 'isSmsEnabled', 'provinceId', 'districtId', 'cityId'];
+                break;
+            case 'student':
+                expectedFields = ['firstName', 'lastName', 'schoolName', 'grade', 'parentName', 'dateOfBirth', 'address', 'provinceId', 'districtId', 'cityId'];
+                break;
+            case 'tutor':
+                expectedFields = ['firstName', 'lastName', 'bio', 'address', 'cityId'];
+                break;
+            case 'admin':
+            case 'superadmin':
+                expectedFields = ['firstName', 'lastName', 'address'];
+                break;
+        }
 
-            expectedInstituteFields.forEach(key => {
-                const val = formData[key];
-                // Append only if value is present. IDs should be numbers or strings.
-                // FormData.append converts everything to string correctly.
-                if (val !== null && val !== undefined && val !== '') {
-                    submitData.append(key, val);
-                }
-            });
-            
-            if (selectedFile) {
-                // Key name must match the property in UpdateInstituteProfileDto
-                submitData.append('profilePicture', selectedFile);
+        expectedFields.forEach(key => {
+            const val = formData[key];
+            // Only append if truly non-empty; prevents sending literal 'null' / 'undefined' strings
+            if (val !== null && val !== undefined && val !== '' && val !== 'null') {
+                submitData.append(key, val);
             }
-            
-            onSave(submitData);
-            return;
-        }
-
-        // Check if a file is selected for other roles
+        });
+        
         if (selectedFile) {
-            const submitData = new FormData();
-            
-            // Append all text data
-            Object.keys(formData).forEach(key => {
-                // Prevent appending null/undefined which might become string "null"
-                submitData.append(key, formData[key] === null || formData[key] === undefined ? '' : formData[key]);
-            });
-            
-            // Append the file
             submitData.append('profilePicture', selectedFile);
-            
-            onSave(submitData);
-        } else {
-            // If no file changed, send standard JSON object
-            onSave(formData);
         }
+        
+        onSave(submitData);
     };
 
     return (
         <>
             <Modal isOpen={isOpen} onClose={onClose} title={`Edit ${role.charAt(0).toUpperCase() + role.slice(1)} Profile`}>
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-6">
                     
                     {/* --- SECTION 1: Profile Picture (Enabled for ALL Roles) --- */}
                     <div className="flex flex-col items-center gap-2 mb-4">
@@ -183,11 +242,6 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                             <h3 className="text-sm font-bold text-gray-900 dark:text-white">
                                 Basic Information
                             </h3>
-                            {normalizedRole === 'institute' && (
-                                <Button type="button" variant="outline" size="sm" onClick={() => setShowPasswordModal(true)}>
-                                    Change Password
-                                </Button>
-                            )}
                         </div>
                         
                         {normalizedRole === 'institute' ? (
@@ -196,7 +250,7 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                                 <FormField id="instituteName" label="Institute Name" value={formData.instituteName} onChange={handleChange} required />
                             </div>
                         ) : (
-                            // Tutor/Student Top Fields
+                            // Admin/Tutor/Student Top Fields
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required />
                                 <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required />
@@ -204,32 +258,24 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                         )}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {normalizedRole === 'institute' ? (
-                                <>
-                                    <div className="flex items-end gap-2">
-                                        <div className="flex-1">
-                                            <FormField id="email" label="Email" value={formData.email} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
-                                        </div>
-                                        <Button type="button" variant="outline" className="mb-px" onClick={() => setShowEmailModal(true)}>Change</Button>
-                                    </div>
-                                    <div className="flex items-end gap-2">
-                                        <div className="flex-1">
-                                            <FormField id="contactNumber" label="Contact Number" value={formData.contactNumber} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
-                                        </div>
-                                        <Button type="button" variant="outline" className="mb-px" onClick={() => setShowMobileModal(true)}>Change</Button>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
+                            <div className="flex items-end gap-2">
+                                <div className="flex-1">
                                     <FormField id="email" label="Email" value={formData.email} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
+                                </div>
+                                <Button type="button" variant="outline" className="mb-px" onClick={() => setShowEmailModal(true)}>Change</Button>
+                            </div>
+                            <div className="flex items-end gap-2">
+                                <div className="flex-1">
                                     <FormField 
-                                        id="phoneNumber" 
-                                        label="Phone Number" 
-                                        value={formData.phoneNumber} 
-                                        onChange={handleChange} 
+                                        id={normalizedRole === 'tutor' ? "phoneNumber" : "contactNumber"} 
+                                        label={normalizedRole === 'student' ? "Phone Number" : normalizedRole === 'tutor' ? "Phone Number" : "Contact Number"} 
+                                        value={normalizedRole === 'tutor' ? formData.phoneNumber : formData.contactNumber} 
+                                        disabled 
+                                        className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" 
                                     />
-                                </>
-                            )}
+                                </div>
+                                <Button type="button" variant="outline" className="mb-px" onClick={() => setShowMobileModal(true)}>Change</Button>
+                            </div>
                         </div>
 
                         {/* Student Specific Fields */}
@@ -240,67 +286,139 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                             </div>
                         )}
 
-                    {/* Tutor Specific Bio */}
-                    {normalizedRole === 'tutor' && (
-                        <TextAreaField id="bio" label="Biography" value={formData.bio} onChange={handleChange} placeholder="Tell students about yourself..." />
-                    )}
-                </div>
+                        {/* Tutor Specific Bio */}
+                        {normalizedRole === 'tutor' && (
+                            <TextAreaField id="bio" label="Biography" value={formData.bio} onChange={handleChange} placeholder="Tell students about yourself..." />
+                        )}
+                    </div>
 
-                {/* --- SECTION 3: Role Specific Details --- */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">
-                        {normalizedRole === 'tutor' ? 'Financial Details' : normalizedRole === 'institute' ? 'Location & Web' : 'Academic Details'}
-                    </h3>
+                    {/* --- SECTION 3: Role Specific Details --- */}
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">
+                            {normalizedRole === 'tutor' ? 'Financial Details' : normalizedRole === 'institute' ? 'Location & Web' : normalizedRole === 'student' ? 'Academic Details' : 'Additional Details'}
+                        </h3>
 
-                    {/* A. TUTOR FIELDS */}
-                    {normalizedRole === 'tutor' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField id="bankName" label="Bank Name" value={formData.bankName} onChange={handleChange} placeholder="e.g. Bank of Ceylon" />
-                            <FormField id="bankAccountNumber" label="Account Number" value={formData.bankAccountNumber} onChange={handleChange} />
+                        {/* A. TUTOR FIELDS (Now standardized with location) */}
+                        {normalizedRole === 'tutor' && (
+                            <>
+                                <LocationSelector 
+                                    onProvinceChange={(provinceId) => setFormData(prev => ({ ...prev, provinceId }))}
+                                    onDistrictChange={(districtId) => setFormData(prev => ({ ...prev, districtId }))}
+                                    onCityChange={(cityId) => setFormData(prev => ({ ...prev, cityId }))}
+                                    initialProvinceId={formData.provinceId}
+                                    initialDistrictId={formData.districtId}
+                                    initialCityId={formData.cityId}
+                                    error={null} 
+                                />
+                                <FormField id="address" label="Home/Office Street Address" value={formData.address} onChange={handleChange} placeholder="e.g. No 15, Main Street" />
+                            </>
+                        )}
+
+                        {/* B. STUDENT FIELDS */}
+                        {normalizedRole === 'student' && (
+                            <>
+                                <div className="grid grid-cols-1 gap-4">
+                                    <FormField id="schoolName" label="School Name" value={formData.schoolName} onChange={handleChange} placeholder="e.g. Royal College" />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <SelectField
+                                        id="grade"
+                                        label="Grade / Course ..."
+                                        value={formData.grade}
+                                        onChange={handleChange}
+                                        groups={GRADE_GROUPS}
+                                        placeholder="Select Grade"
+                                        required={true}
+                                        error={errors.grade}
+                                    />
+                                    {initialData?.registrationNumber && (
+                                        <FormField id="regNumber" label="Registration No" value={initialData.registrationNumber} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
+                                    )}
+                                </div>
+                                <LocationSelector 
+                                    onProvinceChange={(provinceId) => setFormData(prev => ({ ...prev, provinceId }))}
+                                    onDistrictChange={(districtId) => setFormData(prev => ({ ...prev, districtId }))}
+                                    onCityChange={(cityId) => setFormData(prev => ({ ...prev, cityId }))}
+                                    initialProvinceId={formData.provinceId}
+                                    initialDistrictId={formData.districtId}
+                                    initialCityId={formData.cityId}
+                                    error={null} 
+                                />
+                                <FormField id="address" label="Street Address" value={formData.address} onChange={handleChange} placeholder="e.g. No 15, Main Street" />
+                            </>
+                        )}
+
+                        {/* C. INSTITUTE FIELDS */}
+                        {normalizedRole === 'institute' && (
+                            <>
+                                <LocationSelector 
+                                    onProvinceChange={(provinceId) => setFormData(prev => ({ ...prev, provinceId }))}
+                                    onDistrictChange={(districtId) => setFormData(prev => ({ ...prev, districtId }))}
+                                    onCityChange={(cityId) => setFormData(prev => ({ ...prev, cityId }))}
+                                    initialProvinceId={formData.provinceId}
+                                    initialDistrictId={formData.districtId}
+                                    initialCityId={formData.cityId}
+                                    error={null} 
+                                />
+                                <FormField id="address" label="Street Address" value={formData.address} onChange={handleChange} placeholder="e.g. No 15, Main Street" />
+                                <FormField id="website" label="Website" value={formData.website} onChange={handleChange} placeholder="https://..." />
+                            </>
+                        )}
+
+                        {/* D. ADMIN FIELDS */}
+                        {(normalizedRole === 'admin' || normalizedRole === 'superadmin') && (
+                            <>
+                                <FormField id="address" label="Street Address" value={formData.address} onChange={handleChange} placeholder="e.g. No 15, Main Street" />
+                            </>
+                        )}
+                    </div>
+
+                    {/* --- SECTION 4: Payment & Banking --- */}
+                    {(normalizedRole !== 'admin' && normalizedRole !== 'superadmin') && (
+                        <div className="space-y-4 border-t border-gray-100 dark:border-gray-700 pt-6">
+                            <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2">
+                                <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                                    Payment &amp; Banking
+                                </h3>
+                                <span className="text-xs text-gray-400 dark:text-gray-500">Manage your saved accounts</span>
+                            </div>
+                            <FinancialsSection role={role} readOnly={false} />
                         </div>
                     )}
 
-                    {/* B. STUDENT FIELDS */}
-                    {normalizedRole === 'student' && (
-                        <>
-                            <div className="grid grid-cols-1 gap-4">
-                                <FormField id="schoolName" label="School Name" value={formData.schoolName} onChange={handleChange} placeholder="e.g. Royal College" />
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField id="grade" label="Grade / Year" value={formData.grade} onChange={handleChange} placeholder="e.g. Grade 10" />
-                                {initialData?.registrationNumber && (
-                                    <FormField id="regNumber" label="Registration No" value={initialData.registrationNumber} disabled className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed" />
-                                )}
-                            </div>
-                        </>
-                    )}
-
-                    {/* C. INSTITUTE FIELDS */}
-                    {normalizedRole === 'institute' && (
-                        <>
-                            <LocationSelector 
-                                onCityChange={(cityId) => setFormData(prev => ({ ...prev, cityId }))}
-                                initialProvinceId={formData.provinceId}
-                                initialDistrictId={formData.districtId}
-                                initialCityId={formData.cityId}
-                                error={null} 
-                            />
-                            <FormField id="address" label="Street Address" value={formData.address} onChange={handleChange} placeholder="e.g. No 15, Main Street" />
-                            <FormField id="website" label="Website" value={formData.website} onChange={handleChange} placeholder="https://..." />
-                        </>
-                    )}
+                    {/* --- Footer Buttons --- */}
+                    <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <Button 
+                            type="button" 
+                            variant="primary" 
+                            onClick={() => setShowPasswordModal(true)}
+                            className="w-full sm:w-auto order-2 sm:order-none"
+                        >
+                            <Key size={18} className="mr-2"/>
+                            Change Password
+                        </Button>
+                        <Button 
+                            type="button" 
+                            variant="primary" 
+                            disabled={isSaving}
+                            onClick={handleTriggerSave}
+                            className="w-full sm:w-auto order-1 sm:order-none"
+                        >
+                            {isSaving ? <Loader size={18} className="animate-spin mr-2"/> : <Save size={18} className="mr-2"/>}
+                            Save Changes
+                        </Button>
+                        <Button 
+                            type="button" 
+                            variant="secondary" 
+                            onClick={onClose}
+                            className="w-full sm:w-auto order-3 sm:order-none"
+                        >
+                            <X size={18} className="mr-2"/>
+                            Cancel
+                        </Button>
+                    </div>
                 </div>
 
-                {/* --- Footer Buttons --- */}
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
-                    <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-                    <Button type="submit" variant="primary" disabled={isSaving}>
-                        {isSaving ? <Loader size={18} className="animate-spin mr-2"/> : <Save size={18} className="mr-2"/>}
-                        Save Changes
-                    </Button>
-                </div>
-
-            </form>
         </Modal>
 
         {/* --- Credential Update Modals --- */}
@@ -323,6 +441,15 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
         <ChangePasswordModal
             isOpen={showPasswordModal}
             onClose={() => setShowPasswordModal(false)}
+        />
+
+        <ConfirmationModal
+            isOpen={showSaveConfirm}
+            onClose={() => setShowSaveConfirm(false)}
+            onConfirm={executeSave}
+            title="Confirm Profile Update"
+            message={`Are you sure you want to save the changes to your profile?`}
+            confirmLabel={isSaving ? "Saving..." : "Save Changes"}
         />
     </>
     );

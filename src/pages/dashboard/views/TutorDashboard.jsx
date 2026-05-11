@@ -5,9 +5,8 @@ import { QrCode, Plus } from 'lucide-react';
 import useApi from '../../../hooks/useApi';
 import * as tutorService from '../../../services/api/tutorService';
 
-// Components
 import StatsGrid from '../../../components/organisms/StatsGrid';
-import UpcomingClasses from '../../../components/organisms/UpcomingClasses';
+import UnifiedSchedule from '../../../components/organisms/UnifiedSchedule';
 import QuickActions from '../../../components/organisms/QuickActions';
 import ClassFormModal from '../../../components/organisms/ClassFormModal';
 import ConfirmationModal from '../../../components/molecules/ConfirmationModal';
@@ -78,8 +77,12 @@ const TutorDashboard = ({ setActivePage }) => {
       <StatsGrid />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <UpcomingClasses onNavigate={() => setActivePage('classes')} />
+        <div className="lg:col-span-2 h-[26rem]">
+          <UnifiedSchedule 
+            title="My Schedule"
+            onNavigate={() => setActivePage('classes')} 
+            fetchClassesApi={tutorService.getClasses} 
+          />
         </div>
         <div>
           {/* Pass the handler */}

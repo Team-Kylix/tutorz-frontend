@@ -12,6 +12,7 @@ import HallManagement from './views/HallManagement';
 // Import Pages for Navigation Switching
 import ClassesPage from './ClassesPage';
 import InstituteClassesPage from './InstituteClassesPage';
+import StudentClassesPage from './StudentClassesPage';
 import TimetablePage from './TimetablePage';
 // Import only the unified profile page
 import UserProfile from './UserProfile';
@@ -21,8 +22,18 @@ import InstituteRequestsPage from './InstituteRequestsPage';
 import TutorRequestsPage from './TutorRequestsPage';
 import StudentRequestsPage from './StudentRequestsPage';
 import AttendancePage from './AttendancePage';
+import StudentAttendancePage from './StudentAttendancePage';
 import FinancialsPage from './FinancialsPage';
+import StudentFinancialsPage from './StudentFinancialsPage';
 import SettingsPage from './SettingsPage';
+import AdminStudentsPage from './AdminStudentsPage';
+import AdminTeachersPage from './AdminTeachersPage';
+import AdminInstitutesPage from './AdminInstitutesPage';
+import AdminPlatformFinancePage from './AdminPlatformFinancePage';
+import UserPlatformFinancePage from './UserPlatformFinancePage';
+import AdminSystemConfigPage from './AdminSystemConfigPage';
+import AboutUsContent from '../../components/organisms/AboutUsContent';
+import DisputesPage from './DisputesPage';
 
 const DashboardHome = ({ activePage, setActivePage }) => {
   const { user } = useAuth();
@@ -32,6 +43,9 @@ const DashboardHome = ({ activePage, setActivePage }) => {
   if (activePage === 'classes') {
     if (user?.role === ROLES.INSTITUTE) {
       return <InstituteClassesPage />;
+    }
+    if (user?.role === ROLES.STUDENT) {
+      return <StudentClassesPage />;
     }
     return <ClassesPage />;
   }
@@ -50,6 +64,18 @@ const DashboardHome = ({ activePage, setActivePage }) => {
 
   if (activePage === 'institute-tutors') {
     return <InstituteTutorsPage />;
+  }
+
+  if (activePage === 'institutes') {
+    return <AdminInstitutesPage />;
+  }
+
+  if (activePage === 'admin-students') {
+    return <AdminStudentsPage />;
+  }
+
+  if (activePage === 'admin-teachers') {
+    return <AdminTeachersPage />;
   }
 
   if (activePage === 'institute-requests') {
@@ -71,15 +97,49 @@ const DashboardHome = ({ activePage, setActivePage }) => {
   }
 
   if (activePage === 'attendance') {
+    if (user?.role === ROLES.STUDENT) {
+      return <StudentAttendancePage />;
+    }
     return <AttendancePage />;
   }
 
   if (activePage === 'financials') {
+    if (user?.role === ROLES.STUDENT) {
+      return <StudentFinancialsPage setActivePage={setActivePage} />;
+    }
     return <FinancialsPage />;
   }
 
   if (activePage === 'settings') {
     return <SettingsPage user={user} />;
+  }
+
+  if (activePage === 'platform-finance') {
+    if (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'superadmin') {
+      return <AdminPlatformFinancePage />;
+    }
+    return <UserPlatformFinancePage setActivePage={setActivePage} />;
+  }
+
+  if (activePage === 'system-config') {
+    if (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'superadmin') {
+      return <AdminSystemConfigPage />;
+    }
+    return <SettingsPage user={user} />;
+  }
+
+  if (activePage === 'about') {
+    return (
+      <div className="max-w-6xl mx-auto w-full">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">About & Policies</h2>
+        <AboutUsContent />
+      </div>
+    );
+  }
+
+  // Complaints & Disputes — unified view for all roles
+  if (activePage === 'complains' || activePage === 'disputes') {
+    return <DisputesPage />;
   }
 
   // --- DASHBOARD RENDERING ---
@@ -88,12 +148,13 @@ const DashboardHome = ({ activePage, setActivePage }) => {
       return <TutorDashboard setActivePage={setActivePage} />;
 
     case ROLES.STUDENT:
-      return <StudentDashboard user={user} />;
+      return <StudentDashboard user={user} setActivePage={setActivePage} />;
 
     case ROLES.INSTITUTE:
       return <InstituteDashboard user={user} setActivePage={setActivePage} />;
 
     case ROLES.ADMIN:
+    case ROLES.SUPERADMIN:
       return <AdminDashboard user={user} />;
 
     default:

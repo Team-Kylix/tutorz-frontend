@@ -43,8 +43,14 @@ const LoginForm = ({ onSwitchToRegister }) => {
                 navigate('/dashboard', { replace: true });
 
             } catch (err) {
-                console.error("Login failed:", err);
-                setError(err.message || "Social login failed");
+                if (err.message && err.message.toLowerCase().includes('register first')) {
+                    if (onSwitchToRegister) {
+                        onSwitchToRegister();
+                    }
+                } else {
+                    console.error("Login failed:", err);
+                    setError(err.message || "Social login failed");
+                }
             }
         },
         onError: () => setError('Google login failed.'),

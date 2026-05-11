@@ -29,3 +29,15 @@ export const getCities = async (districtId) => {
         return [];
     }
 };
+
+export const searchLocations = async (query) => {
+    try {
+        const response = await apiClient.get('/locations/search', {
+            params: { q: query }
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Failed to search locations", error);
+        return [];
+    }
+};

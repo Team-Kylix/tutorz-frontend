@@ -1,7 +1,7 @@
 {
   "name": "tutorz-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@microsoft/signalr": "^10.0.0",
     "@react-oauth/google": "^0.12.2",
     "@reduxjs/toolkit": "^2.9.0",
     "@tailwindcss/vite": "^4.1.18",
@@ -19,6 +20,7 @@
     "date-fns": "^4.1.0",
     "html5-qrcode": "^2.3.8",
     "jwt-decode": "^4.0.0",
+    "localforage": "^1.10.0",
     "lucide-react": "^0.556.0",
     "prop-types": "^15.8.1",
     "qrcode.react": "^4.2.0",
@@ -26,6 +28,7 @@
     "react-dom": "^19.1.1",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.9.4",
+    "redux-persist": "^6.0.0",
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
@@ -41,5 +44,8 @@
     "sharp": "^0.34.5",
     "vite": "^7.1.7",
     "vite-plugin-pwa": "^1.2.0"
+  },
+  "overrides": {
+    "serialize-javascript": "^7.0.5"
   }
 }

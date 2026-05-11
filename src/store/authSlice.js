@@ -1,30 +1,13 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-// 1. Helper to safely read from localStorage
-const loadUserFromStorage = () => {
-  try {
-    const user = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-    if (user && token) {
-      return {
-        user: JSON.parse(user),
-        token: token,
-        isAuthenticated: true
-      };
-    }
-  } catch (e) {
-    console.error("Failed to load auth state", e);
-  }
-  return {
-    user: null,
-    token: null,
-    isAuthenticated: false
-  };
-};
-
-// 2. Initialize state using the helper
 const initialState = {
-  ...loadUserFromStorage(),
+  // We no longer manually load from localStorage on boot.
+  // redux-persist will intercept the store initialization and 
+  // automatically rehydrate 'user' and 'token' from IndexedDB 
+  // asynchronously, preventing the UI thread from blocking.
+  user: null,
+  token: null,
+  isAuthenticated: false,
   loading: false,
   error: null
 };
@@ -34,27 +17,24 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     loginSuccess: (state, action) => {
+      // We only update the Redux state in memory. 
+      // redux-persist will detect this change and automatically push 
+      // the new state into the background IndexedDB storage.
       state.user = action.payload.user;
       state.token = action.payload.token;
       state.isAuthenticated = true;
-      
-      // 3. Save to Local Storage
-      localStorage.setItem('user', JSON.stringify(action.payload.user));
-      localStorage.setItem('token', action.payload.token);
     },
     logout: (state) => {
+      // Reset auth state — redux-persist will sync this wipe to IndexedDB.
+      // Full cache + storage clearing is handled by logoutUser() in useAuth.js
+      // and the 401 interceptor in apiClient.js.
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
-
-      // 4. Clear Local Storage
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
     },
     updateUser: (state, action) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
-        localStorage.setItem('user', JSON.stringify(state.user));
       }
     },
   },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, Search } from 'lucide-react';
+import { X, Trash2, Search, LogOut, Loader } from 'lucide-react';
 import Button from '../atoms/Button';
 import FormField from '../molecules/FormField';
 import { MOCK_SUBJECTS } from '../../utils/mockData';
@@ -19,6 +19,8 @@ const ClassFormModal = ({
   existingClasses = [],   // ← all classes already in this institute
   backendError = '',      // ← error message from backend (e.g. hall conflict)
   viewOnly = false,       // ← read-only timetable view — no edit/delete
+  onLeave,                // ← function to leave class
+  isLeaving = false,      // ← loading state for leave action
 }) => {
 
   const [formData, setFormData] = useState({
@@ -37,7 +39,8 @@ const ClassFormModal = ({
     tutorId: '', // Added for Institute mode
     tutorName: '', // Added for Institute mode
     fee: '',
-    isActive: true
+    isActive: true,
+    instituteCommissionRate: 0  // Commission rate: editable for institute, read-only for tutor
   });
 
   const [timeError, setTimeError] = useState('');
@@ -64,8 +67,18 @@ const ClassFormModal = ({
       setIsLoadingInstitutes(true);
       try {
         const res = await getJoinedInstitutes();
-        // Assuming API returns array of institutes directly or in res.data
-        const fetchedInstitutes = Array.isArray(res) ? res : (res?.data || []);
+        // Handle multiple API response shapes:
+        // { success, data: [...] } OR { items: [...] } OR [...]
+        let fetchedInstitutes = [];
+        if (Array.isArray(res)) {
+          fetchedInstitutes = res;
+        } else if (Array.isArray(res?.data)) {
+          fetchedInstitutes = res.data;
+        } else if (Array.isArray(res?.data?.items)) {
+          fetchedInstitutes = res.data.items;
+        } else if (Array.isArray(res?.items)) {
+          fetchedInstitutes = res.items;
+        }
         setInstitutes(fetchedInstitutes);
 
         // If initial data has instituteName but no instituteId, find it
@@ -75,8 +88,8 @@ const ClassFormModal = ({
             setFormData(prev => ({ ...prev, instituteId: found.instituteId || found.id }));
           }
         }
-        // If create mode and institutes available, select first by default
-        else if (!initialData && fetchedInstitutes.length > 0) {
+        // In create mode, default to OWN_PLACE
+        else if (!initialData) {
           setFormData(prev => ({
             ...prev,
             instituteId: 'OWN_PLACE',
@@ -94,7 +107,8 @@ const ClassFormModal = ({
 
   // Fetch Halls when instituteId changes
   useEffect(() => {
-    if (!isOpen || !formData.instituteId || viewOnly) {
+    // Skip hall fetching when not applicable
+    if (!isOpen || !formData.instituteId || viewOnly || formData.instituteId === 'OWN_PLACE') {
       setHalls([]);
       return;
     }
@@ -106,8 +120,29 @@ const ClassFormModal = ({
         setHalls(fetchedHalls);
 
         // Reset hall if the current hall is not in the new list, or auto-select if only one
-        if (fetchedHalls.length > 0 && !initialData?.hallId) {
-          setFormData(prev => ({ ...prev, hallId: fetchedHalls[0].hallId, hallName: fetchedHalls[0].name }));
+        if (fetchedHalls.length > 0) {
+          let selectedHallId = null;
+          let selectedHallName = '';
+
+          if (initialData?.hallId) {
+            // Already explicitly defined
+            selectedHallId = initialData.hallId;
+          } else if (initialData?.hallName) {
+            // Missing ID, try to match by name
+            const match = fetchedHalls.find(h => h.name.toLowerCase() === initialData.hallName.toLowerCase());
+            if (match) {
+              selectedHallId = match.hallId || match.id;
+              selectedHallName = match.name;
+            }
+          }
+
+          if (selectedHallId) {
+            setFormData(prev => ({ ...prev, hallId: selectedHallId, hallName: selectedHallName || prev.hallName }));
+          } else {
+            // Default to first if no match
+            const firstId = fetchedHalls[0].hallId || fetchedHalls[0].id;
+            setFormData(prev => ({ ...prev, hallId: firstId, hallName: fetchedHalls[0].name }));
+          }
         } else if (fetchedHalls.length === 0) {
           setFormData(prev => ({ ...prev, hallId: '', hallName: '' }));
         }
@@ -158,7 +193,8 @@ const ClassFormModal = ({
         tutorId: initialData.tutorId || '', // Ensure tutorId gets mapped
         dayOfWeek: initialData.dayOfWeek || 'Monday',
         date: initialData.date ? initialData.date.split('T')[0] : '',
-        isActive: initialData.isActive ?? true
+        isActive: initialData.isActive ?? true,
+        instituteCommissionRate: Number(initialData.instituteCommissionRate ?? 0)
       };
 
       if (isInstituteMode && instituteProfile) {
@@ -188,12 +224,15 @@ const ClassFormModal = ({
         tutorId: '',
         tutorName: '',
         fee: '',
-        isActive: true
+        isActive: true,
+        instituteCommissionRate: 0
       };
 
       if (isInstituteMode && instituteProfile) {
         newFormData.instituteId = instituteProfile.instituteId || instituteProfile.id;
         newFormData.instituteName = instituteProfile.instituteName || instituteProfile.name;
+        // Default commission rate from the institute's configured setting
+        newFormData.instituteCommissionRate = Number(instituteProfile.commissionPercentage ?? 25);
       }
       setFormData(newFormData);
       setTutorQuery('');
@@ -223,14 +262,20 @@ const ClassFormModal = ({
     setFormData((prev) => {
       const updates = { [name]: type === 'checkbox' ? checked : value };
 
-      // If changing institute, also capture the text name
+      // If changing institute (tutor mode), also capture commission rate from the institutes list
       if (name === 'instituteId') {
         if (value === 'OWN_PLACE') {
           updates.instituteName = 'My Own Place';
           updates.hallId = null;
           updates.hallName = 'N/A';
+          updates.instituteCommissionRate = 0;
         } else {
           updates.instituteName = options[selectedIndex].text;
+          // Auto-populate commission rate from the selected institute's data
+          const selectedInst = institutes.find(
+            (i) => String(i.instituteId || i.id) === String(value)
+          );
+          updates.instituteCommissionRate = Number(selectedInst?.commissionPercentage ?? 0);
         }
       }
       // If changing hall, also capture the text name
@@ -396,6 +441,7 @@ const ClassFormModal = ({
       tutorId: formData.tutorId === '' ? null : formData.tutorId,
       hallId: formData.hallId === '' ? null : formData.hallId,
       fee: parseFloat(formData.fee),
+      instituteCommissionRate: parseFloat(formData.instituteCommissionRate ?? 0),
       dayOfWeek: finalDayString,
       date: finalDate
     };
@@ -434,9 +480,9 @@ const ClassFormModal = ({
               <label className={labelClass}>
                 Institute <span className="text-red-500">*</span>
               </label>
-              {isInstituteMode ? (
+              {viewOnly || isInstituteMode ? (
                 <div className={readOnlyBoxClass}>
-                  {formData.instituteName || 'Loading...'}
+                  {formData.instituteName || 'Not Applicable'}
                 </div>
               ) : (
                 <select
@@ -460,51 +506,57 @@ const ClassFormModal = ({
               )}
             </div>
 
-            {isInstituteMode && (
+            {(isInstituteMode || viewOnly) && (
               <div className="relative flex flex-col gap-1">
                 <label className={labelClass}>
                   Assigned Tutor <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    className={`${inputClass} pl-10`}
-                    placeholder="Search tutor by name..."
-                    value={tutorQuery}
-                    onChange={(e) => {
-                      setTutorQuery(e.target.value);
-                      if (formData.tutorId) {
-                        setFormData(prev => ({ ...prev, tutorId: '', tutorName: '' })); // Reset if typing
-                      }
-                    }}
-                    onFocus={() => {
-                      if (tutorQuery.trim() && filteredTutors.length > 0) setShowTutorSuggestions(true);
-                    }}
-                  />
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                    <Search size={16} />
+                {viewOnly ? (
+                  <div className={readOnlyBoxClass}>
+                    {formData.tutorName || 'Not Assigned'}
                   </div>
-                </div>
+                ) : (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className={`${inputClass} pl-10`}
+                      placeholder="Search tutor by name..."
+                      value={tutorQuery}
+                      onChange={(e) => {
+                        setTutorQuery(e.target.value);
+                        if (formData.tutorId) {
+                          setFormData(prev => ({ ...prev, tutorId: '', tutorName: '' })); // Reset if typing
+                        }
+                      }}
+                      onFocus={() => {
+                        if (tutorQuery.trim() && filteredTutors.length > 0) setShowTutorSuggestions(true);
+                      }}
+                    />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      <Search size={16} />
+                    </div>
 
-                {showTutorSuggestions && (
-                  <ul className="absolute z-20 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto mt-1 top-full">
-                    {isSearchingTutors && filteredTutors.length === 0 ? (
-                      <li className="px-4 py-3 text-sm text-gray-500 text-center">Searching...</li>
-                    ) : filteredTutors.length > 0 ? (
-                      filteredTutors.map((tutor) => (
-                        <li
-                          key={tutor.tutorId}
-                          onMouseDown={() => handleTutorSelect(tutor)}
-                          className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 transition-colors flex justify-between items-center"
-                        >
-                          <span>{tutor.firstName} {tutor.lastName}</span>
-                          <span className="text-xs text-gray-400">{tutor.registrationNumber}</span>
-                        </li>
-                      ))
-                    ) : (
-                      <li className="px-4 py-3 text-sm text-gray-500 text-center">No assigned tutors found</li>
+                    {showTutorSuggestions && (
+                      <ul className="absolute z-20 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto mt-1 top-full">
+                        {isSearchingTutors && filteredTutors.length === 0 ? (
+                          <li className="px-4 py-3 text-sm text-gray-500 text-center">Searching...</li>
+                        ) : filteredTutors.length > 0 ? (
+                          filteredTutors.map((tutor) => (
+                            <li
+                              key={tutor.tutorId}
+                              onMouseDown={() => handleTutorSelect(tutor)}
+                              className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 transition-colors flex justify-between items-center"
+                            >
+                              <span>{tutor.firstName} {tutor.lastName}</span>
+                              <span className="text-xs text-gray-400">{tutor.registrationNumber}</span>
+                            </li>
+                          ))
+                        ) : (
+                          <li className="px-4 py-3 text-sm text-gray-500 text-center">No assigned tutors found</li>
+                        )}
+                      </ul>
                     )}
-                  </ul>
+                  </div>
                 )}
               </div>
             )}
@@ -667,31 +719,41 @@ const ClassFormModal = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
                 <label className={labelClass}>
-                  Hall <span className="text-red-500">*</span>
+                  Hall {formData.instituteId !== 'OWN_PLACE' && <span className="text-red-500">*</span>}
+                  {formData.instituteId === 'OWN_PLACE' && <span className="text-xs font-normal text-gray-400 ml-1">(optional)</span>}
                 </label>
-                <select
-                  name="hallId"
-                  value={formData.hallId || ''}
-                  onChange={handleChange}
-                  className={inputClass}
-                  disabled={isLoadingHalls || !formData.instituteId || formData.instituteId === 'OWN_PLACE'}
-                  required={formData.instituteId !== 'OWN_PLACE'}
-                >
-                  <option value="">Select Hall</option>
-                  {formData.instituteId === 'OWN_PLACE' ? (
-                    <option value="" disabled>Not Applicable</option>
-                  ) : isLoadingHalls ? (
-                    <option value="" disabled>Loading halls...</option>
-                  ) : halls.length === 0 ? (
-                    <option value="" disabled>No halls available</option>
-                  ) : (
-                    halls.map((hall) => (
-                      <option key={hall.hallId || hall.id} value={hall.hallId || hall.id}>
-                        {hall.name}
-                      </option>
-                    ))
-                  )}
-                </select>
+                {viewOnly ? (
+                  <div className={readOnlyBoxClass}>
+                    {formData.hallName || 'Not Applicable'}
+                  </div>
+                ) : formData.instituteId === 'OWN_PLACE' ? (
+                  // Greyed-out placeholder when tutor teaches at their own place — updated to match input theme
+                  <div className={`${readOnlyBoxClass} !border-solid !bg-white dark:!bg-gray-800 flex items-center gap-2`}>
+                    <span className="text-gray-400 select-none"></span>
+                    <span className="text-gray-500 dark:text-gray-400 font-normal italic">Not required</span>
+                  </div>
+                ) : (
+                  <select
+                    name="hallId"
+                    value={formData.hallId || ''}
+                    onChange={handleChange}
+                    className={inputClass}
+                    disabled={isLoadingHalls}
+                  >
+                    <option value="">Select Hall</option>
+                    {isLoadingHalls ? (
+                      <option value="" disabled>Loading halls...</option>
+                    ) : halls.length === 0 ? (
+                      <option value="" disabled>No halls available</option>
+                    ) : (
+                      halls.map((hall) => (
+                        <option key={hall.hallId || hall.id} value={hall.hallId || hall.id}>
+                          {hall.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                )}
               </div>
 
               <FormField
@@ -703,6 +765,50 @@ const ClassFormModal = ({
                 required
               />
             </div>
+
+            {/* 4b. Commission Rate — shown for both Institute and Tutor modes */}
+            {isInstituteMode ? (
+              /* Institute mode: editable commission rate field in standard box style */
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>
+                  Institute Commission Rate <span className="text-xs text-gray-400 font-normal">(0–100%)</span>
+                </label>
+                <div className={`${inputClass} flex items-center justify-center relative !bg-white dark:!bg-gray-800 focus-within:ring-2 focus-within:ring-blue-500 transition-shadow`}>
+                  <div className="flex items-center gap-1">
+                    <input
+                      id="instituteCommissionRate"
+                      name="instituteCommissionRate"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={formData.instituteCommissionRate}
+                      onChange={handleChange}
+                      className="bg-transparent border-none outline-none w-12 font-bold text-blue-600 dark:text-blue-400 focus:ring-0 p-0 text-right"
+                    />
+                    <span className="font-bold text-blue-600 dark:text-blue-400">%</span>
+                    <span className="ml-2 font-normal text-gray-500 dark:text-gray-400 italic text-sm">institute commission</span>
+                  </div>
+                  <span className="absolute right-3 text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-tight select-none">editable</span>
+                </div>
+              </div>
+            ) : (
+              /* Tutor mode: read-only commission rate in standard box style */
+              formData.instituteId && formData.instituteId !== 'OWN_PLACE' && (
+                <div className="flex flex-col gap-1">
+                  <label className={labelClass}>Institute Commission Rate</label>
+                  <div className="flex items-center gap-3">
+                    <div className={`${readOnlyBoxClass} flex items-center justify-center relative !border-solid !bg-white dark:!bg-gray-800`}>
+                      <span className="font-bold text-blue-600 dark:text-blue-400">
+                        {Number(formData.instituteCommissionRate ?? 0)}%
+                        <span className="ml-2 font-normal text-gray-500 dark:text-gray-400 italic">institute commission</span>
+                      </span>
+                      <span className="absolute right-3 text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-tight select-none">not editable</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            )}
 
             {/* 5. Auto-generated Name (Read Only) */}
             <div className="flex flex-col gap-1 pt-2">
@@ -721,10 +827,16 @@ const ClassFormModal = ({
 
             {/* ── View-Only mode: just a Close button ── */}
             {viewOnly ? (
-              <div className="w-full flex justify-end">
-                <Button variant="secondary" onClick={onClose}>
+              <div className="w-full flex justify-end gap-3 flex-col sm:flex-row">
+                <Button variant="secondary" onClick={onClose} fullWidth={!!onLeave}>
                   Close
                 </Button>
+                {onLeave && (
+                  <Button variant="danger" onClick={onLeave} disabled={isLeaving} fullWidth={!!onLeave}>
+                    {isLeaving ? <Loader size={16} className="animate-spin mr-2 inline" /> : <LogOut size={16} className="mr-2 inline" />}
+                    {isLeaving ? 'Leaving...' : 'Leave Class'}
+                  </Button>
+                )}
               </div>
             ) : (
               <>
@@ -784,6 +896,7 @@ const ClassFormModal = ({
                         initialData.hallName === formData.hallName &&
                         initialData.fee == formData.fee &&
                         (initialData.isActive ?? true) === formData.isActive &&
+                        Number(initialData.instituteCommissionRate ?? 0) === Number(formData.instituteCommissionRate ?? 0) &&
                         (!isInstituteMode || initialData.tutorId === formData.tutorId)
                       )}
                       className={`w-full sm:w-auto px-6 py-2 rounded-lg text-sm font-medium transition-colors ${isSubmitting || (
@@ -799,6 +912,7 @@ const ClassFormModal = ({
                         initialData.hallName === formData.hallName &&
                         initialData.fee == formData.fee &&
                         (initialData.isActive ?? true) === formData.isActive &&
+                        Number(initialData.instituteCommissionRate ?? 0) === Number(formData.instituteCommissionRate ?? 0) &&
                         (!isInstituteMode || initialData.tutorId === formData.tutorId)
                       )
                         ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed'

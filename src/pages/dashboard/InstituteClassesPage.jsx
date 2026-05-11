@@ -1,21 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar, User } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar, User, Edit } from 'lucide-react';
 import Button from '../../components/atoms/Button';
+import RowActions from '../../components/molecules/RowActions';
 import Input from '../../components/atoms/Input';
-import StatCard from '../../components/molecules/StatCard';
 import ClassFormModal from '../../components/organisms/ClassFormModal';
 import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 import useApi from '../../hooks/useApi';
-import { useAuth } from '../../hooks/useAuth';
 import * as instituteService from '../../services/api/instituteService';
+import { useDispatch, useSelector } from 'react-redux';
+import { setInstituteClasses, appendInstituteClasses, updateInstituteClass, removeInstituteClass } from '../../store/instituteSlice';
 
 const InstituteClassesPage = () => {
+    // Redux cache
+    const dispatch = useDispatch();
+    const { classes, isFetched } = useSelector(state => state.instituteData);
+
     // State
-    const [classes, setClasses] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [page, setPage] = useState(1);
     const [pageSize] = useState(10);
     const [hasMore, setHasMore] = useState(true);
+    // Local loading: false immediately if cache exists
+    const [isLoading, setIsLoading] = useState(!isFetched);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
 
     // Modal States
     const [isClassModalOpen, setClassModalOpen] = useState(false);
@@ -38,55 +45,63 @@ const InstituteClassesPage = () => {
     const [instituteProfile, setInstituteProfile] = useState(null);
 
     // API Hooks
-    const { request: fetchClasses, loading: isLoading } = useApi();
+    const { request: fetchClasses } = useApi();
     const { request: fetchProfile } = useApi();
     const { request: saveClass, loading: isSaving } = useApi();
     const { request: removeClass, loading: isDeleting } = useApi();
 
-    const { user } = useAuth();
 
-    // Load Profile
+    // Load Profile - fetchProfile is stable (from useApi useCallback), safe to omit
     useEffect(() => {
         const loadProfile = async () => {
             const res = await fetchProfile(instituteService.getInstituteProfile);
             if (res.data) {
-                // The backend might return { data: { instituteId: ..., instituteName: ... }, success: true }
                 setInstituteProfile(res.data.data || res.data);
             }
         };
         loadProfile();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Load Classes
     useEffect(() => {
-        loadClasses(true);
+        if (!isFetched || searchTerm !== '') {
+            loadClasses(true);
+        } else {
+            setIsLoading(false);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchTerm]);
 
-    const loadClasses = async (reset = false) => {
+    const loadClasses = useCallback(async (reset = false) => {
+        if (!reset) {
+            setIsLoadingMore(true);
+        } else {
+            setIsLoading(true);
+        }
         const currentPage = reset ? 1 : page + 1;
-        // The endpoint is a mock right now to prevent errors until the backend is ready
-        // We'll update this once the getInstituteClasses service is written
         const { data } = await fetchClasses(instituteService.getInstituteClasses, searchTerm, currentPage, pageSize);
 
         if (data && data.success) {
-            // The backend wraps it in a ServiceResponse which has a Data property. 
-            // Then inside that data, we have a PaginatedResultDto containing Items.
             const items = data.data?.items || data.data || [];
             if (reset) {
-                setClasses(items);
+                dispatch(setInstituteClasses(items));
             } else {
-                setClasses(prev => [...prev, ...items]);
+                dispatch(appendInstituteClasses(items));
             }
             setHasMore(items.length === pageSize);
             setPage(currentPage);
         } else if (reset) {
-            setClasses([]);
+            dispatch(setInstituteClasses([]));
         }
-    };
+        setIsLoading(false);
+        setIsLoadingMore(false);
+    }, [page, searchTerm, pageSize, fetchClasses, dispatch]);
 
-    const handleLoadMore = () => {
-        if (!isLoading && hasMore) {
-            loadClasses();
+    const handleScroll = (e) => {
+        const { scrollTop, clientHeight, scrollHeight } = e.target;
+        if (scrollHeight - scrollTop <= clientHeight + 50 && hasMore && !isLoadingMore && !isLoading) {
+            loadClasses(false);
         }
     };
 
@@ -120,15 +135,13 @@ const InstituteClassesPage = () => {
         if (!classToDelete) return;
         const result = await removeClass(instituteService.deleteInstituteClass, classToDelete);
 
-        // request returns { data: ..., error: ... }, check for success in data payload
         if (result && result.data && result.data.success) {
+            dispatch(removeInstituteClass(classToDelete));
             setDeleteConfirmOpen(false);
             setClassToDelete(null);
-            loadClasses(true);
             setSuccessMessage("Class deleted successfully!");
             setIsSuccessOpen(true);
         } else {
-            // Handle error case if necessary
             setDeleteConfirmOpen(false);
             alert(result?.error || 'Failed to delete class. Please try again.');
         }
@@ -146,9 +159,9 @@ const InstituteClassesPage = () => {
         const result = await saveClass(instituteService.toggleInstituteClassStatus, statusCandidate.classId);
 
         if (result && result.data && result.data.success) {
+            dispatch(updateInstituteClass({ classId: statusCandidate.classId, isActive: newStatus }));
             setStatusConfirmOpen(false);
-            setEditingClass(prev => ({ ...prev, isActive: result.data.data }));
-            loadClasses(true);
+            setEditingClass(prev => ({ ...prev, isActive: newStatus }));
             setSuccessMessage(`Class ${newStatus ? 'activated' : 'deactivated'} successfully!`);
             setIsSuccessOpen(true);
         }
@@ -175,6 +188,7 @@ const InstituteClassesPage = () => {
             setClassModalOpen(false);
             setClassFormError('');
             setPendingFormData(null);
+            // Refresh from server to get real IDs and tutor name populated
             loadClasses(true);
             const msg = editingClass ? "Class updated successfully!" : "Class assigned successfully!";
             setSuccessMessage(msg);
@@ -197,7 +211,7 @@ const InstituteClassesPage = () => {
                 </div>
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => loadClasses(true)}
+                        onClick={() => { setIsLoading(true); loadClasses(true); }}
                         disabled={isLoading}
                         className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
                         title="Refresh"
@@ -210,44 +224,40 @@ const InstituteClassesPage = () => {
                 </div>
             </div>
 
-            {/* Stats Banner & Search */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="w-full md:w-64">
-                    <StatCard
-                        label="Total Classes"
-                        value={classes.length}
-                        change="Viewing loaded records"
-                        icon={BookOpen}
-                        color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-                    />
+            {/* Main Content Container */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm flex flex-col">
+                
+                {/* Top Bar with Search */}
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
+                    <div className="relative w-full max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <Input
+                            type="text"
+                            placeholder="Search by Class Name, Subject, or Tutor..."
+                            className="pl-10 shadow-sm"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
 
-                <div className="relative w-full max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <Input
-                        type="text"
-                        placeholder="Search by Class Name, Subject, or Tutor..."
-                        className="pl-10 shadow-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-            </div>
-
-            {/* Table View */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700">
+                {/* Table View */}
+                <div
+                    className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar"
+                    onScroll={handleScroll}
+                >
+                    <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                             <tr>
                                 <th className="px-6 py-4 font-semibold">Class Name</th>
-                                <th className="px-6 py-4 font-semibold">Tutor Name</th>
                                 <th className="px-6 py-4 font-semibold">Subject</th>
                                 <th className="px-6 py-4 font-semibold">Time</th>
                                 <th className="px-6 py-4 font-semibold">Date / Day</th>
                                 <th className="px-6 py-4 font-semibold">Hall Number</th>
                                 <th className="px-6 py-4 font-semibold">Fees (Rs)</th>
+                                <th className="px-6 py-4 font-semibold text-center">Commission %</th>
                                 <th className="px-6 py-4 font-semibold text-center">Students</th>
+                                <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -267,14 +277,10 @@ const InstituteClassesPage = () => {
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
-                                                {cls.classType || 'Class'}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <User size={14} className="text-gray-400" />
-                                                <span>{cls.tutorName || '-'}</span>
+                                            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                <User size={12} />
+                                                <span className="font-medium">{cls.tutorName || '-'}</span>
+                                                <span className="text-blue-600 dark:text-blue-400 ml-1 opacity-75">• {cls.classType || 'Class'}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
@@ -307,9 +313,19 @@ const InstituteClassesPage = () => {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-center">
+                                            <div className="inline-flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 px-2.5 py-1 rounded-full text-xs font-bold min-w-[3rem]">
+                                                {Number(cls.instituteCommissionRate ?? 0).toFixed(0)}%
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
                                             <div className="inline-flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full text-sm font-bold min-w-[3rem]">
                                                 {cls.studentRegisteredCount || 0}
                                             </div>
+                                        </td>
+                                        <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                            <RowActions actions={[
+                                                { label: 'Edit Class', icon: Edit, onClick: () => handleEditClick(cls) },
+                                            ]} />
                                         </td>
                                     </tr>
                                 ))
@@ -333,25 +349,20 @@ const InstituteClassesPage = () => {
                             )}
                         </tbody>
                     </table>
-                </div>
 
-                {/* Pagination / Load More Footer */}
-                {classes.length > 0 && hasMore && (
-                    <div className="p-4 border-t border-gray-100 dark:border-gray-700/50 bg-gray-50 dark:bg-gray-800/50 flex justify-center">
-                        <Button
-                            variant="outline"
-                            onClick={handleLoadMore}
-                            disabled={isLoading}
-                            className="w-full md:w-auto"
-                        >
-                            {isLoading ? (
-                                <><RefreshCw size={16} className="animate-spin mr-2" /> Loading...</>
-                            ) : (
-                                'Load More'
-                            )}
-                        </Button>
-                    </div>
-                )}
+                    {/* Infinite Scroll Loading Indicator */}
+                    {isLoadingMore && (
+                        <div className="flex items-center justify-center p-4 text-blue-500 space-x-2">
+                            <RefreshCw size={16} className="animate-spin" />
+                            <span className="text-sm">Loading more classes...</span>
+                        </div>
+                    )}
+                    {!hasMore && classes.length > 0 && (
+                        <div className="text-center p-4 text-sm text-gray-400 dark:text-gray-500">
+                            No more classes to load.
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* --- MODALS --- */}

@@ -1,105 +1,221 @@
 import React from 'react';
-import { ArrowLeft, Clock, DollarSign, Calendar, User, BookOpen } from 'lucide-react';
+import {
+  Clock, Calendar, User, BookOpen, CheckCircle, LogOut,
+  Edit2, Building2, MapPin, Tag, Users
+} from 'lucide-react';
 import Button from '../atoms/Button';
 import StatusBadge from '../atoms/StatusBadge';
+import { formatTime, cleanClassName } from '../../utils/helpers';
+import { BASE_URL } from '../../services/api/apiClient';
 
-const ClassDetailView = ({ classData, onBack, onRequestJoin }) => {
+
+/**
+ * ClassDetailView — a clean, read-only card for viewing class details.
+ *
+ * Props:
+ *  classData       {object}   – The class DTO to display.
+ *  role            {string}   – 'student' | 'tutor' | 'institute' | 'view'
+ *  enrollmentStatus {string}  – 'Approved' | 'Pending' | 'Rejected' (for student role)
+ *  onLeave         {func}     – Called when student clicks "Leave Class"
+ *  onEdit          {func}     – Called when tutor/institute clicks "Edit Class"
+ *  onRequestJoin   {func}     – Called when student clicks "Request to Join"
+ *  isLeaving       {bool}     – Loading state for leave action
+ */
+const ClassDetailView = ({
+  classData,
+  role = 'view',
+  enrollmentStatus,
+  onLeave,
+  onEdit,
+  onRequestJoin,
+  isLeaving = false,
+}) => {
   if (!classData) return null;
 
-  return (
-    <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-      {/* Header / Back Button */}
-      <button 
-        onClick={onBack}
-        className="flex items-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white mb-4 text-sm font-medium transition-colors"
-      >
-        <ArrowLeft size={16} className="mr-1" /> Back to Search
-      </button>
+  const isStudent  = role === 'student';
+  const isTutor    = role === 'tutor';
+  const isInstitute = role === 'institute';
 
-      {/* Main Content */}
-      <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-6 border border-gray-100 dark:border-gray-800">
-        
-        {/* Title Section */}
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs font-bold rounded uppercase">
-                {classData.classType}
-              </span>
-              <StatusBadge status="Starting Soon" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{classData.subject}</h2>
-            <p className="text-gray-500 dark:text-gray-400 font-medium">{classData.grade}</p>
-          </div>
-          <div className="text-right">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">LKR {classData.fee}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">per month</div>
-          </div>
+  // ── Info row helper ──────────────────────────────────────────────────────────
+  const InfoRow = ({ icon: Icon, label, value, iconColor = 'text-blue-500 dark:text-blue-400' }) => {
+    if (!value) return null;
+    return (
+      <div className="flex items-start gap-3">
+        <div className={`mt-0.5 shrink-0 ${iconColor}`}>
+          <Icon size={16} />
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          {/* Tutor Info (Left Col) */}
-          <div className="md:col-span-2 space-y-4">
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-              <div className="flex items-start gap-4">
-                <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-300 font-bold text-xl flex-shrink-0">
-                  {(classData.tutorName || "T").charAt(0)}
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white">{classData.tutorName}</h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 font-mono mb-2">{classData.tutorId}</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                    {classData.bio || "An experienced tutor dedicated to helping students achieve their academic goals. Focuses on practical understanding and exam preparation."}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Additional Details */}
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-                <h4 className="font-semibold mb-3 flex items-center gap-2 text-gray-900 dark:text-white">
-                    <BookOpen size={16} className="text-gray-400"/> Class Syllabus / Description
-                </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                    This class covers the complete syllabus for {classData.grade} {classData.subject}. 
-                    We provide monthly tests, printed tutorials, and past paper discussions.
-                </p>
-            </div>
-          </div>
-
-          {/* Schedule & Action (Right Col) */}
-          <div className="space-y-4">
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm space-y-3">
-              <h4 className="font-semibold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">Schedule</h4>
-              
-              <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
-                <Calendar size={18} className="text-blue-500 dark:text-blue-400" />
-                <span className="font-medium">{classData.dayOfWeek}s</span>
-              </div>
-              
-              <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
-                <Clock size={18} className="text-blue-500 dark:text-blue-400" />
-                <span>{classData.startTime} - {classData.endTime}</span>
-              </div>
-            </div>
-
-            <Button 
-              variant="primary" 
-              fullWidth 
-              size="large"
-              // Use classId (or check your DTO if it's named 'id')
-              onClick={() => onRequestJoin(classData.classId || classData.id)}
-            >
-              Request to Join
-            </Button>
-            <p className="text-xs text-center text-gray-400 dark:text-gray-500 mt-2">
-                Approval required by Tutor
-            </p>
-          </div>
-
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider leading-none mb-0.5">{label}</p>
+          <p className="text-sm font-medium text-gray-800 dark:text-gray-200 break-words">{value}</p>
         </div>
       </div>
+    );
+  };
+
+  // ── Action button ────────────────────────────────────────────────────────────
+  const renderAction = () => {
+    if (isStudent) {
+      const status = enrollmentStatus || classData.enrollmentStatus;
+      if (status === 'Approved') {
+        return (
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              fullWidth
+              onClick={onLeave}
+              disabled={isLeaving}
+              className="border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
+            >
+              {isLeaving ? (
+                <Clock size={16} className="mr-2 animate-spin" />
+              ) : (
+                <LogOut size={16} className="mr-2" />
+              )}
+              {isLeaving ? 'Leaving...' : 'Leave Class'}
+            </Button>
+            <p className="text-xs text-center text-green-600 dark:text-green-400 font-medium flex items-center justify-center gap-1">
+              <CheckCircle size={12} /> You are enrolled in this class
+            </p>
+          </div>
+        );
+      }
+      if (status === 'Pending') {
+        return (
+          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 text-center">
+            <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+              <Clock size={14} className="inline mr-1" />
+              Request Pending Approval
+            </p>
+          </div>
+        );
+      }
+      if (onRequestJoin) {
+        return (
+          <div className="space-y-1">
+            <Button variant="primary" fullWidth onClick={() => onRequestJoin(classData.classId || classData.id)}>
+              Request to Join
+            </Button>
+            <p className="text-xs text-center text-gray-400 dark:text-gray-500">Approval required by Tutor</p>
+          </div>
+        );
+      }
+    }
+
+    if ((isTutor || isInstitute) && onEdit) {
+      return (
+        <Button variant="outline" fullWidth onClick={() => onEdit(classData)}>
+          <Edit2 size={15} className="mr-2" />
+          Edit Class
+        </Button>
+      );
+    }
+
+    return null;
+  };
+
+  const scheduleLabel = classData.dayOfWeek
+    ? `Every ${classData.dayOfWeek}`
+    : classData.date
+    ? new Date(classData.date).toLocaleDateString('en-LK', { dateStyle: 'medium' })
+    : null;
+
+  const timeLabel =
+    classData.startTime && classData.endTime
+      ? `${formatTime(classData.startTime)} – ${formatTime(classData.endTime)}`
+      : classData.timeString || null;
+
+  const tutorInitial = (classData.tutorName || 'T').charAt(0).toUpperCase();
+
+  return (
+    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+
+      {/* ── Title Banner ───────────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            {classData.classType && (
+              <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-bold rounded uppercase tracking-wide">
+                {classData.classType}
+              </span>
+            )}
+            {classData.grade && (
+              <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded">
+                {classData.grade}
+              </span>
+            )}
+            {classData.isActive === false && (
+              <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold rounded uppercase">
+                Inactive
+              </span>
+            )}
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight truncate">
+            {classData.subject || classData.name || cleanClassName(classData.className) || 'Class'}
+          </h2>
+          {classData.className && classData.className !== classData.subject && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{cleanClassName(classData.className)}</p>
+          )}
+        </div>
+        <div className="text-right shrink-0">
+          {classData.fee != null && (
+            <>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                LKR {Number(classData.fee).toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-400 dark:text-gray-500">per month</div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── Tutor Card ─────────────────────────────────────────────────── */}
+      {classData.tutorName && (
+        <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-100 dark:border-gray-700/50 flex items-start gap-4">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-sm overflow-hidden border border-white/10">
+            {(() => {
+                const img = classData.tutorProfileImageUrlSmall || classData.tutorImageUrl || classData.tutorImage;
+                if (img) {
+                    return <img src={img.startsWith('http') ? img : `${BASE_URL}${img}`} alt={classData.tutorName} className="w-full h-full object-cover" />;
+                }
+                return tutorInitial;
+            })()}
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Tutor</p>
+            <h3 className="font-bold text-gray-900 dark:text-white">{classData.tutorName}</h3>
+            {classData.bio && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed line-clamp-2">{classData.bio}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Info Grid ──────────────────────────────────────────────────── */}
+      <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-100 dark:border-gray-700/50 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <InfoRow icon={Calendar}  label="Schedule"    value={scheduleLabel} />
+        <InfoRow icon={Clock}     label="Time"        value={timeLabel} />
+        <InfoRow icon={Building2} label="Institute"   value={classData.instituteName} iconColor="text-indigo-500" />
+        <InfoRow icon={MapPin}    label="Hall"        value={classData.hallName}      iconColor="text-emerald-500" />
+        <InfoRow icon={Users}     label="Students"    value={classData.studentCount != null ? `${classData.studentCount} enrolled` : null} iconColor="text-amber-500" />
+        <InfoRow icon={Tag}       label="Class ID"    value={classData.classId ? classData.classId.toString().slice(0, 8).toUpperCase() : null} iconColor="text-gray-400" />
+      </div>
+
+      {/* ── Description / Syllabus ─────────────────────────────────────── */}
+      {classData.description && (
+        <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-100 dark:border-gray-700/50">
+          <h4 className="font-semibold text-xs uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-2 mb-2">
+            <BookOpen size={13} /> Class Description
+          </h4>
+          <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{classData.description}</p>
+        </div>
+      )}
+
+      {/* ── Action ─────────────────────────────────────────────────────── */}
+      {renderAction() && (
+        <div className="pt-1">
+          {renderAction()}
+        </div>
+      )}
     </div>
   );
 };

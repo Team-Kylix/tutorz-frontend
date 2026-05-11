@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import CalendarGrid from '../../components/molecules/CalendarGrid';
 import ScheduleGrid from '../../components/organisms/ScheduleGrid';
+import { useAuth } from '../../hooks/useAuth';
+import { ROLES } from '../../utils/constants';
 
 /**
  * TimetablePage
@@ -14,6 +16,7 @@ import ScheduleGrid from '../../components/organisms/ScheduleGrid';
  *  isDateSelected – Boolean phase flag.
  */
 const TimetablePage = () => {
+    const { user } = useAuth();
     const [selectedDate, setSelectedDate] = useState(null);
     const [isDateSelected, setIsDateSelected] = useState(false);
 
@@ -34,12 +37,14 @@ const TimetablePage = () => {
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
                         <CalendarIcon className="w-6 h-6 text-blue-600" />
-                        Institution Timetable
+                        {user?.role === ROLES.STUDENT ? 'My Timetable' : 'InstiTuition Timetable'}
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-1">
                         {isDateSelected
                             ? 'Viewing schedule — click "Back to Calendar" to choose another date.'
-                            : 'Select a date to view all class schedules across different halls.'}
+                            : user?.role === ROLES.STUDENT
+                                ? 'Select a date to view your enrolled classes.'
+                                : 'Select a date to view all class schedules across different halls.'}
                     </p>
                 </div>
             </div>
