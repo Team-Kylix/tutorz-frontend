@@ -210,10 +210,9 @@ const PayFeesModal = ({ isOpen, onClose, setActivePage = () => {}, initialPaymen
       }
 
       if (useSavedCard && res.data?.isAutoCharge) {
-        // Auto success for offline mock
+        // Auto success
         setIsSuccess(true);
         setIsSubmitting(false);
-        setTimeout(() => onClose(), 2500);
         return;
       }
 
@@ -227,10 +226,9 @@ const PayFeesModal = ({ isOpen, onClose, setActivePage = () => {}, initialPaymen
   };
 
   const handlePayHereCheckout = (paymentDetails) => {
-    window.payhere.onCompleted = function onCompleted(orderId) {
+    window.payhere.onCompleted = function onCompleted() {
       setIsSuccess(true);
       setIsSubmitting(false);
-      setTimeout(() => onClose(), 2500);
     };
 
     window.payhere.onDismissed = function onDismissed() {
@@ -554,27 +552,49 @@ const PayFeesModal = ({ isOpen, onClose, setActivePage = () => {}, initialPaymen
                       </div>
 
                       <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setConfirmCharge(false)}
-                          className="flex-1 h-10 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 transition-all"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isSubmitting}
-                          onClick={() => handlePayClick(true)}
-                          className="flex-[2] h-10 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 dark:shadow-none disabled:opacity-60 flex items-center justify-center gap-2"
-                        >
-                          {isSubmitting ? (
-                             <><Loader2 size={14} className="animate-spin" /> Processing...</>
-                          ) : isSuccess ? (
-                             <><CheckCircle2 size={15} /> Payment Successful!</>
-                          ) : (
-                             <>Confirm & Pay</>
-                          )}
-                        </button>
+                        {isSuccess ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={onClose}
+                              className="flex-1 h-10 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 transition-all"
+                            >
+                              Close
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onClose();
+                                setActivePage('financials');
+                              }}
+                              className="flex-[2] h-10 rounded-lg bg-green-600 text-white text-xs font-bold hover:bg-green-700 transition-all shadow-md shadow-green-200 dark:shadow-none flex items-center justify-center gap-2"
+                            >
+                              <CheckCircle2 size={15} /> Download Payslip
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmCharge(false)}
+                              className="flex-1 h-10 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 transition-all"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isSubmitting}
+                              onClick={() => handlePayClick(true)}
+                              className="flex-[2] h-10 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 dark:shadow-none disabled:opacity-60 flex items-center justify-center gap-2"
+                            >
+                              {isSubmitting ? (
+                                 <><Loader2 size={14} className="animate-spin" /> Processing...</>
+                              ) : (
+                                 <>Confirm & Pay</>
+                              )}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}

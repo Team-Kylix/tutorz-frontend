@@ -194,8 +194,8 @@ const ClassDetailView = ({
       <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-100 dark:border-gray-700/50 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <InfoRow icon={Calendar}  label="Schedule"    value={scheduleLabel} />
         <InfoRow icon={Clock}     label="Time"        value={timeLabel} />
-        <InfoRow icon={Building2} label="Institute"   value={classData.instituteName} iconColor="text-indigo-500" />
-        <InfoRow icon={MapPin}    label="Hall"        value={classData.hallName}      iconColor="text-emerald-500" />
+        <InfoRow icon={Building2} label="Institute"   value={classData.instituteName || "Tutor's Own Place"} iconColor="text-indigo-500" />
+        <InfoRow icon={MapPin}    label="Hall"        value={classData.instituteName ? classData.hallName : null}      iconColor="text-emerald-500" />
         <InfoRow icon={Users}     label="Students"    value={classData.studentCount != null ? `${classData.studentCount} enrolled` : null} iconColor="text-amber-500" />
         <InfoRow icon={Tag}       label="Class ID"    value={classData.classId ? classData.classId.toString().slice(0, 8).toUpperCase() : null} iconColor="text-gray-400" />
       </div>

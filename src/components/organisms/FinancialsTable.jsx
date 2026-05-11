@@ -41,7 +41,11 @@ const FinancialsTable = ({ payments = [] }) => {
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {payments.map((payment) => {
-                            const dateObj = new Date(payment.paidAt);
+                            let dateStr = payment.paidAt;
+                            if (typeof dateStr === 'string' && !dateStr.endsWith('Z')) {
+                                dateStr += 'Z';
+                            }
+                            const dateObj = new Date(dateStr);
                             const formattedDate = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
                             const formattedTime = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 

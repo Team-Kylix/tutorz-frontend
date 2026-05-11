@@ -98,7 +98,14 @@ const StudentFinancialsTable = ({ payments = [], onPay }) => {
                             const isDue = (payment.status || '').toLowerCase() === 'due';
                             const isPaid = (payment.status || '').toLowerCase() === 'paid';
                             const hasPaidAt = payment.paidAt && !isDue;
-                            const dateObj = hasPaidAt ? new Date(payment.paidAt) : null;
+                            let dateObj = null;
+                            if (hasPaidAt) {
+                                let dateStr = payment.paidAt;
+                                if (typeof dateStr === 'string' && !dateStr.endsWith('Z')) {
+                                    dateStr += 'Z';
+                                }
+                                dateObj = new Date(dateStr);
+                            }
                             const formattedDate = dateObj
                                 ? dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
                                 : '–';

@@ -396,8 +396,8 @@ const ClassSearchModal = ({ isOpen, onClose, user }) => {
                             fee={cls.fee}
                             classType={cls.classType}
                             tutorImage={cls.tutorImageUrl}
-                            instituteName={cls.instituteName}
-                            hallName={cls.hallName}
+                            instituteName={cls.instituteName || "Tutor's Own Place"}
+                            hallName={cls.instituteName ? cls.hallName : null}
                           />
                         </div>
                       ))
