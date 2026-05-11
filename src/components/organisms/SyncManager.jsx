@@ -20,6 +20,7 @@ import {
 import { updateTutorProfile, createClass, updateClass, deleteClass } from '../../services/api/tutorService';
 import { updateStudentProfile } from '../../services/api/studentService';
 import { register, registerSibling } from '../../services/auth/authService';
+import { createAdmin } from '../../services/api/adminService';
 import signalRService from '../../services/signalRService';
 import { fetchNotificationsThunk } from '../../store/notificationSlice';
 
@@ -84,6 +85,8 @@ const executeAction = async (item) => {
       } else {
         return register(payload.registrationData);
       }
+    case SYNC_ACTION_TYPES.CREATE_ADMIN:
+      return createAdmin(payload.adminData);
     default:
       throw new Error(`[SyncManager] Unknown actionType: ${actionType}`);
   }

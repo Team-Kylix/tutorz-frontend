@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Building, Plus, Search, Users, Edit2, Trash2, X } from 'lucide-react';
+import { Building, Plus, Search, Users, Edit2, Trash2, X, RefreshCw } from 'lucide-react';
 import Button from '../../../components/atoms/Button';
 import Input from '../../../components/atoms/Input';
 import SectionTitle from '../../../components/atoms/SectionTitle';
 import Modal from '../../../components/molecules/Modal';
 import FormField from '../../../components/molecules/FormField';
 import ConfirmationModal from '../../../components/molecules/ConfirmationModal';
-import ClassCard from '../../../components/molecules/ClassCard';
-import StatCard from '../../../components/molecules/StatCard';
-import { getHalls } from '../../../services/api/instituteService';
+import RowActions from '../../../components/molecules/RowActions';
+import { getHalls, deleteHall, getAllInstituteClassesUnpaged } from '../../../services/api/instituteService';
 import { useDispatch, useSelector } from 'react-redux';
 import { enqueueAction, SYNC_ACTION_TYPES, selectPendingCount } from '../../../store/syncSlice';
 
@@ -28,6 +27,7 @@ const HallManagement = () => {
     const [isDeleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [isStatusConfirmOpen, setStatusConfirmOpen] = useState(false);
     const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+    const [isErrorOpen, setIsErrorOpen] = useState(false);
 
     // Operation States
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,6 +38,7 @@ const HallManagement = () => {
     // Form Data
     const [formData, setFormData] = useState({ name: '', capacity: '', isActive: true });
     const [successMessage, setSuccessMessage] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
 
     useEffect(() => {
         fetchHalls();
@@ -81,10 +82,37 @@ const HallManagement = () => {
         setIsFormModalOpen(true);
     };
 
-    const handleDeleteClick = (hallId) => {
+    const handleDeleteClick = async (hall) => {
         setIsFormModalOpen(false); // Close form if open
-        setHallToDelete(hallId);
-        setDeleteConfirmOpen(true);
+        setIsSubmitting(true);
+        try {
+            const classesRes = await getAllInstituteClassesUnpaged();
+            const classesArray = Array.isArray(classesRes) ? classesRes : (classesRes.data?.items || classesRes.data || []);
+            
+            const assignedClasses = classesArray.filter(c => c.hallId === hall.hallId);
+            
+            if (assignedClasses.length > 0) {
+                const displayClasses = assignedClasses.slice(0, 2);
+                let classListString = displayClasses.map(c => `${c.className} (Tutor: ${c.tutorName || 'Unknown'})`).join(', ');
+                
+                if (assignedClasses.length > 2) {
+                    const extraCount = assignedClasses.length - 2;
+                    classListString += ` and ${extraCount} more class${extraCount > 1 ? 'es' : ''}`;
+                }
+                
+                setErrorMessage(`Cannot delete hall "${hall.name}". It is currently assigned to the following classes: ${classListString}. Please change these classes into another hall to delete this hall.`);
+                setIsErrorOpen(true);
+            } else {
+                setHallToDelete(hall.hallId);
+                setDeleteConfirmOpen(true);
+            }
+        } catch (error) {
+            console.error("Failed to check assigned classes:", error);
+            setErrorMessage("Failed to verify hall usage. Please try again.");
+            setIsErrorOpen(true);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // Triggered from Toggle in Modal
@@ -147,20 +175,20 @@ const HallManagement = () => {
 
     const handleConfirmDelete = async () => {
         if (!hallToDelete) return;
-        const hallName = halls.find(h => h.hallId === hallToDelete)?.name || 'Hall';
-
-        setHalls(prev => prev.filter(h => h.hallId !== hallToDelete));
-
-        dispatch(enqueueAction({
-            actionType: SYNC_ACTION_TYPES.DELETE_HALL,
-            payload: { id: hallToDelete },
-            label: `Delete Hall: ${hallName}`
-        }));
-
-        setDeleteConfirmOpen(false);
-        setHallToDelete(null);
-        setSuccessMessage("Hall deleted offline (Syncing...)!");
-        setIsSuccessOpen(true);
+        setIsSubmitting(true);
+        try {
+            const response = await deleteHall(hallToDelete);
+            setHalls(prev => prev.filter(h => h.hallId !== hallToDelete));
+            setSuccessMessage("Hall deleted successfully!");
+            setIsSuccessOpen(true);
+        } catch (error) {
+            setErrorMessage(error.message || error.Message || "Failed to delete hall. Please try again.");
+            setIsErrorOpen(true);
+        } finally {
+            setIsSubmitting(false);
+            setDeleteConfirmOpen(false);
+            setHallToDelete(null);
+        }
     };
 
     const handleConfirmStatusChange = async () => {
@@ -195,83 +223,128 @@ const HallManagement = () => {
     );
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+        <div className="space-y-6 animate-fade-in">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Hall Management</h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Manage your institute's halls and facilities</p>
                 </div>
-                <Button variant="primary" onClick={handleCreateClick}>
-                    <Plus size={18} className="mr-2" /> Add Hall
-                </Button>
-            </div>
-
-            {/* Stats Banner & Search */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="w-full md:w-64">
-                    <StatCard
-                        label="Total Halls"
-                        value={halls.length}
-                        change={`${halls.filter(h => h.isActive).length} Active`}
-                        icon={Building}
-                        color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-                    />
-                </div>
-
-                <div className="relative w-full max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <Input
-                        type="text"
-                        placeholder="Search halls..."
-                        className="pl-10 shadow-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => fetchHalls(true)}
+                        disabled={isLoading}
+                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                        title="Refresh"
+                    >
+                        <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
+                    </button>
+                    <Button variant="primary" onClick={handleCreateClick}>
+                        <Plus size={18} className="mr-2" /> Add Hall
+                    </Button>
                 </div>
             </div>
 
-            {/* Content */}
-            {isLoading ? (
-                <div className="text-center py-12 text-gray-500">Loading halls...</div>
-            ) : filteredHalls.length === 0 ? (
-                <div className="col-span-full text-center py-10 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 transition-colors">
-                    <Building size={48} className="mx-auto mb-4 opacity-20" />
-                    <p>No halls found.</p>
-                    {searchTerm && <p className="text-sm mt-2 text-gray-400">Try a different search term.</p>}
+            {/* Main Content Container */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm flex flex-col">
+                
+                {/* Top Bar with Search */}
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
+                    <div className="relative w-full max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <Input
+                            type="text"
+                            placeholder="Search halls..."
+                            className="pl-10 shadow-sm"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredHalls.map((hall) => {
-                        const isTemp = hall.hallId.toString().startsWith('temp_') || hall.isOptimistic;
-                        return (
-                            <div key={hall.hallId} className="relative group h-full">
-                                <ClassCard
-                                    className={hall.name}
-                                    subject={`Code: ${hall.hallCode || 'N/A'}`}
-                                    grade="Physical"
-                                    classType="Course"
-                                    time={`Capacity: ${hall.capacity}`}
-                                    status={hall.isActive ? 'active' : 'inactive'}
-                                />
-                                {/* Overlay Edit Button */}
-                                <div className="absolute top-4 right-4 flex gap-2">
-                                    <button
-                                        onClick={() => !isTemp && handleEditClick(hall)}
-                                        disabled={isTemp}
-                                        className={`p-1.5 shadow-sm border border-gray-100 dark:border-gray-700 rounded-full transition-colors ${
-                                            isTemp ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
-                                        }`}
-                                        title={isTemp ? "Syncing to server..." : "Edit Hall"}
-                                    >
-                                        <Edit2 size={16} />
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
+
+                {/* Table View */}
+                <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
+                    <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
+                            <tr>
+                                <th className="px-6 py-4 font-semibold">Hall Name</th>
+                                <th className="px-6 py-4 font-semibold">Hall Code</th>
+                                <th className="px-6 py-4 font-semibold text-center">Capacity</th>
+                                <th className="px-6 py-4 font-semibold text-center">Status</th>
+                                <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                            {filteredHalls.length > 0 ? (
+                                filteredHalls.map((hall) => {
+                                    const isTemp = hall.hallId.toString().startsWith('temp_') || hall.isOptimistic;
+                                    return (
+                                        <tr
+                                            key={hall.hallId}
+                                            className={`hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors group cursor-pointer ${!hall.isActive ? 'opacity-60 bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
+                                            onClick={() => !isTemp && handleEditClick(hall)}
+                                        >
+                                            <td className="px-6 py-4">
+                                                <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                                    <Building size={16} className="text-gray-400" />
+                                                    <span>{hall.name}</span>
+                                                    {isTemp && (
+                                                        <span className="px-2 py-0.5 text-[10px] tracking-wider font-bold bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-md animate-pulse">
+                                                            SYNCING...
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 font-mono text-xs text-gray-500 dark:text-gray-400">
+                                                {hall.hallCode || '-'}
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="inline-flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-sm font-medium min-w-[3rem]">
+                                                    {hall.capacity}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                {hall.isActive ? (
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30">
+                                                        Active
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+                                                        Inactive
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                                <RowActions actions={[
+                                                    { label: 'Edit Hall', icon: Edit2, onClick: () => handleEditClick(hall), disabled: isTemp },
+                                                    { label: 'Delete Hall', icon: Trash2, onClick: () => handleDeleteClick(hall), disabled: isTemp, danger: true },
+                                                ]} />
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            ) : (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-12 text-center">
+                                        {isLoading ? (
+                                            <div className="flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+                                                <RefreshCw size={24} className="animate-spin text-blue-500 mb-3" />
+                                                <p>Loading halls...</p>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+                                                <Building size={32} className="text-gray-300 dark:text-gray-600 mb-3" />
+                                                <p className="text-lg font-medium text-gray-900 dark:text-white mb-1">No Halls Found</p>
+                                                <p className="max-w-md">No halls match your current search criteria or none have been added yet.</p>
+                                            </div>
+                                        )}
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
-            )}
+            </div>
 
             {/* Add/Edit Modal (Matching ClassFormModal Style) */}
             {isFormModalOpen && (
@@ -313,7 +386,7 @@ const HallManagement = () => {
                                     {editingHall && (
                                         <button
                                             type="button"
-                                            onClick={() => handleDeleteClick(editingHall.hallId)}
+                                            onClick={() => handleDeleteClick(editingHall)}
                                             className="flex items-center gap-2 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                         >
                                             <Trash2 size={16} /> Delete
@@ -436,6 +509,18 @@ const HallManagement = () => {
                 confirmLabel="OK"
                 cancelLabel="Close"
                 variant="success"
+            />
+
+            {/* Error Modal */}
+            <ConfirmationModal
+                isOpen={isErrorOpen}
+                onClose={() => setIsErrorOpen(false)}
+                onConfirm={() => setIsErrorOpen(false)}
+                title="Action Denied"
+                message={errorMessage}
+                confirmLabel="OK"
+                cancelLabel="Close"
+                variant="danger"
             />
         </div>
     );

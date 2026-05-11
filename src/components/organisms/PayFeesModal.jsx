@@ -23,7 +23,7 @@ import { getStudentClasses } from '../../services/api/studentService';
 import { getStudentPaymentStatus, initiateOnlinePayment, getFinancialSummary } from '../../services/api/financialService';
 import { BASE_URL } from '../../services/api/apiClient';
 
-const PayFeesModal = ({ isOpen, onClose, setActivePage }) => {
+const PayFeesModal = ({ isOpen, onClose, setActivePage = () => {}, initialPayment = null }) => {
   const [classes, setClasses] = useState([]);
   const [loadingInitial, setLoadingInitial] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -59,6 +59,23 @@ const PayFeesModal = ({ isOpen, onClose, setActivePage }) => {
       injectPayHereScript();
     }
   }, [isOpen]);
+
+  // Auto-select tutor when classes are loaded and we have an initialPayment
+  useEffect(() => {
+    if (initialPayment && classes.length > 0 && !selectedTutor) {
+      const matchedTutor = classes.find(c => c.tutorId === initialPayment.tutorId);
+      if (matchedTutor) {
+        handleSelectTutor({
+          tutorId: matchedTutor.tutorId,
+          tutorName: matchedTutor.tutorName,
+          tutorRegNum: matchedTutor.tutorRegistrationNumber || 'ID N/A',
+          tutorPhone: matchedTutor.tutorPhoneNumber || 'N/A',
+          tutorImage: matchedTutor.tutorProfileImageUrlSmall
+        });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classes, initialPayment]);
 
   const resetState = () => {
     setSelectedTutor(null);

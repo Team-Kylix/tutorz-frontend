@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Loader2, DollarSign, TrendingUp, TrendingDown, BookOpen } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import Select from '../../components/atoms/Select';
 import Input from '../../components/atoms/Input';
 import StudentFinancialsTable from '../../components/organisms/StudentFinancialsTable';
+import PayFeesModal from '../../components/organisms/PayFeesModal';
 import { getStudentClasses, getStudentPaymentHistory } from '../../services/api/studentService';
 
-const StudentFinancialsPage = () => {
+const StudentFinancialsPage = ({ setActivePage }) => {
     // Dropdown Data State
     const [enrolledClasses, setEnrolledClasses] = useState([]);
     const [isLoadingClasses, setIsLoadingClasses] = useState(true);
@@ -25,16 +26,15 @@ const StudentFinancialsPage = () => {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [error, setError] = useState(null);
 
-    // Summary Stats State
-    const [stats, setStats] = useState({
-        totalAmountPaid: 0,
-        totalDueAmount: 0,
-        totalClassFees: 0,
-    });
+
 
     // Pagination State
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+
+    // Pay modal state
+    const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+    const [payModalPayment, setPayModalPayment] = useState(null);
 
     // Fetch Classes on Mount
     useEffect(() => {
@@ -102,11 +102,6 @@ const StudentFinancialsPage = () => {
 
             if (currentPage === 1) {
                 setPayments(items);
-                setStats({
-                    totalAmountPaid: response.totalAmountPaid || 0,
-                    totalDueAmount: response.totalDueAmount || 0,
-                    totalClassFees: response.totalClassFees || 0,
-                });
             } else {
                 setPayments(prev => [...prev, ...items]);
             }
@@ -168,7 +163,21 @@ const StudentFinancialsPage = () => {
     const handleClassChange = (e) => setSelectedClassId(e.target.value);
     const handleMonthChange = (e) => setSelectedMonthYear(e.target.value);
 
+    // Called when student clicks "Pay Now" on a Due row
+    const handlePayDueRow = useCallback((payment) => {
+        setPayModalPayment(payment); // store so modal can auto-select tutor
+        setIsPayModalOpen(true);
+    }, []);
+
+    // After payment completes, refresh the table
+    const handlePayModalClose = useCallback(() => {
+        setIsPayModalOpen(false);
+        setPayModalPayment(null);
+        fetchPaymentHistory(1);
+    }, [fetchPaymentHistory]);
+
     return (
+        <>
         <div className="p-6 max-w-7xl mx-auto space-y-2">
 
             {/* Page Header */}
@@ -256,51 +265,6 @@ const StudentFinancialsPage = () => {
 
             </div>
 
-            {/* Summary Statistics Boxes */}
-            {!isLoadingFinancials && !error && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-
-                    {/* Total Classes */}
-                    <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
-                        <div>
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Enrolled Classes</p>
-                            <p className="text-xl font-bold text-gray-900 dark:text-white">
-                                {selectedClassId ? 1 : enrolledClasses.filter(c => !selectedTutorId || c.tutorId === selectedTutorId).length}
-                            </p>
-                        </div>
-                        <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-lg">
-                            <BookOpen size={20} className="text-indigo-600 dark:text-indigo-400" />
-                        </div>
-                    </div>
-
-                    {/* Total Amount Paid */}
-                    <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
-                        <div>
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Total Amount Paid</p>
-                            <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                                Rs. {stats.totalAmountPaid.toLocaleString()}
-                            </p>
-                        </div>
-                        <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
-                            <TrendingUp size={20} className="text-blue-600 dark:text-blue-400" />
-                        </div>
-                    </div>
-
-                    {/* Total Due Amount */}
-                    <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
-                        <div>
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Total Due Amount</p>
-                            <p className={`text-xl font-bold ${stats.totalDueAmount > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                                Rs. {stats.totalDueAmount.toLocaleString()}
-                            </p>
-                        </div>
-                        <div className={`p-2 rounded-lg ${stats.totalDueAmount > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30'}`}>
-                            <TrendingDown size={20} className={stats.totalDueAmount > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'} />
-                        </div>
-                    </div>
-
-                </div>
-            )}
 
             {/* Content Area */}
             <div className="mt-4">
@@ -315,7 +279,7 @@ const StudentFinancialsPage = () => {
                     </div>
                 ) : (
                     <>
-                        <StudentFinancialsTable payments={payments} />
+                        <StudentFinancialsTable payments={payments} onPay={handlePayDueRow} />
                         {isLoadingMore && (
                             <div className="flex justify-center items-center py-6">
                                 <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
@@ -327,6 +291,15 @@ const StudentFinancialsPage = () => {
             </div>
 
         </div>
+
+        {/* Pay Fees Modal — reuse the existing payment flow */}
+        <PayFeesModal
+            isOpen={isPayModalOpen}
+            onClose={handlePayModalClose}
+            initialPayment={payModalPayment}
+            setActivePage={setActivePage}
+        />
+        </>
     );
 };
 

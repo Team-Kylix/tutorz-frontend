@@ -79,7 +79,7 @@ const StudentAttendancePage = () => {
             // Wait, we can just let the backend handle it or we pass the specific classId.
             // For now, if a specific class is selected, pass that.
             let cId = selectedClassId || undefined;
-            
+
             // Note: The backend endpoint is expecting tutorId (Guid). Since we don't have it,
             // we will fetch all attendance if no class is selected, and filter locally if a tutor is selected.
             // Or we just send classId if one is selected.
@@ -92,7 +92,7 @@ const StudentAttendancePage = () => {
             const normalizeDate = (isoString) => isoString.split('T')[0];
 
             let normalizedDates = (response.conductedDates || []).map(normalizeDate);
-            
+
             let normalizedClasses = (response.classes || []).map(cls => {
                 const normalizedAttendance = {};
                 if (cls.attendanceRecord) {
@@ -100,27 +100,30 @@ const StudentAttendancePage = () => {
                         normalizedAttendance[normalizeDate(isoDate)] = cls.attendanceRecord[isoDate];
                     });
                 }
+                // Normalise classConductedDates to YYYY-MM-DD to match the date column keys
+                const normalizedClassConductedDates = (cls.classConductedDates || []).map(normalizeDate);
                 return {
                     ...cls,
                     id: cls.id,
                     name: cls.name,
                     regNo: cls.regNo, // Tutor Name
                     mobile: cls.mobile, // Class Type
-                    attendance: normalizedAttendance
+                    attendance: normalizedAttendance,
+                    classConductedDates: normalizedClassConductedDates
                 };
             });
 
             // If a tutor (name) is selected but no class is selected, filter the rows locally.
             if (selectedTutorId && !selectedClassId) {
                 normalizedClasses = normalizedClasses.filter(cls => cls.regNo === selectedTutorId);
-                
+
                 // Recompute conducted dates from the filtered classes
                 const newDatesSet = new Set();
                 normalizedClasses.forEach(c => {
                     // We don't have the exact conducted dates for just these classes in the dto unless we look at the raw attendances.
                     // Actually, if we filter classes, maybe the generic conductedDates handles it, but let's just use the global one.
                 });
-                
+
                 // Wait, if we filter locally, the stats from backend (DaysHeld) will be wrong. 
                 // Let's re-calculate stats locally if we filter
                 let localTotalHeld = 0;
@@ -148,28 +151,6 @@ const StudentAttendancePage = () => {
         }
     }, [selectedClassId, selectedTutorId, selectedDate]);
 
-
-    // Derived State: Compute visual stats
-    const visualStats = useMemo(() => {
-        const totalSlots = classesRows.length * classDates.length;
-        let totalAttended = 0;
-        
-        classesRows.forEach(cls => {
-            classDates.forEach(date => {
-                if (cls.attendance && cls.attendance[date]) {
-                    totalAttended++;
-                }
-            });
-        });
-
-        const rate = totalSlots > 0 ? Math.round((totalAttended / totalSlots) * 100) : 0;
-
-        return {
-            classesHeld: totalSlots,
-            attendance: totalAttended,
-            attendanceRate: rate
-        };
-    }, [classesRows, classDates]);
 
     // Trigger fetch on filter change
     useEffect(() => {
@@ -261,39 +242,6 @@ const StudentAttendancePage = () => {
 
             </div>
 
-            {/* Summary Statistics Boxes */}
-            {!isLoadingAttendance && !error && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-4">
-                        <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-lg text-blue-600 dark:text-blue-400">
-                            <CalendarIcon size={24} />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Class Held</p>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{visualStats.classesHeld}</p>
-                        </div>
-                    </div>
-                    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-4">
-                        <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-lg text-green-600 dark:text-green-400">
-                            <BookOpen size={24} />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Attendance</p>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{visualStats.attendance}</p>
-                        </div>
-                    </div>
-                    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-4">
-                        <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded-lg text-purple-600 dark:text-purple-400">
-                            <Percent size={24} />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Attendance Rate</p>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{visualStats.attendanceRate}%</p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* Content Area */}
             <div className="mt-4">
                 {isLoadingAttendance ? (
@@ -313,7 +261,7 @@ const StudentAttendancePage = () => {
                     <AttendanceTable
                         students={classesRows}
                         classDates={classDates}
-                        // We intentionally do not pass onMarkAttendance for students (read-only)
+                    // We intentionally do not pass onMarkAttendance for students (read-only)
                     />
                 )}
             </div>

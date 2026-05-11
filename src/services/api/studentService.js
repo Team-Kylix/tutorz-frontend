@@ -15,9 +15,9 @@ export const updateStudentProfile = async (data) => {
  * @param {string} grade - User's grade (e.g., 'Grade 8')
  * @param {string} query - Search term (Subject, Tutor Name, TUT ID)
  */
-export const searchClasses = async (grade, query, districtId, cityId, page = 1, pageSize = 10) => {
+export const searchClasses = async (grade, query, provinceId, districtId, cityId, page = 1, pageSize = 10) => {
   const response = await apiClient.get('/student/search-classes', {
-    params: { grade, query, districtId, cityId, page, pageSize }
+    params: { grade, query, provinceId, districtId, cityId, page, pageSize }
   });
   return response.data;
 };
@@ -123,4 +123,31 @@ export const searchJoinedTutors = async (query) => {
     params: { query }
   });
   return response.data;
+};
+
+/**
+ * Triggers a browser download of the class payment PDF invoice.
+ * @param {string} paymentId - GUID of the ClassPayment record
+ * @param {string} reference - Display reference for the filename (e.g. "Science_Apr2026")
+ */
+export const downloadClassPaymentPdf = async (paymentId, reference = 'ClassFee') => {
+  try {
+    const response = await apiClient.get(`/student/class-payments/${paymentId}/pdf`, {
+      responseType: 'blob'
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Tutorz_${reference}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Class payment PDF download failed', error);
+    return { success: false, message: 'Failed to download invoice PDF.' };
+  }
 };

@@ -42,8 +42,8 @@ const TimetablePage = () => {
                     <p className="text-gray-500 dark:text-gray-400 mt-1">
                         {isDateSelected
                             ? 'Viewing schedule — click "Back to Calendar" to choose another date.'
-                            : user?.role === ROLES.STUDENT 
-                                ? 'Select a date to view your enrolled classes.' 
+                            : user?.role === ROLES.STUDENT
+                                ? 'Select a date to view your enrolled classes.'
                                 : 'Select a date to view all class schedules across different halls.'}
                     </p>
                 </div>

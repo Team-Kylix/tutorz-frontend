@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar, User } from 'lucide-react';
+import { Search, RefreshCw, Clock, Users, Building2, Calendar, User, Eye, LogOut, BookOpen } from 'lucide-react';
 import Button from '../../components/atoms/Button';
+import RowActions from '../../components/molecules/RowActions';
 import Input from '../../components/atoms/Input';
-import StatCard from '../../components/molecules/StatCard';
 import ConfirmationModal from '../../components/molecules/ConfirmationModal';
-import ClassFormModal from '../../components/organisms/ClassFormModal';
+import ClassViewModal from '../../components/organisms/ClassViewModal';
 import useApi from '../../hooks/useApi';
 import * as studentService from '../../services/api/studentService';
-import { formatTime } from '../../utils/helpers';
+import { formatTime, cleanClassName } from '../../utils/helpers';
+import { BASE_URL } from '../../services/api/apiClient';
+
 
 const StudentClassesPage = () => {
     // State
@@ -92,35 +94,27 @@ const StudentClassesPage = () => {
                 </div>
             </div>
 
-            {/* Stats Banner & Search */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="w-full md:w-64">
-                    <StatCard
-                        label="Total Joined Classes"
-                        value={classes.length}
-                        change={`${classes.filter(c => c.status === 'active').length} Active`}
-                        icon={BookOpen}
-                        color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-                    />
+            {/* Main Content Container */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm flex flex-col">
+                
+                {/* Top Bar with Search */}
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
+                    <div className="relative w-full max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <Input
+                            type="text"
+                            placeholder="Search by Class Name, Subject, or Tutor..."
+                            className="pl-10 shadow-sm"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
 
-                <div className="relative w-full max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <Input
-                        type="text"
-                        placeholder="Search by Class Name, Subject, or Tutor..."
-                        className="pl-10 shadow-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-            </div>
-
-            {/* Table View */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700">
+                {/* Table View */}
+                <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
+                    <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                             <tr>
                                 <th className="px-6 py-4 font-semibold">Class Name</th>
                                 <th className="px-6 py-4 font-semibold">Subject</th>
@@ -128,6 +122,7 @@ const StudentClassesPage = () => {
                                 <th className="px-6 py-4 font-semibold">Date / Day</th>
                                 <th className="px-6 py-4 font-semibold">Location</th>
                                 <th className="px-6 py-4 font-semibold">Fees (Rs)</th>
+                                <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -142,7 +137,7 @@ const StudentClassesPage = () => {
                                     >
                                         <td className="px-6 py-4">
                                             <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                                <span>{cls.className || '-'}</span>
+                                                <span>{cleanClassName(cls.className)}</span>
                                                 {cls.status !== 'active' && (
                                                     <span className="px-2 py-0.5 text-[10px] tracking-wider font-bold bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md">
                                                         INACTIVE
@@ -150,7 +145,15 @@ const StudentClassesPage = () => {
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                <User size={12} />
+                                                <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center overflow-hidden shrink-0 border border-blue-200/50 dark:border-blue-800/50">
+                                                    {(() => {
+                                                        const img = cls.tutorProfileImageUrlSmall || cls.tutorImageUrl || cls.tutorImage;
+                                                        if (img) {
+                                                            return <img src={img.startsWith('http') ? img : `${BASE_URL}${img}`} alt="" className="w-full h-full object-cover" />;
+                                                        }
+                                                        return <User size={10} />;
+                                                    })()}
+                                                </div>
                                                 <span className="font-medium">{cls.tutorName || '-'}</span>
                                                 <span className="text-gray-300 dark:text-gray-600 px-0.5">•</span>
                                                 <div className="flex items-center gap-1">
@@ -189,6 +192,12 @@ const StudentClassesPage = () => {
                                                 <span>{cls.fee?.toLocaleString() || '0'}</span>
                                             </div>
                                         </td>
+                                        <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                            <RowActions actions={[
+                                                { label: 'View Details', icon: Eye, onClick: () => handleRowClick(cls) },
+                                                { label: 'Leave Class', icon: LogOut, onClick: () => { setSelectedClass(cls); handleLeaveRequest(); }, danger: true },
+                                            ]} />
+                                        </td>
                                     </tr>
                                 ))
                             ) : (
@@ -215,11 +224,12 @@ const StudentClassesPage = () => {
             </div>
 
             {/* Class Details Modal */}
-            <ClassFormModal
+            <ClassViewModal
                 isOpen={!!selectedClass && !showConfirm}
                 onClose={() => setSelectedClass(null)}
-                initialData={selectedClass}
-                viewOnly={true}
+                classData={selectedClass}
+                role="student"
+                enrollmentStatus="Approved"
                 onLeave={handleLeaveRequest}
                 isLeaving={isLeaving}
             />

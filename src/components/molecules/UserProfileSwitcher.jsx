@@ -117,7 +117,9 @@ const UserProfileSwitcher = ({ isCollapsed }) => {
 
             {/* Profile List */}
             <div className="p-2 space-y-1 max-h-72 overflow-y-auto custom-scrollbar">
-              {siblingProfiles.map((profile) => {
+              {[...siblingProfiles]
+                .sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0))
+                .map((profile) => {
                 const isActive = profile.studentId === currentStudentId;
                 const isLoading = isSwitching === profile.studentId;
                 const initial = (profile.firstName || '?').charAt(0).toUpperCase();

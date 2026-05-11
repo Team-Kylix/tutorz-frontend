@@ -4,6 +4,7 @@ export const ROLES = {
   TUTOR: 'Tutor',
   INSTITUTE: 'Institute',
   ADMIN: 'Admin',
+  SUPERADMIN: 'SuperAdmin',
 };
 
 export const API_URLS = {

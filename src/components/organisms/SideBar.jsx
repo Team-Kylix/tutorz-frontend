@@ -4,7 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   LayoutDashboard, Users, BookOpen, Calendar, DollarSign,
   FileText, QrCode, Settings, ChevronRight, ChevronLeft, LogOut,
-  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus, Clock, Info, CloudOff
+  Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus, Clock, Info, CloudOff, MessageSquareWarning,
+  Bell, Receipt, CreditCard, HelpCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SidebarItem from '../molecules/SidebarItem';
@@ -19,6 +20,7 @@ import { updateUser } from '../../store/authSlice';
 import { getTutorProfile } from '../../services/api/tutorService';
 import { getStudentProfile } from '../../services/api/studentService';
 import { getInstituteProfile } from '../../services/api/instituteService';
+import { getAdminProfile } from '../../services/api/adminService';
 
 const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const navigate = useNavigate();
@@ -39,6 +41,8 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
           case ROLES.TUTOR: result = await getTutorProfile(); break;
           case ROLES.STUDENT: result = await getStudentProfile(); break;
           case ROLES.INSTITUTE: result = await getInstituteProfile(); break;
+          case ROLES.ADMIN:
+          case ROLES.SUPERADMIN: result = await getAdminProfile(); break;
           default: return;
         }
 
@@ -92,8 +96,10 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'students', label: 'Students & Medals', icon: GraduationCap },
     { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
     { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
+    { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'profile', label: 'Profile & QR', icon: QrCode },
+    { id: 'complains', label: 'Complains', icon: MessageSquareWarning },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -101,9 +107,11 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
     { id: 'timetable', label: 'Timetable', icon: Clock },
+    { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
+    { id: 'financials', label: 'Financials', icon: CreditCard },
     { id: 'attendance', label: 'My Attendance', icon: Calendar },
-    { id: 'financials', label: 'My Financials', icon: DollarSign },
     { id: 'profile', label: 'My Profile', icon: QrCode },
+    { id: 'complains', label: 'Complains', icon: MessageSquareWarning },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -117,7 +125,9 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'institute-tutors', label: 'Tutors', icon: UserCheck },
     { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
     { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
+    { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
     { id: 'profile', label: 'Profile & QR', icon: QrCode },
+    { id: 'complains', label: 'Complains', icon: MessageSquareWarning },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -125,17 +135,23 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'institutes', label: 'Institutes', icon: Building },
     { id: 'admin-students', label: 'Students', icon: GraduationCap },
-    { id: 'users', label: 'User Management', icon: UserCog },
-    { id: 'approvals', label: 'Pending Approvals', icon: CheckSquare },
-    { id: 'financials', label: 'Platform Finance', icon: DollarSign },
-    { id: 'disputes', label: 'Disputes', icon: ShieldAlert },
-    { id: 'reports', label: 'System Reports', icon: FileText },
-    { id: 'settings', label: 'System Config', icon: Settings },
+    { id: 'admin-teachers', label: 'Teachers', icon: UserCheck },
+
+
+
+    { id: 'platform-finance', label: 'Platform Finance', icon: DollarSign },
+
+    { id: 'disputes', label: 'Disputes', icon: HelpCircle },
+    { id: 'system-config', label: 'System Configuration', icon: Settings },
+
+    { id: 'profile', label: 'My Profile', icon: QrCode },
+
   ];
 
   const getMenuItems = () => {
     switch (user?.role) {
-      case ROLES.ADMIN: return adminMenu;
+      case ROLES.ADMIN:
+      case ROLES.SUPERADMIN: return adminMenu;
       case ROLES.TUTOR: return tutorMenu;
       case ROLES.INSTITUTE: return instituteMenu;
       case ROLES.STUDENT: return studentMenu;

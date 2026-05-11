@@ -39,7 +39,8 @@ const ClassFormModal = ({
     tutorId: '', // Added for Institute mode
     tutorName: '', // Added for Institute mode
     fee: '',
-    isActive: true
+    isActive: true,
+    instituteCommissionRate: 0  // Commission rate: editable for institute, read-only for tutor
   });
 
   const [timeError, setTimeError] = useState('');
@@ -66,8 +67,18 @@ const ClassFormModal = ({
       setIsLoadingInstitutes(true);
       try {
         const res = await getJoinedInstitutes();
-        // Assuming API returns array of institutes directly or in res.data
-        const fetchedInstitutes = Array.isArray(res) ? res : (res?.data || []);
+        // Handle multiple API response shapes:
+        // { success, data: [...] } OR { items: [...] } OR [...]
+        let fetchedInstitutes = [];
+        if (Array.isArray(res)) {
+          fetchedInstitutes = res;
+        } else if (Array.isArray(res?.data)) {
+          fetchedInstitutes = res.data;
+        } else if (Array.isArray(res?.data?.items)) {
+          fetchedInstitutes = res.data.items;
+        } else if (Array.isArray(res?.items)) {
+          fetchedInstitutes = res.items;
+        }
         setInstitutes(fetchedInstitutes);
 
         // If initial data has instituteName but no instituteId, find it
@@ -77,8 +88,8 @@ const ClassFormModal = ({
             setFormData(prev => ({ ...prev, instituteId: found.instituteId || found.id }));
           }
         }
-        // If create mode and institutes available, select first by default
-        else if (!initialData && fetchedInstitutes.length > 0) {
+        // In create mode, default to OWN_PLACE
+        else if (!initialData) {
           setFormData(prev => ({
             ...prev,
             instituteId: 'OWN_PLACE',
@@ -96,7 +107,8 @@ const ClassFormModal = ({
 
   // Fetch Halls when instituteId changes
   useEffect(() => {
-    if (!isOpen || !formData.instituteId || viewOnly) {
+    // Skip hall fetching when not applicable
+    if (!isOpen || !formData.instituteId || viewOnly || formData.instituteId === 'OWN_PLACE') {
       setHalls([]);
       return;
     }
@@ -181,7 +193,8 @@ const ClassFormModal = ({
         tutorId: initialData.tutorId || '', // Ensure tutorId gets mapped
         dayOfWeek: initialData.dayOfWeek || 'Monday',
         date: initialData.date ? initialData.date.split('T')[0] : '',
-        isActive: initialData.isActive ?? true
+        isActive: initialData.isActive ?? true,
+        instituteCommissionRate: Number(initialData.instituteCommissionRate ?? 0)
       };
 
       if (isInstituteMode && instituteProfile) {
@@ -211,12 +224,15 @@ const ClassFormModal = ({
         tutorId: '',
         tutorName: '',
         fee: '',
-        isActive: true
+        isActive: true,
+        instituteCommissionRate: 0
       };
 
       if (isInstituteMode && instituteProfile) {
         newFormData.instituteId = instituteProfile.instituteId || instituteProfile.id;
         newFormData.instituteName = instituteProfile.instituteName || instituteProfile.name;
+        // Default commission rate from the institute's configured setting
+        newFormData.instituteCommissionRate = Number(instituteProfile.commissionPercentage ?? 25);
       }
       setFormData(newFormData);
       setTutorQuery('');
@@ -246,14 +262,20 @@ const ClassFormModal = ({
     setFormData((prev) => {
       const updates = { [name]: type === 'checkbox' ? checked : value };
 
-      // If changing institute, also capture the text name
+      // If changing institute (tutor mode), also capture commission rate from the institutes list
       if (name === 'instituteId') {
         if (value === 'OWN_PLACE') {
           updates.instituteName = 'My Own Place';
           updates.hallId = null;
           updates.hallName = 'N/A';
+          updates.instituteCommissionRate = 0;
         } else {
           updates.instituteName = options[selectedIndex].text;
+          // Auto-populate commission rate from the selected institute's data
+          const selectedInst = institutes.find(
+            (i) => String(i.instituteId || i.id) === String(value)
+          );
+          updates.instituteCommissionRate = Number(selectedInst?.commissionPercentage ?? 0);
         }
       }
       // If changing hall, also capture the text name
@@ -419,6 +441,7 @@ const ClassFormModal = ({
       tutorId: formData.tutorId === '' ? null : formData.tutorId,
       hallId: formData.hallId === '' ? null : formData.hallId,
       fee: parseFloat(formData.fee),
+      instituteCommissionRate: parseFloat(formData.instituteCommissionRate ?? 0),
       dayOfWeek: finalDayString,
       date: finalDate
     };
@@ -696,11 +719,18 @@ const ClassFormModal = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
                 <label className={labelClass}>
-                  Hall <span className="text-red-500">*</span>
+                  Hall {formData.instituteId !== 'OWN_PLACE' && <span className="text-red-500">*</span>}
+                  {formData.instituteId === 'OWN_PLACE' && <span className="text-xs font-normal text-gray-400 ml-1">(optional)</span>}
                 </label>
                 {viewOnly ? (
                   <div className={readOnlyBoxClass}>
                     {formData.hallName || 'Not Applicable'}
+                  </div>
+                ) : formData.instituteId === 'OWN_PLACE' ? (
+                  // Greyed-out placeholder when tutor teaches at their own place — updated to match input theme
+                  <div className={`${readOnlyBoxClass} !border-solid !bg-white dark:!bg-gray-800 flex items-center gap-2`}>
+                    <span className="text-gray-400 select-none"></span>
+                    <span className="text-gray-500 dark:text-gray-400 font-normal italic">Not required</span>
                   </div>
                 ) : (
                   <select
@@ -708,13 +738,10 @@ const ClassFormModal = ({
                     value={formData.hallId || ''}
                     onChange={handleChange}
                     className={inputClass}
-                    disabled={isLoadingHalls || !formData.instituteId || formData.instituteId === 'OWN_PLACE'}
-                    required={formData.instituteId !== 'OWN_PLACE'}
+                    disabled={isLoadingHalls}
                   >
                     <option value="">Select Hall</option>
-                    {formData.instituteId === 'OWN_PLACE' ? (
-                      <option value="" disabled>Not Applicable</option>
-                    ) : isLoadingHalls ? (
+                    {isLoadingHalls ? (
                       <option value="" disabled>Loading halls...</option>
                     ) : halls.length === 0 ? (
                       <option value="" disabled>No halls available</option>
@@ -738,6 +765,50 @@ const ClassFormModal = ({
                 required
               />
             </div>
+
+            {/* 4b. Commission Rate — shown for both Institute and Tutor modes */}
+            {isInstituteMode ? (
+              /* Institute mode: editable commission rate field in standard box style */
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>
+                  Institute Commission Rate <span className="text-xs text-gray-400 font-normal">(0–100%)</span>
+                </label>
+                <div className={`${inputClass} flex items-center justify-center relative !bg-white dark:!bg-gray-800 focus-within:ring-2 focus-within:ring-blue-500 transition-shadow`}>
+                  <div className="flex items-center gap-1">
+                    <input
+                      id="instituteCommissionRate"
+                      name="instituteCommissionRate"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={formData.instituteCommissionRate}
+                      onChange={handleChange}
+                      className="bg-transparent border-none outline-none w-12 font-bold text-blue-600 dark:text-blue-400 focus:ring-0 p-0 text-right"
+                    />
+                    <span className="font-bold text-blue-600 dark:text-blue-400">%</span>
+                    <span className="ml-2 font-normal text-gray-500 dark:text-gray-400 italic text-sm">institute commission</span>
+                  </div>
+                  <span className="absolute right-3 text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-tight select-none">editable</span>
+                </div>
+              </div>
+            ) : (
+              /* Tutor mode: read-only commission rate in standard box style */
+              formData.instituteId && formData.instituteId !== 'OWN_PLACE' && (
+                <div className="flex flex-col gap-1">
+                  <label className={labelClass}>Institute Commission Rate</label>
+                  <div className="flex items-center gap-3">
+                    <div className={`${readOnlyBoxClass} flex items-center justify-center relative !border-solid !bg-white dark:!bg-gray-800`}>
+                      <span className="font-bold text-blue-600 dark:text-blue-400">
+                        {Number(formData.instituteCommissionRate ?? 0)}%
+                        <span className="ml-2 font-normal text-gray-500 dark:text-gray-400 italic">institute commission</span>
+                      </span>
+                      <span className="absolute right-3 text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-tight select-none">not editable</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            )}
 
             {/* 5. Auto-generated Name (Read Only) */}
             <div className="flex flex-col gap-1 pt-2">
@@ -825,6 +896,7 @@ const ClassFormModal = ({
                         initialData.hallName === formData.hallName &&
                         initialData.fee == formData.fee &&
                         (initialData.isActive ?? true) === formData.isActive &&
+                        Number(initialData.instituteCommissionRate ?? 0) === Number(formData.instituteCommissionRate ?? 0) &&
                         (!isInstituteMode || initialData.tutorId === formData.tutorId)
                       )}
                       className={`w-full sm:w-auto px-6 py-2 rounded-lg text-sm font-medium transition-colors ${isSubmitting || (
@@ -840,6 +912,7 @@ const ClassFormModal = ({
                         initialData.hallName === formData.hallName &&
                         initialData.fee == formData.fee &&
                         (initialData.isActive ?? true) === formData.isActive &&
+                        Number(initialData.instituteCommissionRate ?? 0) === Number(formData.instituteCommissionRate ?? 0) &&
                         (!isInstituteMode || initialData.tutorId === formData.tutorId)
                       )
                         ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed'

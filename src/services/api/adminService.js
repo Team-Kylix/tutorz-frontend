@@ -35,4 +35,63 @@ export const getAllStudents = async (searchQuery = '', page = 1, pageSize = 10) 
   } catch (error) {
     throw error.response?.data || { message: 'Failed to fetch students' };
   }
-};
+};
+
+export const getAllTutors = async (searchQuery = '', page = 1, pageSize = 10) => {
+  try {
+    const params = new URLSearchParams({
+      searchQuery: searchQuery,
+      page: page.toString(),
+      pageSize: pageSize.toString()
+    });
+    const response = await apiClient.get(`/system/tutors?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch tutors' };
+  }
+};
+
+export const getAllInstitutes = async (searchQuery = '', page = 1, pageSize = 10) => {
+  try {
+    const params = new URLSearchParams({
+      searchQuery: searchQuery,
+      page: page.toString(),
+      pageSize: pageSize.toString()
+    });
+    const response = await apiClient.get(`/system/institutes?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch institutes' };
+  }
+};
+
+export const createAdmin = async (adminData) => {
+  try {
+    const response = await apiClient.post('/system/admin', adminData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to create admin' };
+  }
+};
+
+export const getAdminProfile = async () => {
+  try {
+    const response = await apiClient.get('/system/admin/profile');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch admin profile' };
+  }
+};
+
+export const updateAdminProfile = async (formData) => {
+  try {
+    const response = await apiClient.put('/system/admin/profile', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to update admin profile' };
+  }
+};

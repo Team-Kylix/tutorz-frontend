@@ -10,6 +10,7 @@ import NetworkStatusDot from '../atoms/NetworkStatusDot';
 import { getAssignedStudents, getAssignedTutors } from '../../services/api/instituteService';
 import { searchJoinedTutors } from '../../services/api/studentService';
 import { searchEnrolledStudents } from '../../services/api/tutorService';
+import { getAllStudents, getAllTutors, getAllInstitutes } from '../../services/api/adminService';
 import AccountViewModal from './AccountViewModal';
 import { BASE_URL } from '../../services/api/apiClient';
 import DeploymentControlPanel from './DeploymentControlPanel';
@@ -129,6 +130,38 @@ const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
             })));
         } catch (error) {
             console.error("Tutor search failed", error);
+            setSearchResults([]);
+        } finally {
+            setIsSearching(false);
+        }
+    } else if (user?.role === 'Admin') {
+        setIsSearching(true);
+        try {
+            const [studentsRes, tutorsRes, institutesRes] = await Promise.all([
+                getAllStudents(query, 1, 5),
+                getAllTutors(query, 1, 5),
+                getAllInstitutes(query, 1, 5)
+            ]);
+            
+            const students = studentsRes.items || studentsRes.data?.items || studentsRes.data || [];
+            const tutors = tutorsRes.items || tutorsRes.data?.items || tutorsRes.data || [];
+            const insts = institutesRes.items || institutesRes.data?.items || institutesRes.data || [];
+            
+            const combined = [
+                ...students.map(s => ({ ...s, sysRole: 'Student', displayName: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim() })),
+                ...tutors.map(t => ({ ...t, sysRole: 'Tutor', displayName: t.name || `${t.firstName || ''} ${t.lastName || ''}`.trim() })),
+                ...insts.map(i => ({ 
+                    ...i, 
+                    sysRole: 'Institute', 
+                    displayName: i.instituteName || i.name,
+                    profileImageUrlSmall: i.logoUrlSmall || i.profileImageUrlSmall,
+                    profileImageUrlLarge: i.logoUrlLarge || i.profileImageUrlLarge
+                }))
+            ].filter(Boolean);
+            
+            setSearchResults(combined);
+        } catch (error) {
+            console.error("Admin search failed", error);
             setSearchResults([]);
         } finally {
             setIsSearching(false);

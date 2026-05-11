@@ -25,18 +25,12 @@ const authSlice = createSlice({
       state.isAuthenticated = true;
     },
     logout: (state) => {
-      // Updating state to null automatically wipes it from the 
-      // persisted store as well.
+      // Reset auth state — redux-persist will sync this wipe to IndexedDB.
+      // Full cache + storage clearing is handled by logoutUser() in useAuth.js
+      // and the 401 interceptor in apiClient.js.
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
-
-      // Clear Service Worker Caches so the next logged-in user 
-      // doesn't instantly see old cached dashboard data.
-      if ('caches' in window) {
-        caches.delete('user-data-cache').catch(() => {});
-        caches.delete('transactional-api-cache').catch(() => {});
-      }
     },
     updateUser: (state, action) => {
       if (state.user) {

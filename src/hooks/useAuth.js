@@ -44,17 +44,28 @@ export const useAuth = () => {
     }
   };
 
-  const logoutUser = () => {
+  const logoutUser = async () => {
+    // 1. Wipe ALL persisted Redux slices from IndexedDB in one shot
+    //    (auth, ui, dashboard, sync, tutorData, instituteData)
+    await persistor.purge();
+
+    // 2. Clear Redux in-memory state for every slice
     dispatch(logout());
     dispatch(clearDashboard());
-    // CRITICAL: Wipe all queued offline actions so they are NOT
-    // uploaded under a new user's session after logout.
     dispatch(clearSyncQueue());
-    // Clear the service worker cache to ensure the next user doesn't see stale data
+
+    // 3. Wipe every Service Worker cache so no stale API/user data survives
     if ('caches' in window) {
-      caches.delete('user-data-cache');
-      caches.delete('transactional-api-cache');
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map((name) => caches.delete(name)));
     }
+
+    // 4. Clear localStorage and sessionStorage completely
+    localStorage.clear();
+    sessionStorage.clear();
+
+    // 5. Hard-redirect to login — destroys all React state and in-memory data
+    window.location.href = '/';
   };
 
   const registerSibling = async (siblingData) => {
