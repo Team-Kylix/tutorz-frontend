@@ -20,7 +20,7 @@ const GRADE_GROUPS = [
     { label: "Other", options: ['Course', 'Seminar', 'Workshop'] }
 ];
 
-const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, user }) => {
+const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, user, customAssignFn, extraRegisterPayload }) => {
     const dispatch = useDispatch();
     
     // Flow states
@@ -145,9 +145,14 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
         setAssigningId(item.roleSpecificId);
         setFeedback({ id: null, type: '', message: '' });
         try {
-            const assignFn = selectedRole === 'Student' ? assignStudent : sendTutorRequest;
-            await assignFn(item.roleSpecificId);
-            setFeedback({ id: item.roleSpecificId, type: 'success', message: selectedRole === 'Student' ? 'Assigned successfully!' : 'Join request sent successfully!' });
+            if (customAssignFn) {
+                await customAssignFn(item);
+                setFeedback({ id: item.roleSpecificId, type: 'success', message: 'Assigned successfully!' });
+            } else {
+                const assignFn = selectedRole === 'Student' ? assignStudent : sendTutorRequest;
+                await assignFn(item.roleSpecificId);
+                setFeedback({ id: item.roleSpecificId, type: 'success', message: selectedRole === 'Student' ? 'Assigned successfully!' : 'Join request sent successfully!' });
+            }
             
             setResults(prev =>
                 prev.map(r => r.roleSpecificId === item.roleSpecificId ? { ...r, isAlreadyAssigned: true } : r)
@@ -323,7 +328,13 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             const isSibling = isSiblingRegistration && selectedRole === 'Student';
             
             let actionType = SYNC_ACTION_TYPES.REGISTER_USER;
-            let actualPayload = { isSibling, registrationData: payload };
+            let actualPayload = { 
+                isSibling, 
+                registrationData: {
+                    ...payload,
+                    ...(extraRegisterPayload || {})
+                } 
+            };
             let dedupeKey = `register_${payload.phoneNumber || payload.identifier}`;
 
             if (selectedRole === 'Admin') {
