@@ -197,6 +197,11 @@ const ClassFormModal = ({
         instituteCommissionRate: Number(initialData.instituteCommissionRate ?? 0)
       };
 
+      if (!isInstituteMode && !initialData.instituteId) {
+        newFormData.instituteId = 'OWN_PLACE';
+        newFormData.instituteName = 'My Own Place';
+      }
+
       if (isInstituteMode && instituteProfile) {
         newFormData.instituteId = initialData.instituteId || instituteProfile.instituteId || instituteProfile.id;
         newFormData.instituteName = initialData.instituteName || instituteProfile.instituteName || instituteProfile.name;
