@@ -93,7 +93,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'timetable', label: 'Timetable', icon: Clock },
     { id: 'student-requests', label: 'Student Requests', icon: Users },
     { id: 'tutor-requests', label: 'Institute Requests', icon: Building },
-    { id: 'students', label: 'Students & Medals', icon: GraduationCap },
     { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
     { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
     { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
