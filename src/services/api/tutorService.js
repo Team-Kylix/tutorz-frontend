@@ -115,3 +115,30 @@ export const searchEnrolledStudents = async (query) => {
   });
   return response.data;
 };
+
+/**
+ * Fetches attendance history for the tutor's own classes.
+ * @param {string|null} classId - Optional specific class ID to filter
+ * @param {string|null} instituteId - 'own' for My Own Place, a GUID for a specific institute, or null for all
+ * @param {string} searchQuery - Optional student search query
+ * @param {number} page - Page number
+ * @param {number} pageSize - Items per page
+ */
+export const getTutorAttendanceHistory = async (classId, instituteId, searchQuery = '', page = 1, pageSize = 10) => {
+  const params = new URLSearchParams();
+  if (classId) params.append('classId', classId);
+
+  // Map 'own' (My Own Place) to the noInstitute flag; otherwise pass instituteId GUID
+  if (instituteId === 'own') {
+    params.append('noInstitute', 'true');
+  } else if (instituteId) {
+    params.append('instituteId', instituteId);
+  }
+
+  if (searchQuery) params.append('searchQuery', searchQuery);
+  params.append('page', page.toString());
+  params.append('pageSize', pageSize.toString());
+
+  const response = await apiClient.get(`/tutor/attendance/history?${params.toString()}`);
+  return response.data;
+};
