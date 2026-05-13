@@ -142,3 +142,67 @@ export const getTutorAttendanceHistory = async (classId, instituteId, searchQuer
   const response = await apiClient.get(`/tutor/attendance/history?${params.toString()}`);
   return response.data;
 };
+
+/**
+ * GET /api/report/monthly
+ * Returns monthly report grid rows for the logged-in tutor.
+ * @param {string|null} instituteId - '' for all, 'own' for My Own Place, GUID for specific
+ * @param {string|null} classId - '' for all, GUID for specific
+ */
+export const getTutorMonthlyReport = async (instituteId, classId) => {
+  try {
+    const params = new URLSearchParams();
+    if (instituteId === 'own') {
+      params.append('noInstitute', 'true');
+    } else if (instituteId) {
+      params.append('instituteId', instituteId);
+    }
+    if (classId) params.append('classId', classId);
+
+    const response = await apiClient.get(`/report/monthly?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch monthly report data' };
+  }
+};
+
+/**
+ * GET /api/report/monthly/pdf
+ * Downloads a PDF report for a specific month/year scoped to the given filter.
+ * @param {string|null} instituteId
+ * @param {string|null} classId
+ * @param {number} month - Calendar month (1-12)
+ * @param {number} year  - Calendar year (e.g. 2026)
+ * @param {string} filename - Download filename
+ */
+export const downloadTutorMonthlyReportPdf = async (instituteId, classId, month, year, filename) => {
+  try {
+    const params = new URLSearchParams();
+    if (instituteId === 'own') {
+      params.append('noInstitute', 'true');
+    } else if (instituteId) {
+      params.append('instituteId', instituteId);
+    }
+    if (classId) params.append('classId', classId);
+    if (month) params.append('month', month.toString());
+    if (year)  params.append('year', year.toString());
+
+    const response = await apiClient.get(`/report/monthly/pdf?${params.toString()}`, {
+      responseType: 'blob',
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename || 'Tutorz_Report.pdf');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Monthly report PDF download failed', error);
+    return { success: false, message: 'Failed to download report PDF.' };
+  }
+};

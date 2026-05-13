@@ -34,6 +34,7 @@ import UserPlatformFinancePage from './UserPlatformFinancePage';
 import AdminSystemConfigPage from './AdminSystemConfigPage';
 import AboutUsContent from '../../components/organisms/AboutUsContent';
 import DisputesPage from './DisputesPage';
+import ReportsPage from './ReportsPage';
 
 const DashboardHome = ({ activePage, setActivePage }) => {
   const { user } = useAuth();
@@ -101,6 +102,10 @@ const DashboardHome = ({ activePage, setActivePage }) => {
       return <StudentAttendancePage />;
     }
     return <AttendancePage />;
+  }
+
+  if (activePage === 'reports') {
+    return <ReportsPage />;
   }
 
   if (activePage === 'financials') {
