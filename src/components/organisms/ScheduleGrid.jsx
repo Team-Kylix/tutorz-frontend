@@ -140,24 +140,33 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
         fetchClasses();
     }, [viewDate, user?.role]);
 
-    // Scroll to current time after classes render (grid only shows when classes.length > 0)
+    // Auto-scroll after classes finish loading:
+    //   • Today  → scroll to current time (whether classes exist or not)
+    //   • Other  → scroll to the start of the earliest class that day
     useEffect(() => {
-        if (classes.length > 0) {
-            // Allow two animation frames so React finishes painting the grid before we scroll
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => scrollToNow());
-            });
-        }
-    }, [classes]);
+        if (isLoading) return;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            if (!scrollContainerRef.current) return;
+            if (isSameDay(viewDate, new Date())) {
+                // Viewing today — always jump to now
+                scrollToNow();
+            } else if (classes.length > 0) {
+                // Another day — jump to 30 min before the first class
+                const earliestHour = Math.min(...classes.map(c => c.startHour));
+                const top = Math.max(0, (earliestHour - 0.5) * HOUR_HEIGHT + 48);
+                scrollContainerRef.current.scrollTo({ top, behavior: 'smooth' });
+            }
+        }));
+    }, [isLoading, viewDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Keep the current-time line updated every minute
+    // Keep the current-time line updated every 30 s for smooth visual movement
     useEffect(() => {
         const tick = () => {
             const now = new Date();
             setCurrentTimeOffset((now.getHours() + now.getMinutes() / 60) * HOUR_HEIGHT);
         };
         tick();
-        const id = setInterval(tick, 60_000);
+        const id = setInterval(tick, 30_000);
         return () => clearInterval(id);
     }, []);
 
@@ -203,7 +212,7 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
                 </div>
             </div>
 
-            {/* ── Loading / Error / Empty states ── */}
+            {/* ── Loading state ── */}
             {isLoading && (
                 <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
                     <RefreshCw size={24} className="animate-spin text-blue-500 mr-3" />
@@ -211,35 +220,43 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
                 </div>
             )}
 
+            {/* ── Error state ── */}
             {!isLoading && error && (
                 <div className="flex-1 flex items-center justify-center text-red-500 dark:text-red-400 p-8 text-center">
                     {error}
                 </div>
             )}
 
-            {!isLoading && !error && classes.length === 0 && (
-                <div className="flex-1 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 p-8">
-                    <CalendarDays size={48} className="mb-4 opacity-30" />
-                    <p className="text-lg font-semibold text-gray-600 dark:text-gray-300 mb-1">No classes scheduled</p>
-                    <p className="text-sm text-center">There are no classes assigned to any hall on this date.</p>
-                </div>
-            )}
-
-            {/* ── Master Grid ── */}
-            {!isLoading && !error && classes.length > 0 && (
+            {/* ── Master Grid (always rendered when not loading/error) ── */}
+            {/* The scrollable time-grid is shown regardless of class count so that:
+                  • The red "now" line always appears when viewing today.
+                  • Auto-scroll to current time / first class always works.
+                  • Empty-state messaging appears inside the grid at the right height. */}
+            {!isLoading && !error && (
                 <div
                     className="flex-1 overflow-auto relative bg-gray-50 dark:bg-gray-900 custom-scrollbar"
                     ref={scrollContainerRef}
                 >
                     <div className="flex min-w-max relative pb-10">
 
-                        {/* Red current-time line (shown only when today is viewed) */}
+                        {/* ── Red current-time line ──────────────────────────────
+                             Shown whenever today is being viewed, even with no classes.
+                             The dot sits on the time-axis left edge; the line extends right. */}
                         {isSameDay(viewDate, new Date()) && (
                             <div
-                                className="absolute left-[80px] right-0 h-0.5 bg-red-500/80 z-[5] pointer-events-none transition-top duration-1000"
+                                className="absolute left-0 right-0 z-[5] pointer-events-none"
                                 style={{ top: `${currentTimeOffset + 48}px` }}
                             >
-                                <div className="absolute -left-1 -top-1 w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                                {/* Horizontal line from time-axis onward */}
+                                <div className="absolute left-[80px] right-0 h-0.5 bg-red-500/80" />
+                                {/* Glowing dot on the axis edge */}
+                                <div className="absolute left-[74px] -top-[5px] w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.9)] ring-2 ring-white/60 dark:ring-gray-900/60" />
+                                {/* Optional: tiny time label */}
+                                <span
+                                    className="absolute left-0 -top-2.5 w-[72px] text-right text-[9px] font-bold text-red-500 pr-1 leading-none tabular-nums"
+                                >
+                                    {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                </span>
                             </div>
                         )}
 
@@ -267,21 +284,29 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
                             ))}
                         </div>
 
-                        {/* ── Hall Columns ── */}
-                        {columns.map((col, hallIndex) => (
-                            <HallColumn
-                                key={col.id}
-                                hallName={col.hallName}
-                                subtitle={col.instituteName}
-                                hallIndex={hallIndex}
-                                classes={classes.filter(c => c.hallName === col.hallName && (c.instituteName || null) === col.instituteName)}
-                                onClassClick={(cardCls) => {
-                                    // Find the matching raw DTO by id to pass to the modal
-                                    const raw = rawClasses.find(r => r.classId === cardCls.id);
-                                    setSelectedClass(raw || cardCls);
-                                }}
-                            />
-                        ))}
+                        {/* ── Hall Columns OR empty-state message ── */}
+                        {classes.length === 0 ? (
+                            /* Empty state sits next to the time axis at full height */
+                            <div className="flex flex-col items-center justify-center flex-1 min-w-[280px] min-h-[calc(24*80px)] text-gray-400 dark:text-gray-500 p-8">
+                                <CalendarDays size={48} className="mb-4 opacity-30" />
+                                <p className="text-lg font-semibold text-gray-600 dark:text-gray-300 mb-1">No classes scheduled</p>
+                                <p className="text-sm text-center">There are no classes on this date.</p>
+                            </div>
+                        ) : (
+                            columns.map((col, hallIndex) => (
+                                <HallColumn
+                                    key={col.id}
+                                    hallName={col.hallName}
+                                    subtitle={col.instituteName}
+                                    hallIndex={hallIndex}
+                                    classes={classes.filter(c => c.hallName === col.hallName && (c.instituteName || null) === col.instituteName)}
+                                    onClassClick={(cardCls) => {
+                                        const raw = rawClasses.find(r => r.classId === cardCls.id);
+                                        setSelectedClass(raw || cardCls);
+                                    }}
+                                />
+                            ))
+                        )}
                     </div>
                 </div>
             )}

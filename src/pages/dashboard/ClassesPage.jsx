@@ -10,8 +10,9 @@ import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 import useApi from '../../hooks/useApi';
 import * as tutorService from '../../services/api/tutorService';
 import { useDispatch, useSelector } from 'react-redux';
-import { enqueueAction, SYNC_ACTION_TYPES, selectPendingCount } from '../../store/syncSlice';
-import { setClassesData, addTutorClass, updateTutorClass, removeTutorClass } from '../../store/tutorSlice';
+import { selectPendingCount } from '../../store/syncSlice';
+import { enqueueAction, SYNC_ACTION_TYPES } from '../../store/syncSlice';
+import { setClassesData, updateTutorClass, removeTutorClass } from '../../store/tutorSlice';
 
 const ClassesPage = () => {
   const dispatch = useDispatch();
@@ -154,45 +155,52 @@ const ClassesPage = () => {
   };
 
   const handleConfirmSave = async () => {
-    // Ensure payload is prepared
+    // Close the confirmation modal immediately
+    setIsConfirmOpen(false);
+
     const cleanPayload = preparePayload(pendingFormData);
 
-    setIsConfirmOpen(false);
-    setClassModalOpen(false);
-    setClassFormError('');
-    setPendingFormData(null);
-
     if (editingClass) {
-      // Update Mode
-      dispatch(updateTutorClass({ classId: editingClass.classId, ...cleanPayload }));
-      
-      dispatch(enqueueAction({
-        actionType: SYNC_ACTION_TYPES.UPDATE_CLASS,
-        payload: { id: editingClass.classId, classData: cleanPayload },
-        label: `Update Class: ${cleanPayload.className}`,
-      }));
-      setSuccessMessage("Class updated offline (Syncing...)!");
+      // ── Update Mode: direct API call (overlap errors need immediate feedback) ──
+      const { data, error } = await saveClass(tutorService.updateClass, editingClass.classId, cleanPayload);
+      if (error) {
+        // Show the error in the form modal
+        setClassFormError(error);
+        setEditingClass(editingClass);   // keep editing context
+        setClassModalOpen(true);         // reopen form so user sees the error
+        setPendingFormData(null);
+        return;
+      }
+      if (data) {
+        // Refresh the list so the updated class appears with its real data
+        dispatch(updateTutorClass({ classId: editingClass.classId, ...cleanPayload }));
+        loadClasses(true);
+        setClassModalOpen(false);
+        setClassFormError('');
+        setPendingFormData(null);
+        setSuccessMessage("Class updated successfully!");
+        setIsSuccessOpen(true);
+      }
     } else {
-      // Create Mode
-      const tempId = `temp_${Date.now()}`;
-      const newClass = {
-        ...cleanPayload,
-        classId: tempId,
-        studentCount: 0,
-        isOptimistic: true
-      };
-      
-      dispatch(addTutorClass(newClass));
-      
-      dispatch(enqueueAction({
-        actionType: SYNC_ACTION_TYPES.CREATE_CLASS,
-        payload: { classData: cleanPayload },
-        label: `Create Class: ${cleanPayload.className}`,
-      }));
-      setSuccessMessage("Class added offline (Syncing...)!");
+      // ── Create Mode: direct API call (overlap errors need immediate feedback) ──
+      const { data, error } = await saveClass(tutorService.createClass, cleanPayload);
+      if (error) {
+        // Show the error in the form modal
+        setClassFormError(error);
+        setClassModalOpen(true);   // reopen form so user sees the error
+        setPendingFormData(null);
+        return;
+      }
+      if (data) {
+        // Reload from server so the new class has its real ID (no temp_ / Syncing...)
+        loadClasses(true);
+        setClassModalOpen(false);
+        setClassFormError('');
+        setPendingFormData(null);
+        setSuccessMessage("Class created successfully!");
+        setIsSuccessOpen(true);
+      }
     }
-
-    setIsSuccessOpen(true);
   };
 
   const handleConfirmDelete = async () => {

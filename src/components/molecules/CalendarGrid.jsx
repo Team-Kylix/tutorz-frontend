@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     format,
     startOfMonth, endOfMonth,
@@ -7,23 +7,83 @@ import {
 } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import CalendarDayCard from '../atoms/CalendarDayCard';
+import { useAuth } from '../../hooks/useAuth';
+import { ROLES } from '../../utils/constants';
+import { getClasses as getTutorClasses } from '../../services/api/tutorService';
+import { getStudentClasses } from '../../services/api/studentService';
+import { getAllInstituteClassesUnpaged } from '../../services/api/instituteService';
 
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DOW_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/**
+ * Given a flat list of classes (each with dayOfWeek, classType, date),
+ * returns a Map<'YYYY-MM-DD', number> of dates that have ≥1 class
+ * for every day in [gridStart, gridEnd].
+ */
+const buildActiveDatesMap = (classes, gridStart, gridEnd) => {
+    const map = new Map();
+    let cursor = new Date(gridStart);
+    while (cursor <= gridEnd) {
+        const dateStr = format(cursor, 'yyyy-MM-dd');
+        const dayName = DOW_NAMES[cursor.getDay()];
+        const count = classes.filter(c => {
+            if (c.classType === 'Class' || !c.classType) {
+                return c.dayOfWeek === dayName;
+            }
+            // One-time session — match by exact date
+            const classDate = c.date ? c.date.split('T')[0] : null;
+            return classDate === dateStr;
+        }).length;
+        if (count > 0) map.set(dateStr, count);
+        cursor = addDays(cursor, 1);
+    }
+    return map;
+};
 
 /**
  * Molecule — Full monthly calendar grid with prev/next navigation.
+ * Fetches the user’s classes once on mount, then highlights dates that have
+ * at least one class scheduled (coloured dot + count badge).
  *
  * Props:
  *  onDateSelect {Function} – Called with a Date when the user clicks a day.
  */
 const CalendarGrid = ({ onDateSelect }) => {
+    const { user } = useAuth();
     const [viewMonth, setViewMonth] = useState(new Date());
+    const [allClasses, setAllClasses] = useState([]);
 
-    // Build the array of day cells (including off-month padding days)
+    // ─ Fetch classes once on mount (role-aware) ──────────────────────────────
+    useEffect(() => {
+        const load = async () => {
+            try {
+                let list = [];
+                if (user?.role === ROLES.TUTOR) {
+                    const res = await getTutorClasses();
+                    list = res?.data ?? res ?? [];
+                } else if (user?.role === ROLES.STUDENT) {
+                    const res = await getStudentClasses();
+                    // getStudentClasses returns { success, data: [...] } or an array
+                    list = res?.data ?? res ?? [];
+                } else if (user?.role === ROLES.INSTITUTE) {
+                    const res = await getAllInstituteClassesUnpaged();
+                    list = res?.data?.items ?? res?.items ?? res?.data ?? res ?? [];
+                }
+                setAllClasses(Array.isArray(list) ? list : []);
+            } catch {
+                // Silently fail — indicators just won’t show
+                setAllClasses([]);
+            }
+        };
+        load();
+    }, [user?.role]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ─ Build the array of day cells (including off-month padding days) ─────────
     const monthStart = startOfMonth(viewMonth);
-    const monthEnd = endOfMonth(monthStart);
-    const gridStart = startOfWeek(monthStart);
-    const gridEnd = endOfWeek(monthEnd);
+    const monthEnd   = endOfMonth(monthStart);
+    const gridStart  = startOfWeek(monthStart);
+    const gridEnd    = endOfWeek(monthEnd);
 
     const calendarDays = [];
     let cursor = gridStart;
@@ -31,6 +91,14 @@ const CalendarGrid = ({ onDateSelect }) => {
         calendarDays.push(cursor);
         cursor = addDays(cursor, 1);
     }
+
+    // ─ Active dates map: 'YYYY-MM-DD' → class count ───────────────────────────
+    // Recomputed whenever viewMonth changes or allClasses loads.
+    const activeDatesMap = useMemo(
+        () => buildActiveDatesMap(allClasses, gridStart, gridEnd),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [allClasses, viewMonth]
+    );
 
     return (
         <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-800/50 overflow-y-auto">
@@ -75,14 +143,20 @@ const CalendarGrid = ({ onDateSelect }) => {
 
                 {/* Day cells */}
                 <div className="grid grid-cols-7 gap-1.5 sm:gap-3 flex-1 items-start">
-                    {calendarDays.map((day, idx) => (
-                        <CalendarDayCard
-                            key={idx}
-                            date={day}
-                            currentMonth={viewMonth}
-                            onClick={onDateSelect}
-                        />
-                    ))}
+                    {calendarDays.map((day, idx) => {
+                        const dateStr   = format(day, 'yyyy-MM-dd');
+                        const classCount = activeDatesMap.get(dateStr) ?? 0;
+                        return (
+                            <CalendarDayCard
+                                key={idx}
+                                date={day}
+                                currentMonth={viewMonth}
+                                onClick={onDateSelect}
+                                hasClass={classCount > 0}
+                                classCount={classCount}
+                            />
+                        );
+                    })}
                 </div>
             </div>
         </div>

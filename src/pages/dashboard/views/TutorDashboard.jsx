@@ -19,6 +19,7 @@ const TutorDashboard = ({ setActivePage }) => {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [pendingFormData, setPendingFormData] = useState(null);
+  const [saveError, setSaveError] = useState(null);
 
   // API Hooks
   const { request: saveClass, loading: isSaving } = useApi();
@@ -31,16 +32,24 @@ const TutorDashboard = ({ setActivePage }) => {
   };
 
   const handleClassSubmit = (formData) => {
+    setSaveError(null);
     setPendingFormData(formData);
     setIsConfirmOpen(true);
   };
 
   const handleConfirmSave = async () => {
+    setSaveError(null);
     const result = await saveClass(tutorService.createClass, pendingFormData);
+    if (result.error) {
+      // Backend returned 400 — show the message inside the confirm modal
+      setSaveError(result.error);
+      return; // keep the modal open so the user can see the error
+    }
     if (result.data) {
       setIsConfirmOpen(false);
       setClassModalOpen(false);
       setPendingFormData(null);
+      setSaveError(null);
       setIsSuccessOpen(true);
     }
   };
@@ -100,13 +109,16 @@ const TutorDashboard = ({ setActivePage }) => {
 
       <ConfirmationModal
         isOpen={isConfirmOpen}
-        onClose={() => setIsConfirmOpen(false)}
+        onClose={() => { setIsConfirmOpen(false); setSaveError(null); }}
         onConfirm={handleConfirmSave}
         title="Create Class"
-        message="Are you sure you want to create this new class?"
-        confirmLabel="Create"
+        message={saveError
+          ? saveError
+          : "Are you sure you want to create this new class?"}
+        confirmLabel={isSaving ? 'Creating…' : 'Create'}
         cancelLabel="Cancel"
-        variant="primary"
+        variant={saveError ? 'danger' : 'primary'}
+        isLoading={isSaving}
       />
 
       <ConfirmationModal
