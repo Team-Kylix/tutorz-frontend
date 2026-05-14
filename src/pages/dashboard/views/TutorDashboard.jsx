@@ -28,7 +28,7 @@ const TutorDashboard = ({ setActivePage }) => {
 
   // Handle Quick Action Clicks
   const handleQuickAction = (actionType) => {
-    console.log("Quick Action Clicked:", actionType);
+    setActivePage(actionType);
   };
 
   const handleClassSubmit = (formData) => {

@@ -1,5 +1,4 @@
-import React from 'react';
-import { Award, FileText, Users, LogOut } from 'lucide-react';
+import { Clock, Calendar, FileText, MessageSquareWarning } from 'lucide-react';
 import QuickActionCard from '../molecules/QuickActionCard';
 
 const QuickActions = ({ onActionClick }) => (
@@ -7,26 +6,28 @@ const QuickActions = ({ onActionClick }) => (
     <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
     <div className="grid grid-cols-2 gap-3">
       <QuickActionCard
-        icon={Award}
-        label="Give Medals"
-        colorClass="text-purple-500 dark:text-purple-400"
+        icon={Clock}
+        label="Today Timetable"
+        colorClass="text-blue-500 dark:text-blue-400"
+        onClick={() => onActionClick('timetable')}
+      />
+      <QuickActionCard
+        icon={Calendar}
+        label="Mark Attendance"
+        colorClass="text-green-500 dark:text-green-400"
+        onClick={() => onActionClick('attendance')}
       />
       <QuickActionCard
         icon={FileText}
-        label="Generate Invoice"
-        colorClass="text-orange-500 dark:text-orange-400"
+        label="Reports"
+        colorClass="text-indigo-500 dark:text-indigo-400"
+        onClick={() => onActionClick('reports')}
       />
-
       <QuickActionCard
-        icon={Users}
-        label="Student Request"
-        colorClass="text-green-500 dark:text-green-400"
-      />
-
-      <QuickActionCard
-        icon={LogOut}
-        label="Withdraw Funds"
+        icon={MessageSquareWarning}
+        label="Complaints"
         colorClass="text-red-500 dark:text-red-400"
+        onClick={() => onActionClick('complains')}
       />
     </div>
 
