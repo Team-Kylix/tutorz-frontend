@@ -72,3 +72,64 @@ export const cleanClassName = (className) => {
     })
     .join(' - ') || className;
 };
+
+/**
+ * Compresses an image file if it exceeds the specified maximum size.
+ * Uses Canvas API for client-side compression.
+ */
+export const compressImage = (file, maxSizeKB = 200) => {
+  return new Promise((resolve, reject) => {
+    if (file.size <= maxSizeKB * 1024) {
+      resolve(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        const MAX_DIM = 1600;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height *= MAX_DIM / width;
+            width = MAX_DIM;
+          } else {
+            width *= MAX_DIM / height;
+            height = MAX_DIM;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error('Image compression failed'));
+              return;
+            }
+            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          0.7
+        );
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+  });
+};

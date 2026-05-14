@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, UploadCloud, AlertCircle, CheckCircle, Loader2, ImageIcon } from 'lucide-react';
 import { createComplaint } from '../../services/api/disputeService';
+import { compressImage } from '../../utils/helpers';
 
 const CATEGORIES = [
   { value: 0, label: 'Financial' },
@@ -23,6 +24,7 @@ const CreateComplaintModal = ({ isOpen, onClose, onSuccess }) => {
   const [error, setError]           = useState('');
   const [success, setSuccess]       = useState('');
   const [dragOver, setDragOver]     = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -42,20 +44,32 @@ const CreateComplaintModal = ({ isOpen, onClose, onSuccess }) => {
     onClose();
   };
 
-  const handleFileSelect = (file) => {
+  const handleFileSelect = async (file) => {
     if (!file) return;
     const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowed.includes(file.type)) {
       setError('Only image files (JPG, PNG, GIF, WEBP) are allowed.');
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Screenshot must be smaller than 10 MB.');
-      return;
-    }
+    
     setError('');
-    setScreenshot(file);
-    setPreview(URL.createObjectURL(file));
+    setIsCompressing(true);
+    
+    try {
+      // Compress if larger than 200KB
+      const processedFile = await compressImage(file, 200);
+      setScreenshot(processedFile);
+      setPreview(URL.createObjectURL(processedFile));
+      
+      if (processedFile.size < file.size) {
+        console.log(`Compressed: ${(file.size / 1024).toFixed(1)}KB -> ${(processedFile.size / 1024).toFixed(1)}KB`);
+      }
+    } catch (err) {
+      console.error('Compression error:', err);
+      setError('Failed to process image. Please try again.');
+    } finally {
+      setIsCompressing(false);
+    }
   };
 
   const handleDrop = (e) => {
@@ -209,13 +223,22 @@ const CreateComplaintModal = ({ isOpen, onClose, onSuccess }) => {
                   dragOver
                     ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
                     : 'border-gray-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 bg-gray-50 dark:bg-gray-800/50'
-                }`}
+                } ${isCompressing ? 'opacity-50 pointer-events-none' : ''}`}
               >
-                <UploadCloud size={28} className={dragOver ? 'text-indigo-500' : 'text-gray-400'} />
-                <p className="text-gray-500 dark:text-gray-400">
-                  Drag & drop an image, or <span className="text-indigo-600 dark:text-indigo-400 font-semibold">browse</span>
-                </p>
-                <p className="text-xs text-gray-400">JPG, PNG, GIF, WEBP supported</p>
+                {isCompressing ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 size={28} className="animate-spin text-indigo-500" />
+                    <p className="text-gray-500 dark:text-gray-400">Processing image...</p>
+                  </div>
+                ) : (
+                  <>
+                    <UploadCloud size={28} className={dragOver ? 'text-indigo-500' : 'text-gray-400'} />
+                    <p className="text-gray-500 dark:text-gray-400">
+                      Drag & drop an image, or <span className="text-indigo-600 dark:text-indigo-400 font-semibold">browse</span>
+                    </p>
+                    <p className="text-xs text-gray-400">JPG, PNG, GIF, WEBP supported</p>
+                  </>
+                )}
                 <input
                   ref={fileInputRef}
                   type="file"
