@@ -117,6 +117,17 @@ export const searchEnrolledStudents = async (query) => {
 };
 
 /**
+ * Searches for an institute exactly by RegNo or Mobile
+ * @param {string} query - Search term
+ */
+export const searchInstituteExact = async (query) => {
+  const response = await apiClient.get('/tutor/institutes/search-exact', {
+    params: { query }
+  });
+  return response.data;
+};
+
+/**
  * Fetches attendance history for the tutor's own classes.
  * @param {string|null} classId - Optional specific class ID to filter
  * @param {string|null} instituteId - 'own' for My Own Place, a GUID for a specific institute, or null for all

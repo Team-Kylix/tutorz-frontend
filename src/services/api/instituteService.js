@@ -163,6 +163,15 @@ export const searchTutors = async (query) => {
   }
 };
 
+export const searchTutorExact = async (query) => {
+  try {
+    const response = await apiClient.get(`/institute/tutors/search-exact?query=${encodeURIComponent(query)}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to search tutor' };
+  }
+};
+
 export const assignStudent = async (studentId) => {
   try {
     const response = await apiClient.post('/institute/students/assign', { studentId });

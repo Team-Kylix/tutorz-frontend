@@ -119,7 +119,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'classes', label: 'My Classes', icon: BookOpen },
     { id: 'timetable', label: 'Timetable', icon: Clock },
     { id: 'hall-management', label: 'Hall Management', icon: Building },
-    { id: 'institute-requests', label: 'Requests', icon: UserPlus },
+    { id: 'institute-requests', label: 'Tutors Requests', icon: UserPlus },
     { id: 'institute-students', label: 'Students', icon: GraduationCap },
     { id: 'institute-tutors', label: 'Tutors', icon: UserCheck },
     { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
