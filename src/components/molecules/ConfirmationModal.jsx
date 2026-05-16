@@ -97,6 +97,7 @@ const ConfirmationModal = ({
     </div>,
     document.body
   );
+
 };
 
 export default ConfirmationModal;
