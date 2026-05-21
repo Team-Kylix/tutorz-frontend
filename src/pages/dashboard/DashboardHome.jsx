@@ -25,6 +25,8 @@ import AttendancePage from './AttendancePage';
 import StudentAttendancePage from './StudentAttendancePage';
 import FinancialsPage from './FinancialsPage';
 import StudentFinancialsPage from './StudentFinancialsPage';
+import InstituteFinancialsPage from './InstituteFinancialsPage';
+import AdminFinancialsPage from './AdminFinancialsPage';
 import SettingsPage from './SettingsPage';
 import AdminStudentsPage from './AdminStudentsPage';
 import AdminTeachersPage from './AdminTeachersPage';
@@ -111,6 +113,12 @@ const DashboardHome = ({ activePage, setActivePage }) => {
   if (activePage === 'financials') {
     if (user?.role === ROLES.STUDENT) {
       return <StudentFinancialsPage setActivePage={setActivePage} />;
+    }
+    if (user?.role === ROLES.INSTITUTE) {
+      return <InstituteFinancialsPage />;
+    }
+    if (user?.role === ROLES.ADMIN || user?.role === ROLES.SUPERADMIN) {
+      return <AdminFinancialsPage />;
     }
     return <FinancialsPage />;
   }

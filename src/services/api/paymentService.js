@@ -103,3 +103,31 @@ export const downloadTutorPaymentPdf = async (paymentId, reference = 'ClassFee')
         return { success: false, message: 'Failed to download invoice PDF.' };
     }
 };
+
+/**
+ * Downloads a class payment PDF for an Institute admin.
+ * Calls GET /api/payment/{paymentId}/pdf — Institute role.
+ * @param {string} paymentId - GUID of the ClassPayment record
+ * @param {string} reference - Display reference for the filename
+ */
+export const downloadInstitutePaymentPdf = async (paymentId, reference = 'ClassFee') => {
+    try {
+        const response = await apiClient.get(`/payment/${paymentId}/pdf`, {
+            responseType: 'blob'
+        });
+
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `Tutorz_${reference}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+
+        return { success: true };
+    } catch (error) {
+        console.error('Institute class payment PDF download failed', error);
+        return { success: false, message: 'Failed to download invoice PDF.' };
+    }
+};

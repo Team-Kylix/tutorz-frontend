@@ -135,16 +135,11 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'institutes', label: 'Institutes', icon: Building },
     { id: 'admin-students', label: 'Students', icon: GraduationCap },
     { id: 'admin-teachers', label: 'Teachers', icon: UserCheck },
-
-
-
-    { id: 'platform-finance', label: 'Platform Finance', icon: DollarSign },
-
+    { id: 'financials', label: 'System Financials', icon: CreditCard },
+    { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
     { id: 'disputes', label: 'Disputes', icon: HelpCircle },
     { id: 'system-config', label: 'System Configuration', icon: Settings },
-
     { id: 'profile', label: 'My Profile', icon: QrCode },
-
   ];
 
   const getMenuItems = () => {
