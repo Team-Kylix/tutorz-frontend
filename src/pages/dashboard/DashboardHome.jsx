@@ -13,6 +13,7 @@ import HallManagement from './views/HallManagement';
 import ClassesPage from './ClassesPage';
 import InstituteClassesPage from './InstituteClassesPage';
 import StudentClassesPage from './StudentClassesPage';
+import AdminClassesPage from './AdminClassesPage';
 import TimetablePage from './TimetablePage';
 // Import only the unified profile page
 import UserProfile from './UserProfile';
@@ -49,6 +50,9 @@ const DashboardHome = ({ activePage, setActivePage }) => {
     }
     if (user?.role === ROLES.STUDENT) {
       return <StudentClassesPage />;
+    }
+    if (user?.role === ROLES.ADMIN || user?.role === ROLES.SUPERADMIN) {
+      return <AdminClassesPage />;
     }
     return <ClassesPage />;
   }

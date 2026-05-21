@@ -1,10 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminStatsGrid from '../../../components/organisms/AdminStatsGrid';
 import AdminQuickActions from '../../../components/organisms/AdminQuickActions';
-import PendingApprovals from '../../../components/organisms/PendingApprovals';
+import UnifiedSchedule from '../../../components/organisms/UnifiedSchedule';
+import { getSystemClasses } from '../../../services/api/adminService';
 
 
 const AdminDashboard = ({ user, setActivePage }) => {
+  const [classes, setClasses] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchClasses = async () => {
+      setIsLoading(true);
+      try {
+        const res = await getSystemClasses();
+        const clsData = res?.data ?? res ?? [];
+        setClasses(Array.isArray(clsData) ? clsData : []);
+      } catch (err) {
+        console.error('Failed to fetch system classes:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchClasses();
+  }, []);
+
   return (
     <div className="animate-in fade-in duration-500 space-y-6">
       {/* 1. Header Section */}
@@ -31,10 +51,13 @@ const AdminDashboard = ({ user, setActivePage }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left Column (2/3 width) - Recent Activity/Approvals */}
-        <div className="lg:col-span-2 space-y-6">
-           {/* Pending Approvals Widget */}
-           <PendingApprovals />
-
+        <div className="lg:col-span-2 h-[26rem]">
+          <UnifiedSchedule
+            title="All System Classes"
+            onNavigate={() => setActivePage('classes')}
+            classes={classes}
+            isLoading={isLoading}
+          />
         </div>
 
         {/* Right Column (1/3 width) - Quick Actions & System Info */}
