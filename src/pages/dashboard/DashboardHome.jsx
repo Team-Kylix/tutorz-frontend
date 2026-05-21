@@ -168,7 +168,7 @@ const DashboardHome = ({ activePage, setActivePage }) => {
 
     case ROLES.ADMIN:
     case ROLES.SUPERADMIN:
-      return <AdminDashboard user={user} />;
+      return <AdminDashboard user={user} setActivePage={setActivePage} />;
 
     default:
       // Fallback
