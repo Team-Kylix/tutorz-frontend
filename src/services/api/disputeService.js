@@ -24,6 +24,16 @@ export const getMyComplaints = async (page = 1, pageSize = 10) => {
   }
 };
 
+// ─── USER: Delete a pending complaint ──────────────────────────────────────────
+export const deleteComplaint = async (disputeId) => {
+  try {
+    const response = await apiClient.delete(`/dispute/${disputeId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to delete complaint.' };
+  }
+};
+
 // ─── ADMIN: Get all disputes ──────────────────────────────────────────────────
 export const getAllDisputes = async (searchQuery = '', page = 1, pageSize = 10) => {
   try {
