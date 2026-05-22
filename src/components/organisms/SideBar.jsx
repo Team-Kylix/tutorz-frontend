@@ -159,7 +159,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   return (
     <>
       {!isCollapsed && (
-        <div className="fixed inset-0 bg-black/20 z-20 md:hidden" onClick={toggleSidebar}></div>
+        <div className="fixed inset-0 bg-black/20 z-50 md:hidden" onClick={toggleSidebar}></div>
       )}
 
       {/* Standard Logout Confirmation */}
@@ -204,7 +204,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         )}
       </ConfirmationModal>
 
-      <aside className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen fixed left-0 top-0 z-30 transition-all duration-300 ease-in-out scrollbar-hide ${isCollapsed ? '-translate-x-full md:translate-x-0 md:w-20' : 'w-64'}`}>
+      <aside className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen fixed left-0 top-0 z-50 transition-all duration-300 ease-in-out scrollbar-hide ${isCollapsed ? '-translate-x-full md:translate-x-0 md:w-20' : 'w-64'}`}>
 
         {/* Header */}
         <div className={`h-16 flex items-center px-4 border-b border-gray-100 dark:border-gray-700 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
