@@ -14,5 +14,5 @@
 //   4. (Optional) Update MinTokenDate in DB via SQL to force API-level logout
 // ============================================================
 
-export const APP_VERSION = '0.4.4-beta';
+export const APP_VERSION = '0.4.5-beta';
 
