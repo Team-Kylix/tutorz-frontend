@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, BookOpen, Calendar, DollarSign,
   FileText, QrCode, Settings, ChevronRight, ChevronLeft, LogOut,
   Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus, Clock, Info, CloudOff, MessageSquareWarning,
-  Bell, Receipt, CreditCard, HelpCircle
+  Bell, Receipt, CreditCard, HelpCircle, Wallet
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SidebarItem from '../molecules/SidebarItem';
@@ -96,6 +96,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
     { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
     { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
+    { id: 'withdrawals', label: 'Withdrawals', icon: Wallet },
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'profile', label: 'Profile & QR', icon: QrCode },
     { id: 'complains', label: 'Complains', icon: MessageSquareWarning },
@@ -125,6 +126,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
     { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
     { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
+    { id: 'withdrawals', label: 'Withdrawals', icon: Wallet },
     { id: 'profile', label: 'Profile & QR', icon: QrCode },
     { id: 'complains', label: 'Complains', icon: MessageSquareWarning },
     { id: 'settings', label: 'Settings', icon: Settings },

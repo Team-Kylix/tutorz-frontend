@@ -38,6 +38,7 @@ import AdminSystemConfigPage from './AdminSystemConfigPage';
 import AboutUsContent from '../../components/organisms/AboutUsContent';
 import DisputesPage from './DisputesPage';
 import ReportsPage from './ReportsPage';
+import WithdrawalsPage from './WithdrawalsPage';
 
 const DashboardHome = ({ activePage, setActivePage }) => {
   const { user } = useAuth();
@@ -59,6 +60,10 @@ const DashboardHome = ({ activePage, setActivePage }) => {
 
   if (activePage === 'timetable') {
     return <TimetablePage />;
+  }
+
+  if (activePage === 'withdrawals') {
+    return <WithdrawalsPage />;
   }
 
   if (activePage === 'hall-management') {
