@@ -158,25 +158,6 @@ const WithdrawalsPage = () => {
                 </p>
             </div>
 
-            {/* Balance Card (only when institute selected) */}
-            {availableBalance !== null && (
-                <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl p-5 text-white shadow-md flex items-center justify-between flex-wrap gap-3">
-                    <div>
-                        <p className="text-indigo-100 text-sm font-medium mb-1">Available Balance</p>
-                        <p className="text-3xl font-bold">{formatCurrency(availableBalance)}</p>
-                        <p className="text-indigo-200 text-xs mt-1">
-                            Total earnings minus all previous withdrawals.
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => setRequestModalOpen(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/20 hover:bg-white/30 text-white text-sm font-medium transition-colors border border-white/30 backdrop-blur-sm"
-                    >
-                        <BellRing className="h-4 w-4" />
-                        Request Withdrawal
-                    </button>
-                </div>
-            )}
 
             {/* Filter Controls */}
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col md:flex-row gap-4 items-end">
