@@ -9,7 +9,7 @@ import {
     downloadWithdrawalPdf,
     downloadInstituteOverviewPdf
 } from '../../services/api/withdrawalService';
-import { getAssignedTutors, getInstituteClasses } from '../../services/api/instituteService';
+import { getAssignedTutors } from '../../services/api/instituteService';
 
 const formatCurrency = (val) =>
     val != null ? `Rs ${Number(val).toLocaleString('en-LK', { minimumFractionDigits: 2 })}` : '—';
@@ -22,7 +22,6 @@ const InstituteWithdrawalsPage = () => {
 
     // ─── Selection ────────────────────────────────────────────────
     const [selectedTutorId, setSelectedTutorId] = useState('');
-    const [selectedClassId, setSelectedClassId] = useState('');
 
     // ─── Withdraw Modal State ─────────────────────────────────────
     const [withdrawTutor, setWithdrawTutor] = useState(null);
@@ -38,26 +37,14 @@ const InstituteWithdrawalsPage = () => {
     const [downloadConfirmRow, setDownloadConfirmRow] = useState(null);
     const [downloadError, setDownloadError] = useState(null);
 
-    // ─── Derived: classes filtered by tutor ──────────────────────
-    const availableClasses = useMemo(() => {
-        if (!selectedTutorId) return classes;
-        return classes.filter(c => c.tutorId === selectedTutorId);
-    }, [selectedTutorId, classes]);
-
-    // ─── Fetch tutors & classes ───────────────────────────────────
+    // ─── Fetch tutors ───────────────────────────────────
     useEffect(() => {
         const load = async () => {
             setIsLoadingDropdowns(true);
             try {
-                const [tutorRes, clsRes] = await Promise.all([
-                    getAssignedTutors('', 1, 100),
-                    getInstituteClasses ? getInstituteClasses() : Promise.resolve({ data: [] }),
-                ]);
+                const tutorRes = await getAssignedTutors('', 1, 100);
                 const tutorItems = tutorRes?.data?.items ?? tutorRes?.data ?? [];
                 setTutors(Array.isArray(tutorItems) ? tutorItems : []);
-
-                const clsItems = clsRes?.data?.items ?? clsRes?.data ?? [];
-                setClasses(Array.isArray(clsItems) ? clsItems : []);
             } catch (err) {
                 console.error('Failed to load dropdown data:', err);
             } finally {
@@ -67,9 +54,8 @@ const InstituteWithdrawalsPage = () => {
         load();
     }, []);
 
-    // ─── Reset class & errors when tutor changes ──────────────────
+    // ─── Reset errors when tutor changes ──────────────────
     useEffect(() => {
-        setSelectedClassId('');
         setDownloadError(null);
     }, [selectedTutorId]);
 
@@ -79,8 +65,7 @@ const InstituteWithdrawalsPage = () => {
         setError(null);
         try {
             const res = await getInstituteWithdrawalOverview(
-                selectedTutorId || null,
-                selectedClassId || null,
+                selectedTutorId || null
             );
             setOverviewRows(res?.data ?? []);
         } catch (err) {
@@ -90,7 +75,7 @@ const InstituteWithdrawalsPage = () => {
         } finally {
             setIsLoadingData(false);
         }
-    }, [selectedTutorId, selectedClassId]);
+    }, [selectedTutorId]);
 
     useEffect(() => { fetchOverview(); }, [fetchOverview]);
 
@@ -111,7 +96,6 @@ const InstituteWithdrawalsPage = () => {
                 // PENDING row → download the pending payouts overview PDF
                 await downloadInstituteOverviewPdf(
                     selectedTutorId || null,
-                    selectedClassId || null,
                     'Pending_Payouts_Report.pdf'
                 );
             }
@@ -190,32 +174,10 @@ const InstituteWithdrawalsPage = () => {
                     </Select>
                 </div>
 
-                {/* Select Class */}
-                <div className="w-full md:w-1/3 flex flex-col items-start gap-1">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Select Class
-                    </label>
-                    <Select
-                        value={selectedClassId}
-                        onChange={e => setSelectedClassId(e.target.value)}
-                        disabled={isLoadingDropdowns || !selectedTutorId}
-                    >
-                        <option value="">-- All Classes --</option>
-                        {availableClasses.map(cls => {
-                            const cId = cls.classId ?? cls.id;
-                            return (
-                                <option key={cId} value={cId}>
-                                    {cls.className ?? cls.name ?? cls.subject ?? `Class ${String(cId).substring(0, 4)}`}
-                                </option>
-                            );
-                        })}
-                    </Select>
-                </div>
-
                 {/* Info */}
                 <div className="w-full md:flex-1 flex items-end pb-0.5">
                     <p className="text-xs text-gray-400 dark:text-gray-500 italic">
-                        Showing earnings per tutor. Select a class to drill down.
+                        Showing earnings per tutor.
                     </p>
                 </div>
             </div>

@@ -3,12 +3,10 @@ import apiClient from './apiClient';
 /**
  * Get withdrawals for the logged-in Tutor.
  * @param {string|null} instituteId
- * @param {string|null} classId
  */
-export const getTutorWithdrawals = async (instituteId = null, classId = null) => {
+export const getTutorWithdrawals = async (instituteId = null) => {
   const params = {};
   if (instituteId) params.instituteId = instituteId;
-  if (classId) params.classId = classId;
   const response = await apiClient.get('/withdrawal/tutor', { params });
   return response.data;
 };
@@ -16,12 +14,10 @@ export const getTutorWithdrawals = async (instituteId = null, classId = null) =>
 /**
  * Get withdrawals for the logged-in Institute.
  * @param {string|null} tutorId
- * @param {string|null} classId
  */
-export const getInstituteWithdrawals = async (tutorId = null, classId = null) => {
+export const getInstituteWithdrawals = async (tutorId = null) => {
   const params = {};
   if (tutorId) params.tutorId = tutorId;
-  if (classId) params.classId = classId;
   const response = await apiClient.get('/withdrawal/institute', { params });
   return response.data;
 };
@@ -79,28 +75,24 @@ export const downloadWithdrawalPdf = async (withdrawalId, filename = 'Withdrawal
 
 /**
  * Get the withdrawal OVERVIEW for the logged-in Tutor.
- * Returns one row per institute (or per class if classId provided) even with no withdrawal yet.
+ * Returns one row per institute even with no withdrawal yet.
  * @param {string|null} instituteId
- * @param {string|null} classId
  */
-export const getTutorWithdrawalOverview = async (instituteId = null, classId = null) => {
+export const getTutorWithdrawalOverview = async (instituteId = null) => {
   const params = {};
   if (instituteId) params.instituteId = instituteId;
-  if (classId) params.classId = classId;
   const response = await apiClient.get('/withdrawal/overview', { params });
   return response.data;
 };
 
 /**
  * Get the withdrawal OVERVIEW for the logged-in Institute.
- * Returns one row per tutor (or per class if classId provided) even with no withdrawal yet.
+ * Returns one row per tutor even with no withdrawal yet.
  * @param {string|null} tutorId
- * @param {string|null} classId
  */
-export const getInstituteWithdrawalOverview = async (tutorId = null, classId = null) => {
+export const getInstituteWithdrawalOverview = async (tutorId = null) => {
   const params = {};
   if (tutorId) params.tutorId = tutorId;
-  if (classId) params.classId = classId;
   const response = await apiClient.get('/withdrawal/overview-institute', { params });
   return response.data;
 };
@@ -108,12 +100,10 @@ export const getInstituteWithdrawalOverview = async (tutorId = null, classId = n
 /**
  * Download the pending earnings report PDF for Tutor.
  * @param {string|null} instituteId
- * @param {string|null} classId
  */
-export const downloadOverviewPdf = async (instituteId = null, classId = null, filename = 'Pending_Earnings_Report.pdf') => {
+export const downloadOverviewPdf = async (instituteId = null, filename = 'Pending_Earnings_Report.pdf') => {
   const params = {};
   if (instituteId) params.instituteId = instituteId;
-  if (classId) params.classId = classId;
   const response = await apiClient.get('/withdrawal/overview-pdf', {
     params,
     responseType: 'blob',
@@ -131,12 +121,10 @@ export const downloadOverviewPdf = async (instituteId = null, classId = null, fi
 /**
  * Download the pending payouts report PDF for Institute.
  * @param {string|null} tutorId
- * @param {string|null} classId
  */
-export const downloadInstituteOverviewPdf = async (tutorId = null, classId = null, filename = 'Pending_Payouts_Report.pdf') => {
+export const downloadInstituteOverviewPdf = async (tutorId = null, filename = 'Pending_Payouts_Report.pdf') => {
   const params = {};
   if (tutorId) params.tutorId = tutorId;
-  if (classId) params.classId = classId;
   const response = await apiClient.get('/withdrawal/overview-institute-pdf', {
     params,
     responseType: 'blob',
