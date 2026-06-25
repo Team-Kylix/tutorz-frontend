@@ -1,20 +1,17 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Loader2, Wallet, Download, FileBarChart2 } from 'lucide-react';
-import Select from '../../components/atoms/Select';
+import { Loader2, Download, FileBarChart2 } from 'lucide-react';
 import RowActions from '../../components/molecules/RowActions';
 import ConfirmationModal from '../../components/molecules/ConfirmationModal';
-import WithdrawModal from '../../components/organisms/WithdrawModal';
 import {
-    getInstituteWithdrawalOverview,
-    downloadWithdrawalPdf,
-    downloadInstituteOverviewPdf
+    getInstituteMonthlyFees,
+    downloadInstituteMonthlyFeesPdf
 } from '../../services/api/withdrawalService';
 import { getAssignedTutors } from '../../services/api/instituteService';
 
 const formatCurrency = (val) =>
     val != null ? `Rs ${Number(val).toLocaleString('en-LK', { minimumFractionDigits: 2 })}` : '—';
 
-const InstituteWithdrawalsPage = () => {
+const InstituteFeesReportPage = () => {
     // ─── Search & Autocomplete State ──────────────────────────────
     const [searchQuery, setSearchQuery] = useState('');
     const [assignedTutors, setAssignedTutors] = useState([]);
@@ -22,12 +19,8 @@ const InstituteWithdrawalsPage = () => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const containerRef = useRef(null);
 
-    // ─── Withdraw Modal State ─────────────────────────────────────
-    const [withdrawTutor, setWithdrawTutor] = useState(null);
-    const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
-
-    // ─── Overview Data ────────────────────────────────────────────
-    const [overviewRows, setOverviewRows] = useState([]);
+    // ─── Fees Data ────────────────────────────────────────────
+    const [feesRows, setFeesRows] = useState([]);
     const [isLoadingData, setIsLoadingData] = useState(false);
     const [error, setError] = useState(null);
 
@@ -54,24 +47,24 @@ const InstituteWithdrawalsPage = () => {
         fetchTutorsList();
     }, []);
 
-    // ─── Fetch Overview Data ──────────────────────────────────────
+    // ─── Fetch Fees Data ──────────────────────────────────────
     const fetchOverview = useCallback(async (tutorId = null) => {
         setIsLoadingData(true);
         setError(null);
         try {
-            const res = await getInstituteWithdrawalOverview(tutorId);
-            setOverviewRows(res?.data ?? []);
+            const res = await getInstituteMonthlyFees(tutorId);
+            setFeesRows(res?.data ?? []);
         } catch (err) {
-            console.error('Failed to fetch withdrawal overview:', err);
-            setError('Failed to load withdrawal data. Please try again.');
-            setOverviewRows([]);
+            console.error('Failed to fetch fees report:', err);
+            setError('Failed to load fees data. Please try again.');
+            setFeesRows([]);
         } finally {
             setIsLoadingData(false);
         }
     }, []);
 
-    useEffect(() => { 
-        fetchOverview(selectedTutor?.tutorId || null); 
+    useEffect(() => {
+        fetchOverview(selectedTutor?.tutorId || null);
     }, [selectedTutor, fetchOverview]);
 
     // ─── Close Dropdown on click outside ──────────────────────────
@@ -94,89 +87,46 @@ const InstituteWithdrawalsPage = () => {
         );
     }, [assignedTutors, searchQuery]);
 
-    // ─── Selected tutor's pending balance helpers ──────────────────
-    const pendingRow = useMemo(() => {
-        return overviewRows.find(r => r.isPendingRow);
-    }, [overviewRows]);
-
-    const hasPendingBalance = useMemo(() => {
-        return pendingRow && pendingRow.availableBalance > 0;
-    }, [pendingRow]);
-
-    // ─── Handlers ─────────────────────────────────────────────────
     const handleClearSearch = () => {
         setSelectedTutor(null);
         setSearchQuery('');
         setIsDropdownOpen(false);
     };
 
-    const handleMainWithdrawalClick = () => {
-        if (selectedTutor && pendingRow) {
-            handleWithdrawClick(pendingRow);
-        }
-    };
-
     // ─── Download Handler ─────────────────────────────────────────
     const handleDownloadConfirm = async () => {
         if (!downloadConfirmRow) return;
-        setDownloadingId(downloadConfirmRow.tutorId || 'all');
-        setDownloadConfirmRow(null);
+        setDownloadingId(downloadConfirmRow.period);
         setDownloadError(null);
         try {
-            if (downloadConfirmRow.lastWithdrawalId) {
-                // Historical withdrawal row → download the specific receipt PDF
-                await downloadWithdrawalPdf(
-                    downloadConfirmRow.lastWithdrawalId,
-                    `Withdrawal_${downloadConfirmRow.referenceId ?? 'Receipt'}.pdf`
-                );
-            } else {
-                // PENDING row → download the pending payouts overview PDF
-                await downloadInstituteOverviewPdf(
-                    downloadConfirmRow.tutorId || null, // Specific tutor download if requested from a row
-                    'Pending_Payouts_Report.pdf'
-                );
-            }
+            await downloadInstituteMonthlyFeesPdf(
+                downloadConfirmRow.year,
+                downloadConfirmRow.month,
+                downloadConfirmRow.tutorId || null // Download specifically for this tutor's row if applicable
+            );
         } catch (err) {
             const status = err?.response?.status;
             if (status === 404) {
-                setDownloadError('No pending payouts found for the selected tutor / class. All earnings may have already been withdrawn.');
+                setDownloadError('No fees found for the selected tutor / period.');
             } else {
                 setDownloadError('Failed to download the report. Please try again.');
             }
         } finally {
             setDownloadingId(null);
+            setDownloadConfirmRow(null);
         }
-    };
-
-    // ─── Withdraw to Tutor handler ────────────────────────────────
-    const handleWithdrawClick = (row) => {
-        setWithdrawTutor({ 
-            tutorId: row.tutorId, 
-            firstName: row.tutorName, 
-            lastName: '', 
-            registrationNumber: row.tutorRegNo, 
-            availableBalance: row.availableBalance 
-        });
-        setIsWithdrawModalOpen(true);
-    };
-
-    const handleWithdrawSuccess = () => {
-        setIsWithdrawModalOpen(false);
-        setWithdrawTutor(null);
-        fetchOverview(selectedTutor?.tutorId || null); // refresh table
     };
 
     // ─── Filter rows locally based on search ──────────────────────
     const filteredRows = useMemo(() => {
-        if (selectedTutor) return overviewRows;
-        if (!searchQuery.trim()) return overviewRows;
+        if (selectedTutor) return feesRows;
+        if (!searchQuery.trim()) return feesRows;
         const lowerQ = searchQuery.toLowerCase();
-        return overviewRows.filter(r => 
+        return feesRows.filter(r => 
             (r.tutorName || '').toLowerCase().includes(lowerQ) ||
-            (r.tutorRegNo || '').toLowerCase().includes(lowerQ) ||
-            (r.referenceId || '').toLowerCase().includes(lowerQ)
+            (r.tutorRegNo || '').toLowerCase().includes(lowerQ)
         );
-    }, [overviewRows, searchQuery, selectedTutor]);
+    }, [feesRows, searchQuery, selectedTutor]);
 
     // ─── Render ───────────────────────────────────────────────────
     return (
@@ -185,11 +135,11 @@ const InstituteWithdrawalsPage = () => {
             {/* Page Header */}
             <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Wallet className="h-6 w-6 text-indigo-500" />
-                    Withdrawals
+                    <FileBarChart2 className="h-6 w-6 text-indigo-500" />
+                    Fees Report
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 mt-1">
-                    Manage tutor withdrawal payouts for your institute.
+                    View class-wise earnings, online commissions, and net earnings per tutor.
                 </p>
             </div>
 
@@ -276,25 +226,8 @@ const InstituteWithdrawalsPage = () => {
                 {/* Info */}
                 <div className="hidden md:flex flex-1 items-end pb-0.5">
                     <p className="text-xs text-gray-400 dark:text-gray-500 italic">
-                        {selectedTutor ? `Showing overview for ${selectedTutor.firstName} ${selectedTutor.lastName}.` : 'Showing combined overview for all tutors.'}
+                        {selectedTutor ? `Showing overview for ${selectedTutor.firstName} ${selectedTutor.lastName}.` : 'Showing combined monthly overview for all tutors.'}
                     </p>
-                </div>
-
-                {/* Withdrawal button beside the search bar, right-aligned */}
-                <div className="w-full md:w-auto">
-                    <button
-                        type="button"
-                        disabled={!selectedTutor || !hasPendingBalance}
-                        onClick={handleMainWithdrawalClick}
-                        className={`w-full md:w-auto inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                            selectedTutor && hasPendingBalance
-                                ? 'bg-indigo-600 hover:bg-indigo-700 text-white focus:ring-indigo-500'
-                                : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500'
-                        }`}
-                    >
-                        <Wallet className="h-4 w-4 mr-2" />
-                        Withdrawal
-                    </button>
                 </div>
             </div>
 
@@ -323,32 +256,21 @@ const InstituteWithdrawalsPage = () => {
                         <p>{error}</p>
                     </div>
                 ) : (
-                    <InstituteOverviewTable
+                    <InstituteFeesReportTable
                         rows={filteredRows}
                         downloadingId={downloadingId}
                         onDownload={(row) => setDownloadConfirmRow(row)}
-                        onWithdraw={(row) => handleWithdrawClick(row)}
                     />
                 )}
             </div>
-
-            {/* Withdraw Modal */}
-            <WithdrawModal
-                isOpen={isWithdrawModalOpen}
-                onClose={() => { setIsWithdrawModalOpen(false); setWithdrawTutor(null); }}
-                tutor={withdrawTutor}
-                onSuccess={handleWithdrawSuccess}
-            />
 
             {/* Download Confirm Modal */}
             <ConfirmationModal
                 isOpen={!!downloadConfirmRow}
                 onClose={() => setDownloadConfirmRow(null)}
                 onConfirm={handleDownloadConfirm}
-                title={downloadConfirmRow?.lastWithdrawalId ? "Download Receipt PDF" : "Download Payouts Report"}
-                message={downloadConfirmRow?.lastWithdrawalId 
-                    ? `Download the receipt PDF for withdrawal ${downloadConfirmRow.referenceId ?? ''}?`
-                    : "Download a PDF report of your current pending payouts?"}
+                title="Download Fees Report"
+                message={`Download the monthly fees report PDF for ${downloadConfirmRow?.period ?? ''}?`}
                 confirmLabel="Download"
                 variant="primary"
             />
@@ -356,8 +278,8 @@ const InstituteWithdrawalsPage = () => {
     );
 };
 
-// ─── Sub-Component: Institute Overview Table ──────────────────────────────────
-const InstituteOverviewTable = ({ rows, downloadingId, onDownload, onWithdraw }) => {
+// ─── Sub-Component: Institute Fees Report Table ──────────────────────────────────
+const InstituteFeesReportTable = ({ rows, downloadingId, onDownload }) => {
     if (!rows || rows.length === 0) {
         return (
             <div className="w-full text-center py-14 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
@@ -375,19 +297,18 @@ const InstituteOverviewTable = ({ rows, downloadingId, onDownload, onWithdraw })
                 <table className="w-full text-sm text-left whitespace-nowrap">
                     <thead className="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-800/50 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                         <tr>
-                            <th scope="col" className="px-4 py-3 md:py-4 font-medium">Reference</th>
+                            <th scope="col" className="px-4 py-3 md:py-4 font-medium">Period</th>
                             <th scope="col" className="px-4 py-3 md:py-4 font-medium">Tutor</th>
-                            <th scope="col" className="px-4 py-3 md:py-4 font-medium">Withdrawals Period</th>
-                            <th scope="col" className="px-4 py-3 md:py-4 font-medium">Withdrawal Date</th>
-                            <th scope="col" className="px-4 py-3 md:py-4 font-medium text-right">Available Balance</th>
-                            <th scope="col" className="px-4 py-3 md:py-4 font-medium text-right">Withdrawal Amount</th>
+                            <th scope="col" className="px-4 py-3 md:py-4 font-medium text-right">Gross Collected</th>
+                            <th scope="col" className="px-4 py-3 md:py-4 font-medium text-right">Commission Deducted</th>
+                            <th scope="col" className="px-4 py-3 md:py-4 font-medium text-right">Net Earnings</th>
                             {/* Sticky actions column */}
                             <th scope="col" className="px-1 py-3 md:py-4 font-medium sticky right-0 z-20 bg-gray-50 dark:bg-gray-800/50 backdrop-blur-sm" />
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {rows.map((row, idx) => {
-                            const isDownloading = downloadingId === (row.tutorId || 'all');
+                            const isDownloading = downloadingId === row.period;
 
                             const actions = [
                                 {
@@ -395,63 +316,41 @@ const InstituteOverviewTable = ({ rows, downloadingId, onDownload, onWithdraw })
                                     icon: isDownloading ? Loader2 : Download,
                                     disabled: isDownloading,
                                     onClick: () => onDownload && onDownload(row),
-                                },
-                                ...(row.tutorId && row.isPendingRow ? [{
-                                    label: 'Process Withdrawal',
-                                    icon: Wallet,
-                                    onClick: () => onWithdraw && onWithdraw(row),
-                                }] : []),
+                                }
                             ];
 
                             return (
                                 <tr
-                                    key={`${row.referenceId ?? 'new'}-${row.tutorName}-${idx}`}
-                                    className={`${row.isPendingRow ? 'bg-amber-50/30 dark:bg-amber-900/10' : ''} hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors`}
+                                    key={`${row.period}-${row.tutorId}-${idx}`}
+                                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                                 >
-                                    {/* Reference */}
+                                    {/* Period */}
                                     <td className="px-4 py-3 md:py-4">
-                                        {row.referenceId ? (
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 tracking-wider">
-                                                {row.referenceId}
-                                            </span>
-                                        ) : (
-                                            <span className="text-gray-400 dark:text-gray-500 text-sm">—</span>
-                                        )}
-                                    </td>
-
-                                    {/* Details Period */}
-                                    <td className="px-4 py-3 md:py-4">
-                                        <span className="text-gray-600 dark:text-gray-400 text-xs">
-                                            {row.detailsPeriod}
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 tracking-wider">
+                                            {row.period}
                                         </span>
                                     </td>
 
-                                    {/* Withdrawals Period badge */}
+                                    {/* Tutor */}
                                     <td className="px-4 py-3 md:py-4">
-                                        <div className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800">
-                                            {row.withdrawalPeriod ?? '—'}
-                                        </div>
+                                        <span className="text-gray-600 dark:text-gray-400 text-xs">
+                                            {row.tutorName || '—'}
+                                        </span>
                                     </td>
 
-                                    {/* Withdrawal Date */}
-                                    <td className="px-4 py-3 md:py-4 text-gray-700 dark:text-gray-300">
-                                        {row.withdrawalAt ? new Date(row.withdrawalAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : <span className="text-gray-400 dark:text-gray-500 text-sm">—</span>}
+                                    {/* Gross Collected */}
+                                    <td className="px-4 py-3 md:py-4 text-right text-gray-700 dark:text-gray-300">
+                                        {formatCurrency(row.grossCollected)}
                                     </td>
 
-                                    {/* Available Balance */}
-                                    <td className="px-4 py-3 md:py-4 text-right font-medium text-gray-700 dark:text-gray-300">
-                                        {row.availableBalance != null ? formatCurrency(row.availableBalance) : <span className="text-gray-400 dark:text-gray-500 text-sm">—</span>}
+                                    {/* Commission Deducted */}
+                                    <td className="px-4 py-3 md:py-4 text-right text-green-600 dark:text-green-400">
+                                        {formatCurrency(row.commissionDeducted)}
                                     </td>
 
-                                    {/* Withdrawal Amount */}
-                                    <td className="px-4 py-3 md:py-4 text-right">
-                                        {row.withdrawalAmount != null ? (
-                                            <span className="font-semibold text-green-700 dark:text-green-400">
-                                                {formatCurrency(row.withdrawalAmount)}
-                                            </span>
-                                        ) : (
-                                            <span className="text-gray-400 dark:text-gray-500 text-sm">—</span>
-                                        )}
+                                    {/* Net Earnings */}
+                                    <td className="px-4 py-3 md:py-4 text-right font-semibold text-gray-700 dark:text-gray-300">
+                                        {formatCurrency(row.netEarnings)}
                                     </td>
 
                                     {/* Row Actions — sticky right */}
@@ -468,4 +367,4 @@ const InstituteOverviewTable = ({ rows, downloadingId, onDownload, onWithdraw })
     );
 };
 
-export default InstituteWithdrawalsPage;
+export default InstituteFeesReportPage;

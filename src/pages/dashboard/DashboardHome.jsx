@@ -40,6 +40,8 @@ import DisputesPage from './DisputesPage';
 import ReportsPage from './ReportsPage';
 import WithdrawalsPage from './WithdrawalsPage';
 import InstituteWithdrawalsPage from './InstituteWithdrawalsPage';
+import FeesReportPage from './FeesReportPage';
+import InstituteFeesReportPage from './InstituteFeesReportPage';
 
 const DashboardHome = ({ activePage, setActivePage }) => {
   const { user } = useAuth();
@@ -68,6 +70,13 @@ const DashboardHome = ({ activePage, setActivePage }) => {
       return <InstituteWithdrawalsPage />;
     }
     return <WithdrawalsPage />;
+  }
+
+  if (activePage === 'fees-report') {
+    if (user?.role === ROLES.INSTITUTE) {
+      return <InstituteFeesReportPage />;
+    }
+    return <FeesReportPage />;
   }
 
   if (activePage === 'hall-management') {

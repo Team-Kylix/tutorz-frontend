@@ -1,21 +1,18 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Loader2, Wallet, Download, BellRing, FileBarChart2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Loader2, FileBarChart2, Download } from 'lucide-react';
 import Select from '../../components/atoms/Select';
 import RowActions from '../../components/molecules/RowActions';
 import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 import {
-    getTutorWithdrawalOverview,
-    getAvailableBalance,
-    requestWithdrawalNotification,
-    downloadWithdrawalPdf,
-    downloadOverviewPdf
+    getTutorMonthlyFees,
+    downloadTutorMonthlyFeesPdf
 } from '../../services/api/withdrawalService';
 import { getJoinedInstitutes } from '../../services/api/tutorService';
 
 const formatCurrency = (val) =>
     val != null ? `Rs ${Number(val).toLocaleString('en-LK', { minimumFractionDigits: 2 })}` : '—';
 
-const WithdrawalsPage = () => {
+const FeesReportPage = () => {
     // ─── Dropdown Data ────────────────────────────────────────────
     const [institutes, setInstitutes] = useState([]);
     const [isLoadingDropdowns, setIsLoadingDropdowns] = useState(true);
@@ -24,19 +21,13 @@ const WithdrawalsPage = () => {
     const [selectedInstituteId, setSelectedInstituteId] = useState('');
 
     // ─── Overview Data ────────────────────────────────────────────
-    const [overviewRows, setOverviewRows] = useState([]);
-    const [availableBalance, setAvailableBalance] = useState(null);
+    const [feesRows, setFeesRows] = useState([]);
     const [isLoadingData, setIsLoadingData] = useState(false);
     const [error, setError] = useState(null);
 
     // ─── Download tracking ────────────────────────────────────────
     const [downloadingId, setDownloadingId] = useState(null);
     const [downloadConfirmRow, setDownloadConfirmRow] = useState(null);
-
-    // ─── Request Withdrawal Modal ─────────────────────────────────
-    const [requestModalOpen, setRequestModalOpen] = useState(false);
-    const [requestAmount, setRequestAmount] = useState('');
-    const [isRequesting, setIsRequesting] = useState(false);
 
     // ─── Fetch Dropdown Data on mount ────────────────────────────
     useEffect(() => {
@@ -60,22 +51,14 @@ const WithdrawalsPage = () => {
         setIsLoadingData(true);
         setError(null);
         try {
-            const overviewRes = await getTutorWithdrawalOverview(
+            const overviewRes = await getTutorMonthlyFees(
                 selectedInstituteId || null
             );
-            setOverviewRows(overviewRes?.data ?? []);
-
-            // Show balance card only when a specific institute is selected
-            if (selectedInstituteId) {
-                const balRes = await getAvailableBalance({ instituteId: selectedInstituteId });
-                setAvailableBalance(balRes?.data ?? null);
-            } else {
-                setAvailableBalance(null);
-            }
+            setFeesRows(overviewRes?.data ?? []);
         } catch (err) {
-            console.error('Failed to fetch withdrawal overview:', err);
-            setError('Failed to load withdrawal data. Please try again.');
-            setOverviewRows([]);
+            console.error('Failed to fetch fees report:', err);
+            setError('Failed to load fees data. Please try again.');
+            setFeesRows([]);
         } finally {
             setIsLoadingData(false);
         }
@@ -86,43 +69,16 @@ const WithdrawalsPage = () => {
     // ─── Download Handler ─────────────────────────────────────────
     const handleDownloadConfirm = async () => {
         if (!downloadConfirmRow) return;
-        setDownloadingId(downloadConfirmRow.instituteId || 'all');
-        setDownloadConfirmRow(null);
+        setDownloadingId(downloadConfirmRow.period);
         try {
-            if (downloadConfirmRow.lastWithdrawalId && selectedInstituteId) {
-                // Download specific past receipt if filtered to an institute and it exists
-                await downloadWithdrawalPdf(
-                    downloadConfirmRow.lastWithdrawalId,
-                    `Withdrawal_${downloadConfirmRow.referenceId ?? 'Receipt'}.pdf`
-                );
-            } else {
-                // Otherwise download the pending earnings overview
-                await downloadOverviewPdf(
-                    selectedInstituteId || null,
-                    'Pending_Earnings_Report.pdf'
-                );
-            }
+            await downloadTutorMonthlyFeesPdf(
+                downloadConfirmRow.year,
+                downloadConfirmRow.month,
+                selectedInstituteId || null
+            );
         } finally {
             setDownloadingId(null);
-        }
-    };
-
-    // ─── Request Withdrawal ───────────────────────────────────────
-    const handleRequestConfirm = async () => {
-        if (!selectedInstituteId || !requestAmount) return;
-        setIsRequesting(true);
-        try {
-            await requestWithdrawalNotification({
-                instituteId: selectedInstituteId,
-                requestedAmount: parseFloat(requestAmount),
-            });
-            setRequestModalOpen(false);
-            setRequestAmount('');
-        } catch (err) {
-            console.error('Failed to send withdrawal request:', err);
-            alert(err?.response?.data?.message ?? 'Failed to send request. Please try again.');
-        } finally {
-            setIsRequesting(false);
+            setDownloadConfirmRow(null);
         }
     };
 
@@ -133,11 +89,11 @@ const WithdrawalsPage = () => {
             {/* Page Header */}
             <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Wallet className="h-6 w-6 text-indigo-500" />
-                    Withdrawals
+                    <FileBarChart2 className="h-6 w-6 text-indigo-500" />
+                    Fees Report
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 mt-1">
-                    View and request your earnings withdrawals from institutes.
+                    View your monthly class-wise earnings, online commission deductions, and net payouts.
                 </p>
             </div>
 
@@ -187,11 +143,10 @@ const WithdrawalsPage = () => {
                         <p>{error}</p>
                     </div>
                 ) : (
-                    <WithdrawalsOverviewTable
-                        rows={overviewRows}
+                    <FeesReportTable
+                        rows={feesRows}
                         downloadingId={downloadingId}
                         onDownload={(row) => setDownloadConfirmRow(row)}
-                        onRequest={() => setRequestModalOpen(true)}
                         selectedInstituteId={selectedInstituteId}
                     />
                 )}
@@ -208,7 +163,12 @@ const WithdrawalsPage = () => {
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                             This will send a notification to the institute. They will process the payment.
                         </p>
-
+                        {availableBalance !== null && (
+                            <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3 flex justify-between items-center">
+                                <span className="text-sm text-indigo-700 dark:text-indigo-300">Available Balance</span>
+                                <span className="font-bold text-indigo-700 dark:text-indigo-300">{formatCurrency(availableBalance)}</span>
+                            </div>
+                        )}
                         <div className="space-y-1">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Withdrawal Amount (Rs)
@@ -260,24 +220,15 @@ const WithdrawalsPage = () => {
     );
 };
 
-// ─── Sub-Component: Withdrawals Overview Table ────────────────────────────────
-const WithdrawalsOverviewTable = ({ rows, downloadingId, onDownload, onRequest, selectedInstituteId }) => {
+// ─── Sub-Component: Fees Report Table ────────────────────────────────
+const FeesReportTable = ({ rows, downloadingId, onDownload, selectedInstituteId }) => {
     if (!rows || rows.length === 0) {
         return (
             <div className="w-full text-center py-14 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                 <FileBarChart2 className="h-10 w-10 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
                 <p className="text-gray-500 dark:text-gray-400 text-sm">
-                    No records found. Make sure students have paid their fees for classes at an institute.
+                    No records found. Make sure students have paid their fees for classes.
                 </p>
-                {selectedInstituteId && (
-                    <button
-                        onClick={onRequest}
-                        className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors"
-                    >
-                        <BellRing className="h-4 w-4" />
-                        Request Withdrawal
-                    </button>
-                )}
             </div>
         );
     }
@@ -288,19 +239,18 @@ const WithdrawalsOverviewTable = ({ rows, downloadingId, onDownload, onRequest, 
                 <table className="w-full text-sm text-left whitespace-nowrap">
                     <thead className="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-800/50 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                         <tr>
-                            <th scope="col" className="px-4 py-3 md:py-4 font-medium">Reference</th>
+                            <th scope="col" className="px-4 py-3 md:py-4 font-medium">Period</th>
                             <th scope="col" className="px-4 py-3 md:py-4 font-medium">Institute</th>
-                            <th scope="col" className="px-4 py-3 md:py-4 font-medium">Withdrawals Period</th>
-                            <th scope="col" className="px-4 py-3 md:py-4 font-medium">Withdrawal Date</th>
-                            <th scope="col" className="px-4 py-3 md:py-4 font-medium text-right">Available Balance</th>
-                            <th scope="col" className="px-4 py-3 md:py-4 font-medium text-right">Withdrawal Amount</th>
+                            <th scope="col" className="px-4 py-3 md:py-4 font-medium text-right">Gross Collected</th>
+                            <th scope="col" className="px-4 py-3 md:py-4 font-medium text-right">Commission Deducted</th>
+                            <th scope="col" className="px-4 py-3 md:py-4 font-medium text-right">Net Earnings</th>
                             {/* Sticky actions column */}
                             <th scope="col" className="px-1 py-3 md:py-4 font-medium sticky right-0 z-20 bg-gray-50 dark:bg-gray-800/50 backdrop-blur-sm" />
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {rows.map((row, idx) => {
-                            const isDownloading = downloadingId === (row.instituteId || 'all');
+                            const isDownloading = downloadingId === row.period;
 
                             const actions = [
                                 {
@@ -308,63 +258,41 @@ const WithdrawalsOverviewTable = ({ rows, downloadingId, onDownload, onRequest, 
                                     icon: isDownloading ? Loader2 : Download,
                                     disabled: isDownloading,
                                     onClick: () => onDownload && onDownload(row),
-                                },
-                                ...(row.instituteId && row.isPendingRow ? [{
-                                    label: 'Request Withdrawal',
-                                    icon: BellRing,
-                                    onClick: () => onRequest && onRequest(),
-                                }] : [])
+                                }
                             ];
 
                             return (
                                 <tr
-                                    key={`${row.referenceId ?? 'new'}-${row.instituteName}-${idx}`}
-                                    className={`${row.isPendingRow ? 'bg-amber-50/30 dark:bg-amber-900/10' : ''} hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors`}
+                                    key={`${row.period}-${row.instituteId}-${idx}`}
+                                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                                 >
-                                    {/* Reference */}
+                                    {/* Period */}
                                     <td className="px-4 py-3 md:py-4">
-                                        {row.referenceId ? (
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 tracking-wider">
-                                                {row.referenceId}
-                                            </span>
-                                        ) : (
-                                            <span className="text-gray-400 dark:text-gray-500 text-sm">—</span>
-                                        )}
-                                    </td>
-
-                                    {/* Details Period */}
-                                    <td className="px-4 py-3 md:py-4">
-                                        <span className="text-gray-600 dark:text-gray-400 text-xs">
-                                            {row.detailsPeriod}
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 tracking-wider">
+                                            {row.period}
                                         </span>
                                     </td>
 
-                                    {/* Withdrawals Period badge */}
+                                    {/* Institute */}
                                     <td className="px-4 py-3 md:py-4">
-                                        <div className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800">
-                                            {row.withdrawalPeriod ?? '—'}
-                                        </div>
+                                        <span className="text-gray-600 dark:text-gray-400 text-xs">
+                                            {row.instituteName}
+                                        </span>
                                     </td>
 
-                                    {/* Withdrawal Date */}
-                                    <td className="px-4 py-3 md:py-4 text-gray-700 dark:text-gray-300">
-                                        {row.withdrawalAt ? new Date(row.withdrawalAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : <span className="text-gray-400 dark:text-gray-500 text-sm">—</span>}
+                                    {/* Gross Collected */}
+                                    <td className="px-4 py-3 md:py-4 text-right text-gray-700 dark:text-gray-300">
+                                        {formatCurrency(row.grossCollected)}
                                     </td>
 
-                                    {/* Available Balance */}
-                                    <td className="px-4 py-3 md:py-4 text-right font-medium text-gray-700 dark:text-gray-300">
-                                        {row.availableBalance != null ? formatCurrency(row.availableBalance) : <span className="text-gray-400 dark:text-gray-500 text-sm">—</span>}
+                                    {/* Commission Deducted */}
+                                    <td className="px-4 py-3 md:py-4 text-right text-red-600 dark:text-red-400">
+                                        {formatCurrency(row.commissionDeducted)}
                                     </td>
 
-                                    {/* Withdrawal Amount */}
-                                    <td className="px-4 py-3 md:py-4 text-right">
-                                        {row.withdrawalAmount != null ? (
-                                            <span className="font-semibold text-green-700 dark:text-green-400">
-                                                {formatCurrency(row.withdrawalAmount)}
-                                            </span>
-                                        ) : (
-                                            <span className="text-gray-400 dark:text-gray-500 text-sm">—</span>
-                                        )}
+                                    {/* Net Earnings */}
+                                    <td className="px-4 py-3 md:py-4 text-right font-semibold text-green-700 dark:text-green-400">
+                                        {formatCurrency(row.netEarnings)}
                                     </td>
 
                                     {/* Row Actions — sticky right */}
@@ -381,4 +309,4 @@ const WithdrawalsOverviewTable = ({ rows, downloadingId, onDownload, onRequest, 
     );
 };
 
-export default WithdrawalsPage;
+export default FeesReportPage;

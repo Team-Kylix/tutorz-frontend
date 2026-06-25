@@ -138,3 +138,51 @@ export const downloadInstituteOverviewPdf = async (tutorId = null, filename = 'P
   link.remove();
   window.URL.revokeObjectURL(url);
 };
+
+export const getTutorMonthlyFees = async (instituteId = null) => {
+  const params = {};
+  if (instituteId) params.instituteId = instituteId;
+  const response = await apiClient.get('/withdrawal/tutor/fees', { params });
+  return response.data;
+};
+
+export const getInstituteMonthlyFees = async (tutorId = null) => {
+  const params = {};
+  if (tutorId) params.tutorId = tutorId;
+  const response = await apiClient.get('/withdrawal/institute/fees', { params });
+  return response.data;
+};
+
+export const downloadTutorMonthlyFeesPdf = async (year, month, instituteId = null) => {
+  const params = { year, month };
+  if (instituteId) params.instituteId = instituteId;
+  const response = await apiClient.get('/withdrawal/tutor/fees/pdf', {
+    params,
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `Fees_Report_${year}_${month}.pdf`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
+export const downloadInstituteMonthlyFeesPdf = async (year, month, tutorId = null) => {
+  const params = { year, month };
+  if (tutorId) params.tutorId = tutorId;
+  const response = await apiClient.get('/withdrawal/institute/fees/pdf', {
+    params,
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `Fees_Report_${year}_${month}.pdf`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
