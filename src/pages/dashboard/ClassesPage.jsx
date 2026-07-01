@@ -406,6 +406,7 @@ const ClassesPage = () => {
         isSubmitting={isSaving}
         existingClasses={classes}
         backendError={classFormError}
+        onClearBackendError={() => setClassFormError('')}
       />
 
       <AddStudentModal

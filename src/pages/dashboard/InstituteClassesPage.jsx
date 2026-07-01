@@ -378,6 +378,7 @@ const InstituteClassesPage = () => {
                 instituteProfile={instituteProfile}
                 existingClasses={classes}
                 backendError={classFormError}
+                onClearBackendError={() => setClassFormError('')}
             />
 
             <ConfirmationModal
