@@ -504,7 +504,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                             <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200">
                             {isTodayMode ? "Other Classes Today" : isSearchMode ? "Search & Assign Any Class" : "Active Enrolled Classes"}
                         </h4>
-                        {!assignmentMode && (
+                        {!assignmentMode && classesToList.length > 0 && (
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => {
