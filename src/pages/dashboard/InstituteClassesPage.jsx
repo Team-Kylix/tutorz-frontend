@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar, User, Edit } from 'lucide-react';
+import { Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar, User, Edit, Zap } from 'lucide-react';
 import Button from '../../components/atoms/Button';
 import RowActions from '../../components/molecules/RowActions';
 import Input from '../../components/atoms/Input';
 import ClassFormModal from '../../components/organisms/ClassFormModal';
 import ConfirmationModal from '../../components/molecules/ConfirmationModal';
+import MarkAttendanceModal from '../../components/organisms/MarkAttendanceModal';
 import useApi from '../../hooks/useApi';
 import * as instituteService from '../../services/api/instituteService';
 import { useDispatch, useSelector } from 'react-redux';
@@ -40,6 +41,9 @@ const InstituteClassesPage = () => {
     // Status Change States
     const [statusCandidate, setStatusCandidate] = useState(null);
     const [isStatusConfirmOpen, setStatusConfirmOpen] = useState(false);
+
+    // Student Hub Modal
+    const [isStudentHubOpen, setIsStudentHubOpen] = useState(false);
 
     // Profile State for Institute Context
     const [instituteProfile, setInstituteProfile] = useState(null);
@@ -218,6 +222,13 @@ const InstituteClassesPage = () => {
                     >
                         <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
                     </button>
+                    <Button
+                        variant="outline"
+                        onClick={() => setIsStudentHubOpen(true)}
+                        title="Attendance · Fees · Enroll"
+                    >
+                        <Zap size={18} className="mr-2" /> Student Hub
+                    </Button>
                     <Button variant="primary" onClick={handleCreateClick} disabled={!instituteProfile}>
                         <BookOpen size={18} className="mr-2" /> Assign Class
                     </Button>
@@ -427,6 +438,12 @@ const InstituteClassesPage = () => {
                 confirmLabel="OK"
                 cancelLabel="Close"
                 variant="success"
+            />
+
+            {/* Student Hub Modal — Attendance · Fees · Enroll */}
+            <MarkAttendanceModal
+                isOpen={isStudentHubOpen}
+                onClose={() => setIsStudentHubOpen(false)}
             />
         </div>
     );

@@ -1,4 +1,4 @@
-import { Clock, Calendar, FileText, MessageSquareWarning } from 'lucide-react';
+import { Clock, Zap, FileText, MessageSquareWarning } from 'lucide-react';
 import QuickActionCard from '../molecules/QuickActionCard';
 
 const QuickActions = ({ onActionClick }) => (
@@ -12,8 +12,8 @@ const QuickActions = ({ onActionClick }) => (
         onClick={() => onActionClick('timetable')}
       />
       <QuickActionCard
-        icon={Calendar}
-        label="Mark Attendance"
+        icon={Zap}
+        label="Student Hub"
         colorClass="text-green-500 dark:text-green-400"
         onClick={() => onActionClick('attendance')}
       />

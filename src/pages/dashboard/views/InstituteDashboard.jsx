@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setDashboardData } from '../../../store/dashboardSlice';
 import {
     Users, GraduationCap, Calendar,
-    Plus, QrCode
+    Plus, Zap
 } from 'lucide-react';
 
 // --- Existing Components ---
@@ -99,9 +99,10 @@ const InstituteDashboard = ({ user, setActivePage }) => {
                     <Button
                         variant="primary"
                         onClick={() => setIsAttendanceModalOpen(true)}
-                        className="flex-1 sm:flex-none sm:min-w-[170px]"
+                        className="flex-1 sm:flex-none sm:min-w-[170px] group relative"
+                        title="Attendance · Fees · Enroll"
                     >
-                        <QrCode size={18} className="mr-2" /> Mark Attendance
+                        <Zap size={18} className="mr-2" /> Student Hub
                     </Button>
                     <Button
                         variant="primary"
