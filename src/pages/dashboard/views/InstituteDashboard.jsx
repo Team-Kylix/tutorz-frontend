@@ -130,7 +130,12 @@ const InstituteDashboard = ({ user, setActivePage }) => {
 
     const pendingTutors = richData.requests.filter(r => r.role === 'Tutor' || r.requestType === 'Tutor').length;
     const pendingStudents = richData.requests.filter(r => r.role === 'Student' || r.requestType === 'Student').length;
-    const totalAvailableBalance = richData.withdrawals.reduce((sum, r) => sum + (Number(r.availableBalance) || 0), 0);
+    
+    // Only sum the available balance from pending withdrawal rows, not historical rows
+    const totalAvailableBalance = richData.withdrawals
+        .filter(r => r.isPendingRow)
+        .reduce((sum, r) => sum + (Number(r.availableBalance) || 0), 0);
+        
     const newRegistrations = richData.notifications.filter(n => n.type === 'StudentRegistration');
 
     const now = new Date();
