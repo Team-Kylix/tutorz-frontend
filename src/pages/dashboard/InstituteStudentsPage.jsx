@@ -7,6 +7,7 @@ import RowActions from '../../components/molecules/RowActions';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import InstituteSearchAssignModal from '../../components/organisms/InstituteSearchAssignModal';
+import AccountViewModal from '../../components/organisms/AccountViewModal';
 import { getAssignedStudents } from '../../services/api/instituteService';
 import { useAuth } from '../../hooks/useAuth';
 import { BASE_URL } from '../../services/api/apiClient';
@@ -46,6 +47,10 @@ const InstituteStudentsPage = () => {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [error, setError] = useState('');
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+
+    // Profile Modal State
+    const [selectedAccount, setSelectedAccount] = useState(null);
+    const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
 
     // Pagination and Search State
     const [searchTerm, setSearchTerm] = useState('');
@@ -111,6 +116,17 @@ const InstituteStudentsPage = () => {
             setPage(nextPage);
             fetchStudents(true, nextPage, debouncedSearchTerm);
         }
+    };
+
+    const handleViewProfile = (student) => {
+        setSelectedAccount({
+            ...student,
+            role: 'Student',
+            name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Unknown',
+            profileImageUrlLarge: student.profileImageUrlLarge,
+            profileImageUrlSmall: student.profileImageUrlSmall
+        });
+        setIsAccountModalOpen(true);
     };
 
     return (
@@ -234,7 +250,7 @@ const InstituteStudentsPage = () => {
                                             </td>
                                             <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
                                                 <RowActions actions={[
-                                                    { label: 'View Profile', icon: Eye, onClick: () => {} },
+                                                    { label: 'View Profile', icon: Eye, onClick: () => handleViewProfile(student) },
                                                 ]} />
                                             </td>
                                         </tr>
@@ -264,8 +280,14 @@ const InstituteStudentsPage = () => {
                 isOpen={isAssignModalOpen}
                 onClose={() => setIsAssignModalOpen(false)}
                 type="Student"
-                onAssigned={handleAssigned}
+                onAssigned={() => fetchStudents(false, 1, debouncedSearchTerm, true)}
                 user={user}
+            />
+
+            <AccountViewModal 
+                isOpen={isAccountModalOpen} 
+                onClose={() => setIsAccountModalOpen(false)} 
+                account={selectedAccount} 
             />
         </div>
     );
