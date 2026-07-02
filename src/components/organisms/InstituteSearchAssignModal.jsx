@@ -106,8 +106,8 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             setIsRegistering(false);
 
             // Fetch profile if needed (only for Institutes)
-            if (user?.role === 'Institute' && !instituteProfile && user?.userId) {
-                getInstituteProfile(user.userId).then(res => {
+            if (user?.role === 'Institute' && !instituteProfile) {
+                getInstituteProfile().then(res => {
                     if (res?.success) setInstituteProfile(res.data);
                 }).catch(err => console.error("Failed to fetch institute profile", err));
             }
@@ -452,7 +452,6 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                     role: "Student",
                     email: checkData.email || `student.${mobileStr}@tutorz.lk`,
                     phoneNumber: mobileStr,
-                    password: generatedPassword,
                     schoolName: "Not Provided",
                     parentName: "Not Provided",
                     dateOfBirth: new Date().toISOString(),
@@ -462,7 +461,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 });
                 setSuccessMessage({ 
                     title: "Registration Successful!", 
-                    message: `Student account created successfully.\n\nDefault Password: ${generatedPassword}` 
+                    message: `Student account created successfully.\n\nA secure password has been sent to ${mobileStr} via SMS.` 
                 });
             }
         } else {
@@ -477,7 +476,6 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 role: "Tutor",
                 email: checkData.email || `tutor.${mobileStr}@tutorz.lk`,
                 phoneNumber: mobileStr,
-                password: generatedPassword,
                 bio: formData.bio,
                 bankAccountNumber: formData.bankAccountNumber,
                 bankName: formData.bankName,
@@ -488,7 +486,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             });
             setSuccessMessage({ 
                 title: "Tutor Added Successfully!", 
-                message: `Tutor account created successfully.\n\nDefault Password: ${generatedPassword}` 
+                message: `Tutor account created successfully.\n\nA secure password has been sent to ${mobileStr} via SMS.` 
             });
         }
     };

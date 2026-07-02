@@ -17,9 +17,11 @@ export const register = async (registrationData) => {
         // { userId, email, role, token }
         return response.data;
 
-    } catch (err) {
-        // If the API returns an error, throw it
-        throw new Error(err.response?.data?.message || 'Registration failed. Please try again.');
+    } catch (error) {
+        console.error("Registration error:", error.response?.data || error.message);
+        const err = new Error(error.response?.data?.message || 'Registration failed');
+        if (error.response) err.response = error.response;
+        throw err;
     }
 };
 
@@ -140,8 +142,11 @@ export const registerSibling = async (siblingData) => {
         // Matches Backend: [HttpPost("register-sibling")]
         const response = await apiClient.post('/auth/register-sibling', siblingData);
         return response.data;
-    } catch (err) {
-        throw new Error(err.response?.data?.message || 'Sibling registration failed.');
+    } catch (error) {
+        console.error("Sibling Registration error:", error.response?.data || error.message);
+        const err = new Error(error.response?.data?.message || 'Sibling registration failed');
+        if (error.response) err.response = error.response;
+        throw err;
     }
 };
 
