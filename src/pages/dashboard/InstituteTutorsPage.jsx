@@ -34,7 +34,7 @@ const InstituteTutorsPage = () => {
         return () => clearTimeout(handler);
     }, [searchTerm]);
 
-    const fetchTutors = useCallback(async (isLoadMore = false, currentPage = 1, currentSearch = '') => {
+    const fetchTutors = useCallback(async (isLoadMore = false, currentPage = 1, currentSearch = '', bypassCache = false) => {
         if (!isLoadMore) {
             setIsLoading(true);
         } else {
@@ -43,7 +43,7 @@ const InstituteTutorsPage = () => {
         setError('');
 
         try {
-            const res = await getAssignedTutors(currentSearch, currentPage, PAGE_SIZE);
+            const res = await getAssignedTutors(currentSearch, currentPage, PAGE_SIZE, bypassCache);
             const newTutors = res.data?.items || [];
 
             if (isLoadMore) {
@@ -71,7 +71,7 @@ const InstituteTutorsPage = () => {
     const handleAssigned = () => {
         setSearchTerm('');
         setPage(1);
-        fetchTutors(false, 1, '');
+        fetchTutors(false, 1, '', true);
     };
 
     const handleScroll = (e) => {
@@ -95,7 +95,7 @@ const InstituteTutorsPage = () => {
                 </div>
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={fetchTutors}
+                        onClick={() => fetchTutors(false, 1, debouncedSearchTerm, true)}
                         disabled={isLoading}
                         className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
                         title="Refresh"

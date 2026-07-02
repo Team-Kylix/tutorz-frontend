@@ -62,7 +62,7 @@ const InstituteStudentsPage = () => {
         return () => clearTimeout(handler);
     }, [searchTerm]);
 
-    const fetchStudents = useCallback(async (isLoadMore = false, currentPage = 1, currentSearch = '') => {
+    const fetchStudents = useCallback(async (isLoadMore = false, currentPage = 1, currentSearch = '', bypassCache = false) => {
         if (!isLoadMore) {
             setIsLoading(true);
         } else {
@@ -71,7 +71,7 @@ const InstituteStudentsPage = () => {
         setError('');
 
         try {
-            const res = await getAssignedStudents(currentSearch, currentPage, PAGE_SIZE);
+            const res = await getAssignedStudents(currentSearch, currentPage, PAGE_SIZE, bypassCache);
             const newStudents = res.data?.items || [];
 
             if (isLoadMore) {
@@ -100,7 +100,7 @@ const InstituteStudentsPage = () => {
         // Refresh from start
         setSearchTerm('');
         setPage(1);
-        fetchStudents(false, 1, '');
+        fetchStudents(false, 1, '', true);
     };
 
     const handleScroll = (e) => {
@@ -125,7 +125,7 @@ const InstituteStudentsPage = () => {
                 </div>
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={fetchStudents}
+                        onClick={() => fetchStudents(false, 1, debouncedSearchTerm, true)}
                         disabled={isLoading}
                         className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
                         title="Refresh"

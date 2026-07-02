@@ -13,12 +13,12 @@ const Row = ({ label, value, valueClass = '' }) => (
     </div>
 );
 
-const RevenueStatusCard = ({ summary, isLoading }) => {
+const RevenueStatusCard = ({ summary, isLoading, availableBalance = 0 }) => {
     const gross = summary?.totalGrossRevenue ?? 0;
     const net = summary?.instituteNetRevenue ?? 0;
     const due = summary?.totalDue ?? 0;
     const commission = summary?.commissionPercentage ?? 0;
-    const tutorShare = gross - net;
+    const tutorShare = availableBalance;
 
     return (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">

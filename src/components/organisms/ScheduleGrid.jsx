@@ -88,7 +88,7 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
 
     // Fetch classes from API whenever viewDate changes
     useEffect(() => {
-        const fetchClasses = async () => {
+        const fetchClasses = async (bypassCache = false) => {
             setIsLoading(true);
             setError(null);
             try {
@@ -96,48 +96,41 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
 
                 if (user?.role === ROLES.STUDENT) {
                     // Student: fetch enrolled classes for this specific date
-                    const res = await getStudentTimetable(viewDate);
+                    const res = await getStudentTimetable(viewDate, bypassCache);
                     rawList = res?.data || [];
 
                 } else if (user?.role === ROLES.INSTITUTE) {
                     // Institute: fetch all institute classes for this specific date
-                    const res = await getInstituteTimetable(viewDate);
+                    const res = await getInstituteTimetable(viewDate, bypassCache);
                     rawList = res?.data || [];
 
                 } else if (user?.role === ROLES.TUTOR) {
                     // Tutor: fetch ALL tutor classes then filter client-side by the selected date.
-                    // The backend has no date-filtered tutor timetable endpoint, so we filter here:
-                    //   - For recurring classes (classType === 'Class'): match by day-of-week
-                    //   - For one-time classes (Workshop/Seminar/etc.): match by exact date
-                    const res = await getTutorClasses();
-                    const allClasses = res?.data || res || [];
-                    const dayName = format(viewDate, 'EEEE'); // e.g. "Monday"
-                    const dateStr = format(viewDate, 'yyyy-MM-dd');
-                    rawList = allClasses.filter((c) => {
-                        if (c.classType === 'Class') {
-                            return c.dayOfWeek === dayName;
+                    const res = await getTutorClasses('', 1, 100);
+                    const allTutorClasses = res?.data?.items || res?.data || [];
+                    const selectedDayStr = format(viewDate, 'EEEE');
+                    rawList = allTutorClasses.filter(c => {
+                        if (c.classType === 'Class' && c.dayOfWeek) {
+                            return c.dayOfWeek === selectedDayStr;
+                        } else if (c.classType === 'Seminar' && c.date) {
+                            return isSameDay(new Date(c.date), viewDate);
                         }
-                        // One-time session: compare date portion only
-                        const classDate = c.date ? c.date.split('T')[0] : null;
-                        return classDate === dateStr;
+                        return false;
                     });
-
-                } else {
-                    // Unknown role — show nothing, make no API call
-                    rawList = [];
                 }
 
                 setRawClasses(rawList);
                 setClasses(rawList.map(mapClassToCard));
             } catch (err) {
                 console.error('Failed to load timetable:', err);
-                setError('Failed to load classes. Please try again.');
-                setClasses([]);
+                setError(err.message || 'Failed to load classes.');
             } finally {
                 setIsLoading(false);
             }
         };
+
         fetchClasses();
+        window.__refreshTimetable = () => fetchClasses(true);
     }, [viewDate, user?.role]);
 
     // Auto-scroll after classes finish loading:
@@ -208,6 +201,15 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
                     >
                         <CalendarDays size={16} />
                         Jump to Today
+                    </button>
+                    <button
+                        onClick={() => window.__refreshTimetable && window.__refreshTimetable()}
+                        disabled={isLoading}
+                        className="flex items-center justify-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 px-4 py-2 rounded-lg transition-colors shadow-sm w-full sm:w-auto disabled:opacity-50"
+                        title="Refresh"
+                    >
+                        <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+                        Refresh
                     </button>
                 </div>
             </div>

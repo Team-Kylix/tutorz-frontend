@@ -1,4 +1,5 @@
 import apiClient from './apiClient';
+import { clearWithdrawalCache } from './withdrawalService';
 
 /**
  * GET /api/payment/status?classId=&studentId=
@@ -19,16 +20,23 @@ export const getPaymentStatus = async (classId, studentId) => {
  * POST /api/payment/record
  * Records a class fee payment.
  */
+let classPaymentHistoryCache = {};
+
 export const recordPayment = async (payload) => {
     try {
         const response = await apiClient.post('/payment/record', payload);
+        classPaymentHistoryCache = {}; // Clear cache on new payment
+        clearWithdrawalCache(); // Clear withdrawal cache as well
         return response.data;
     } catch (error) {
         throw error.response?.data || { message: 'Failed to record payment' };
     }
 };
 
-export const getClassPaymentHistory = async (tutorId, classId, searchQuery = '', page = 1, pageSize = 10) => {
+export const getClassPaymentHistory = async (tutorId, classId, searchQuery = '', page = 1, pageSize = 10, bypassCache = false) => {
+    const cacheKey = `${tutorId}_${classId}_${searchQuery}_${page}_${pageSize}`;
+    if (!bypassCache && classPaymentHistoryCache[cacheKey]) return classPaymentHistoryCache[cacheKey];
+
     try {
         const response = await apiClient.get(`/payment/class/history`, {
             params: {
@@ -36,9 +44,11 @@ export const getClassPaymentHistory = async (tutorId, classId, searchQuery = '',
                 classId: classId === 'all' ? null : classId,
                 searchQuery,
                 page,
-                pageSize
+                pageSize,
+                _t: bypassCache ? Date.now() : undefined
             }
         });
+        classPaymentHistoryCache[cacheKey] = response.data;
         return response.data;
     } catch (error) {
         throw error.response?.data || { message: 'Failed to fetch payment history' };

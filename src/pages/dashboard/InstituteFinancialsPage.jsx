@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, RefreshCw } from 'lucide-react';
 import Select from '../../components/atoms/Select';
 import Input from '../../components/atoms/Input';
 import FinancialsTable from '../../components/organisms/FinancialsTable';
@@ -72,7 +72,7 @@ const InstituteFinancialsPage = () => {
     }, [selectedTutorId]);
 
     // ─── Fetch payment history ────────────────────────────────────
-    const fetchPaymentHistory = useCallback(async (currentPage = 1) => {
+    const fetchPaymentHistory = useCallback(async (currentPage = 1, bypassCache = false) => {
         if (currentPage === 1) setIsLoadingFinancials(true);
         else setIsLoadingMore(true);
         setError(null);
@@ -83,7 +83,8 @@ const InstituteFinancialsPage = () => {
                 selectedClassId || null,
                 debouncedSearchQuery,
                 currentPage,
-                10
+                10,
+                bypassCache
             );
 
             if (response?.data && response?.success !== false) response = response.data;
@@ -138,11 +139,23 @@ const InstituteFinancialsPage = () => {
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Page Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Financials &amp; Invoices</h1>
-                <p className="text-gray-500 dark:text-gray-400 mt-1">
-                    View student payment history across all classes in your institute.
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Financials &amp; Invoices</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">
+                        View student payment history across all classes in your institute.
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => fetchPaymentHistory(1, true)}
+                        disabled={isLoadingFinancials}
+                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                        title="Refresh"
+                    >
+                        <RefreshCw size={17} className={isLoadingFinancials ? 'animate-spin' : ''} />
+                    </button>
+                </div>
             </div>
 
             {/* Filter Controls */}

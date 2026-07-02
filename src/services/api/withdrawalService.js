@@ -51,6 +51,7 @@ export const requestWithdrawalNotification = async (dto) => {
  */
 export const processWithdrawal = async (dto) => {
   const response = await apiClient.post('/withdrawal/process', dto);
+  clearWithdrawalCache();
   return response.data;
 };
 
@@ -90,10 +91,24 @@ export const getTutorWithdrawalOverview = async (instituteId = null) => {
  * Returns one row per tutor even with no withdrawal yet.
  * @param {string|null} tutorId
  */
-export const getInstituteWithdrawalOverview = async (tutorId = null) => {
+let withdrawalOverviewCache = {};
+
+export const clearWithdrawalCache = () => {
+  withdrawalOverviewCache = {};
+};
+
+export const getInstituteWithdrawalOverview = async (tutorId = null, bypassCache = false) => {
+  const cacheKey = tutorId || 'ALL';
+  if (!bypassCache && withdrawalOverviewCache[cacheKey]) {
+    return withdrawalOverviewCache[cacheKey];
+  }
+
   const params = {};
   if (tutorId) params.tutorId = tutorId;
+  if (bypassCache) params._t = Date.now();
+  
   const response = await apiClient.get('/withdrawal/overview-institute', { params });
+  withdrawalOverviewCache[cacheKey] = response.data;
   return response.data;
 };
 
