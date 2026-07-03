@@ -8,6 +8,8 @@ import StudentDashboard from './views/StudentDashboard';
 import InstituteDashboard from './views/InstituteDashboard';
 import AdminDashboard from './views/AdminDashboard';
 import HallManagement from './views/HallManagement';
+import TutorMarksPage from './TutorMarksPage';
+import StudentMarksPage from './StudentMarksPage';
 
 // Import Pages for Navigation Switching
 import ClassesPage from './ClassesPage';
@@ -178,6 +180,14 @@ const DashboardHome = ({ activePage, setActivePage }) => {
   }
 
   // --- DASHBOARD RENDERING ---
+  if (activePage === 'marks-management') {
+    return <TutorMarksPage />;
+  }
+
+  if (activePage === 'my-marks') {
+    return <StudentMarksPage />;
+  }
+
   switch (user?.role) {
     case ROLES.TUTOR:
       return <TutorDashboard setActivePage={setActivePage} />;

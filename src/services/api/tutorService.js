@@ -217,3 +217,13 @@ export const downloadTutorMonthlyReportPdf = async (instituteId, classId, month,
     return { success: false, message: 'Failed to download report PDF.' };
   }
 };
+
+/**
+ * DELETE /api/Tutor/marks/{id}
+ * Soft deletes a mark sheet.
+ * @param {string} markSheetId 
+ */
+export const deleteMarkSheet = async (markSheetId) => {
+  const response = await apiClient.delete(`/tutor/marks/${markSheetId}`);
+  return response.data;
+};

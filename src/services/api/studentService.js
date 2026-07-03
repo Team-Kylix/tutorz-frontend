@@ -151,3 +151,8 @@ export const downloadClassPaymentPdf = async (paymentId, reference = 'ClassFee')
     return { success: false, message: 'Failed to download invoice PDF.' };
   }
 };
+
+export const getStudentMedalsCount = async () => {
+  const response = await apiClient.get('/student/medals/count');
+  return response.data;
+};

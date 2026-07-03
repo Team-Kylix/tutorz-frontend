@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, BookOpen, Calendar, DollarSign,
   FileText, QrCode, Settings, ChevronRight, ChevronLeft, LogOut,
   Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus, Clock, Info, CloudOff, MessageSquareWarning,
-  Bell, Receipt, CreditCard, HelpCircle, Wallet
+  Bell, Receipt, CreditCard, HelpCircle, Wallet, Award
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SidebarItem from '../molecules/SidebarItem';
@@ -93,6 +93,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'timetable', label: 'Timetable', icon: Clock },
     { id: 'student-requests', label: 'Student Requests', icon: Users },
     { id: 'tutor-requests', label: 'Institute Requests', icon: Building },
+    { id: 'marks-management', label: 'Marks Management', icon: Award },
     { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
     { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
     { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
@@ -110,6 +111,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'timetable', label: 'Timetable', icon: Clock },
     { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
     { id: 'financials', label: 'Financials', icon: CreditCard },
+    { id: 'my-marks', label: 'My Marks', icon: Award },
     { id: 'attendance', label: 'My Attendance', icon: Calendar },
     { id: 'profile', label: 'My Profile', icon: QrCode },
     { id: 'complains', label: 'Complains', icon: MessageSquareWarning },
