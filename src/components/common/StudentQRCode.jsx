@@ -1,0 +1,97 @@
+import React, { useRef } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { useThemeContext } from '../../context/ThemeContext';
+
+const StudentQRCode = ({ value, studentName, variant = 'default' }) => {
+    const qrRef = useRef();
+    const { theme } = useThemeContext();
+    const isDark = theme === 'dark';
+
+    const downloadQRCode = () => {
+        // Assuming the QRCode is the first child SVG element
+        const svg = qrRef.current.querySelector('svg');
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+
+        img.onload = () => {
+            // Set canvas dimensions to match SVG or arbitrary large size for high quality
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.fillStyle = '#ffffff'; // Ensure white background for the downloaded file
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+
+            const pngFile = canvas.toDataURL('image/png');
+            const downloadLink = document.createElement('a');
+            downloadLink.download = `${studentName}_QR_ID.png`;
+            downloadLink.href = pngFile;
+            downloadLink.click();
+        };
+
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    };
+
+    if (variant === 'compact') {
+        return (
+            <div className="group relative">
+                <div 
+                    ref={qrRef} 
+                    className="p-1.5 bg-white dark:bg-gray-800 border-none shadow-xl transition-all cursor-pointer group-hover:scale-105" 
+                    onClick={downloadQRCode}
+                >
+                    <div className="bg-blue-50 dark:bg-gray-900 transition-colors">
+                        <QRCodeSVG
+                            value={value}
+                            size={140}
+                            bgColor={isDark ? "#111827" : "#eff6ff"}
+                            fgColor={isDark ? "#ffffff" : "#1e40af"}
+                            level={"H"}
+                            includeMargin={false}
+                        />
+                    </div>
+                    {/* Compact download indicator */}
+                    <div className="absolute top-2 right-2 p-1.5 bg-blue-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col items-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 w-full max-w-sm mx-auto transition-colors">
+            <h3 className="mb-4 font-bold text-gray-700 dark:text-gray-200">{studentName}'s ID</h3>
+
+            <div ref={qrRef} className="p-4 bg-white dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg transition-colors">
+                <QRCodeSVG
+                    value={value}
+                    size={200}
+                    bgColor={isDark ? "#111827" : "#ffffff"} // Matches gray-900 in dark mode
+                    fgColor={isDark ? "#ffffff" : "#1e293b"} // White in dark mode, dark blue in light mode
+                    level={"H"}
+                    includeMargin={true}
+                />
+            </div>
+
+            <p className="mt-4 text-xs text-gray-400 dark:text-gray-500 font-mono uppercase tracking-widest">
+                {value}
+            </p>
+
+            <button
+                onClick={downloadQRCode}
+                className="mt-6 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm flex items-center gap-2"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download QR Code
+            </button>
+        </div>
+    );
+};
+
+export default StudentQRCode;

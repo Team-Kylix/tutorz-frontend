@@ -1,1 +1,189 @@
-// Nothing Implemented Yet
+import apiClient from './apiClient';
+
+let cache = {
+  profile: null,
+  classes: null,
+  attendance: null,
+  payments: null,
+  medals: null
+};
+
+export const clearStudentDashboardCache = () => {
+  cache = { profile: null, classes: null, attendance: null, payments: null, medals: null };
+};
+
+export const getStudentProfile = async (forceRefresh = false) => {
+  if (cache.profile && !forceRefresh) return cache.profile;
+  const response = await apiClient.get('/student/profile');
+  cache.profile = response.data;
+  return response.data;
+};
+
+export const updateStudentProfile = async (data) => {
+  const response = await apiClient.put('/student/profile', data);
+  clearStudentDashboardCache();
+  return response.data;
+};
+
+/**
+ * Searches for classes based on grade and query string.
+ * @param {string} grade - User's grade (e.g., 'Grade 8')
+ * @param {string} query - Search term (Subject, Tutor Name, TUT ID)
+ */
+export const searchClasses = async (grade, query, provinceId, districtId, cityId, page = 1, pageSize = 10) => {
+  const response = await apiClient.get('/student/search-classes', {
+    params: { grade, query, provinceId, districtId, cityId, page, pageSize }
+  });
+  return response.data;
+};
+
+/**
+ * Sends a request to join a specific class.
+ * @param {string} classId - The GUID of the class
+ */
+export const requestJoinClass = async (classId) => {
+  // Ensure the body matches the JoinClassRequest DTO on the backend
+  // Backend expects: public class JoinClassRequest { public Guid ClassId { get; set; } }
+  const response = await apiClient.post('/student/join-class', { classId: classId });
+  clearStudentDashboardCache();
+  return response.data;
+};
+
+/**
+ * Gets all classes the student has joined with Approved status.
+ */
+export const getStudentClasses = async (forceRefresh = false) => {
+  if (cache.classes && !forceRefresh) return cache.classes;
+  const response = await apiClient.get('/student/classes');
+  cache.classes = response.data;
+  return response.data;
+};
+
+/**
+ * Gets student timetable for a specific date
+ * @param {string} date - The date to fetch the timetable for (YYYY-MM-DD or ISO string)
+ */
+export const getTimetableByDate = async (date) => {
+  let targetDate;
+  if (date instanceof Date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    targetDate = `${y}-${m}-${d}`;
+  } else {
+    targetDate = date;
+  }
+  const response = await apiClient.get('/student/timetable', {
+    params: { date: targetDate }
+  });
+  return response.data;
+};
+
+/**
+ * Soft-deletes the student's enrollment in a class by setting status to Dropped.
+ * @param {string} classId - The GUID of the class to leave
+ */
+export const leaveClass = async (classId) => {
+  const response = await apiClient.put(`/student/leave-class/${classId}`);
+  clearStudentDashboardCache();
+  return response.data;
+};
+
+/**
+ * Gets student attendance history with optional filters
+ * @param {string} tutorId - Optional tutor GUID
+ * @param {string} classId - Optional class GUID
+ * @param {string} date - Optional date string (YYYY-MM-DD)
+ */
+export const getStudentAttendanceHistory = async (tutorId, classId, date, forceRefresh = false) => {
+  const isDefaultCall = !tutorId && !classId && !date;
+  if (isDefaultCall && cache.attendance && !forceRefresh) return cache.attendance;
+
+  let targetDate;
+  if (date instanceof Date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    targetDate = `${y}-${m}-${d}`;
+  } else {
+    targetDate = date;
+  }
+  
+  const response = await apiClient.get('/student/attendance-history', {
+    params: { tutorId, classId, date: targetDate }
+  });
+
+  if (isDefaultCall) cache.attendance = response.data;
+  return response.data;
+};
+
+/**
+ * Gets student payment history with optional filters
+ * @param {string} tutorId - Optional tutor GUID
+ * @param {string} classId - Optional class GUID  
+ * @param {string} monthYear - Optional month filter in 'YYYY-MM' format (e.g. '2026-04')
+ * @param {number} page - Page number (default 1)
+ * @param {number} pageSize - Page size (default 10)
+ */
+export const getStudentPaymentHistory = async (tutorId, classId, monthYear, page = 1, pageSize = 10, forceRefresh = false) => {
+  const isDefaultCall = !tutorId && !classId && !monthYear && page === 1 && pageSize === 200;
+  if (isDefaultCall && cache.payments && !forceRefresh) return cache.payments;
+
+  const response = await apiClient.get('/student/payment-history', {
+    params: {
+      tutorId: tutorId || undefined,
+      classId: classId || undefined,
+      monthYear: monthYear || undefined,
+      page,
+      pageSize
+    }
+  });
+
+  if (isDefaultCall) cache.payments = response.data;
+  return response.data;
+};
+
+/**
+ * Searches for tutors of classes the student has joined.
+ * @param {string} query - Search term
+ */
+export const searchJoinedTutors = async (query) => {
+  const response = await apiClient.get('/student/tutors/search', {
+    params: { query }
+  });
+  return response.data;
+};
+
+/**
+ * Triggers a browser download of the class payment PDF invoice.
+ * @param {string} paymentId - GUID of the ClassPayment record
+ * @param {string} reference - Display reference for the filename (e.g. "Science_Apr2026")
+ */
+export const downloadClassPaymentPdf = async (paymentId, reference = 'ClassFee') => {
+  try {
+    const response = await apiClient.get(`/student/class-payments/${paymentId}/pdf`, {
+      responseType: 'blob'
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Tutorz_${reference}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Class payment PDF download failed', error);
+    return { success: false, message: 'Failed to download invoice PDF.' };
+  }
+};
+
+export const getStudentMedalsCount = async (forceRefresh = false) => {
+  if (cache.medals && !forceRefresh) return cache.medals;
+  const response = await apiClient.get('/student/medals/count');
+  cache.medals = response.data;
+  return response.data;
+};

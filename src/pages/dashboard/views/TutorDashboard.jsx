@@ -1,0 +1,134 @@
+import React, { useState } from 'react';
+import { Plus } from 'lucide-react';
+
+// Services & Hooks
+import useApi from '../../../hooks/useApi';
+import * as tutorService from '../../../services/api/tutorService';
+
+import StatsGrid from '../../../components/organisms/StatsGrid';
+import UnifiedSchedule from '../../../components/organisms/UnifiedSchedule';
+import QuickActions from '../../../components/organisms/QuickActions';
+import ClassFormModal from '../../../components/organisms/ClassFormModal';
+import ConfirmationModal from '../../../components/molecules/ConfirmationModal';
+
+const TutorDashboard = ({ setActivePage }) => {
+  // -- State for Dashboard Quick Actions --
+  const [isClassModalOpen, setClassModalOpen] = useState(false);
+
+  // Confirmation States
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState(null);
+  const [saveError, setSaveError] = useState(null);
+
+  // API Hooks
+  const { request: saveClass, loading: isSaving } = useApi();
+
+  // --- HANDLERS ---
+
+  // Handle Quick Action Clicks
+  const handleQuickAction = (actionType) => {
+    setActivePage(actionType);
+  };
+
+  const handleClassSubmit = (formData) => {
+    setSaveError(null);
+    setPendingFormData(formData);
+    setIsConfirmOpen(true);
+  };
+
+  const handleConfirmSave = async () => {
+    setSaveError(null);
+    const result = await saveClass(tutorService.createClass, pendingFormData);
+    if (result.error) {
+      // Backend returned 400 — show the message inside the confirm modal
+      setSaveError(result.error);
+      return; // keep the modal open so the user can see the error
+    }
+    if (result.data) {
+      setIsConfirmOpen(false);
+      setClassModalOpen(false);
+      setPendingFormData(null);
+      setSaveError(null);
+      setIsSuccessOpen(true);
+    }
+  };
+
+  const handleSuccessClose = () => {
+    setIsSuccessOpen(false);
+    window.location.reload();
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+          <p className="text-gray-500 dark:text-gray-400">Overview of your institute activities</p>
+        </div>
+
+        <div className="w-full md:w-auto flex items-center gap-3">
+
+          <button
+            onClick={() => setClassModalOpen(true)}
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 dark:hover:bg-blue-500 transition-colors shadow-sm"
+          >
+            <Plus size={18} />
+            <span>Create</span>
+          </button>
+        </div>
+      </div>
+
+      <StatsGrid />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 h-[26rem]">
+          <UnifiedSchedule 
+            title="My Schedule"
+            onNavigate={() => setActivePage('classes')} 
+            fetchClassesApi={tutorService.getClasses} 
+          />
+        </div>
+        <div>
+          {/* Pass the handler */}
+          <QuickActions onActionClick={handleQuickAction} />
+        </div>
+      </div>
+
+      {/* --- DASHBOARD MODALS --- */}
+      <ClassFormModal
+        isOpen={isClassModalOpen}
+        onClose={() => setClassModalOpen(false)}
+        onSubmit={handleClassSubmit}
+        isSubmitting={isSaving}
+      />
+
+      <ConfirmationModal
+        isOpen={isConfirmOpen}
+        onClose={() => { setIsConfirmOpen(false); setSaveError(null); }}
+        onConfirm={handleConfirmSave}
+        title="Create Class"
+        message={saveError
+          ? saveError
+          : "Are you sure you want to create this new class?"}
+        confirmLabel={isSaving ? 'Creating…' : 'Create'}
+        cancelLabel="Cancel"
+        variant={saveError ? 'danger' : 'primary'}
+        isLoading={isSaving}
+      />
+
+      <ConfirmationModal
+        isOpen={isSuccessOpen}
+        onClose={handleSuccessClose}
+        onConfirm={handleSuccessClose}
+        title="Success"
+        message="Class added successfully!"
+        confirmLabel="OK"
+        cancelLabel="Close"
+        variant="success"
+      />
+    </div>
+  );
+};
+
+export default TutorDashboard;

@@ -2,40 +2,51 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AuthLayout from '../../components/templates/AuthLayout.jsx';
 import FormField from '../../components/molecules/FormField.jsx';
-import { ROLES } from '../../utils/constants';
+import { ROLES, GRADE_GROUPS } from '../../utils/constants';
 import { validatePhoneNumber } from '../../utils/validators';
-import { extractErrorMessage } from '../../utils/helpers';
 import useAuth from '../../hooks/useAuth';
-import { socialLogin } from '../../services/auth/authService.js'; 
-import Label from '../../components/atoms/Label.jsx'; 
-import Select from '../../components/atoms/Select.jsx';
+import { socialLogin, checkUserStatus } from '../../services/auth/authService.js';
+import Label from '../../components/atoms/Label.jsx';
+import LocationSelector from '../../components/molecules/LocationSelector';
+import { CheckCircle2, ArrowLeft } from 'lucide-react';
+import OtpVerificationModal from '../../components/organisms/OtpVerificationModal.jsx';
+import { sendRegistrationOtp } from '../../services/auth/authService.js';
+import { verifyOtp } from '../../services/auth/authService.js';
+import SelectField from '../../components/molecules/SelectField.jsx';
 
 
 const RegisterDetailsPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { register: manualRegister, login: reduxLogin } = useAuth(); 
-    
-    // Check both standard data and social data
+
+    const auth = useAuth();
+    const manualRegister = auth.register;
+    const registerSibling = auth.registerSibling;
+
     const stepOneData = location.state?.stepOneData;
     const socialProfile = location.state?.socialProfile;
 
+    const isLinkedAccount = stepOneData?.isLinkedAccount === true;
+    const linkedPhoneNumber = stepOneData?.linkedPhoneNumber || '';
+
     useEffect(() => {
-        if (!stepOneData) {
-            navigate('/register');
-        }
+        if (!stepOneData) navigate('/register');
     }, [stepOneData, navigate]);
 
     if (!stepOneData) return null;
-
-    // Determine if this is a social flow
     const isSocial = stepOneData.isSocial === true;
 
-    // State
+    // TRUE when the user typed their phone (not email) at step 1.
+    // In this case the phone was already checked for duplicates in RegisterForm,
+    // so we should lock it on this page — no need to re-enter or re-validate.
+    const phoneEnteredInStep1 = !isSocial && !isLinkedAccount && !!stepOneData.phoneNumber;
+    // Phone field is locked if it was entered in step 1 OR if this is a sibling account
+    const isPhoneLocked = isLinkedAccount || phoneEnteredInStep1;
+
     const [formData, setFormData] = useState({
-        phoneNumber: '',
-        firstName: socialProfile?.firstName || '', // Pre-fill from Google
-        lastName: socialProfile?.lastName || '',   // Pre-fill from Google
+        phoneNumber: isLinkedAccount ? linkedPhoneNumber : (stepOneData.phoneNumber || ''),
+        firstName: socialProfile?.firstName || '',
+        lastName: socialProfile?.lastName || '',
         bio: '',
         bankAccount: '',
         bankName: '',
@@ -44,106 +55,122 @@ const RegisterDetailsPage = () => {
         parentName: '',
         dateOfBirth: '',
         instituteName: '',
-        address: ''
+        address: '',
+        cityId: ''
     });
 
     const [errors, setErrors] = useState({});
     const [globalError, setGlobalError] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-
-  // REPLACE const GRADE_OPTIONS = [...] WITH THIS:
-
-const GRADE_GROUPS = [
-    {
-        label: "Primary Education",
-        options: ['Preschool','Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5']
-    },
-    {
-        label: "Secondary Education",
-        options: ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11 (O/L)','Grade 12 (A/L)', 'Grade 13 (A/L)']
-    },
-    {
-        label: "Other",
-        options: ['Course', 'Seminar', 'Workshop']
-    }
-];
-
-// REPLACE THE SelectField COMPONENT DEFINITION WITH THIS:
-
-const SelectField = ({ id, label, value, onChange, groups, placeholder, required = false, error }) => {
-    // Logic to make placeholder text look gray and selected text look black
-    const isPlaceholder = value === "";
-
-    return (
-        <div className="w-full">
-            <Label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
-                {label} {required && <span className="text-red-500">*</span>}
-            </Label>
-            
-            <div className="relative">
-                <select
-                    id={id}
-                    value={value}
-                    onChange={onChange}
-                    required={required}
-                    className={`
-                        appearance-none w-full px-4 py-3 rounded-lg border bg-white
-                        text-sm font-medium transition-all duration-200 ease-in-out
-                        focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-200 focus:border-blue-500
-                        ${error ? 'border-red-300 focus:ring-red-200 focus:border-red-500' : 'border-gray-300'}
-                        ${isPlaceholder ? 'text-gray-400' : 'text-gray-900'}
-                    `}
-                >
-                    <option value="" disabled>{placeholder}</option>
-                    
-                    {/* Render groups instead of a flat list */}
-                    {groups.map((group, index) => (
-                        <optgroup key={index} label={group.label} className="font-semibold text-gray-700">
-                            {group.options.map((opt) => (
-                                <option key={opt} value={opt} className="text-gray-900 font-normal">
-                                    {opt}
-                                </option>
-                            ))}
-                        </optgroup>
-                    ))}
-                </select>
-
-                {/* Custom Arrow Icon */}
-                <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                </div>
-            </div>
-
-            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-        </div>
-    );
-};
+    const [isSuccess, setIsSuccess] = useState(false);
+    
+    // OTP State
+    const [showOtpModal, setShowOtpModal] = useState(false);
+    const isPhoneRegistration = !isSocial && !isLinkedAccount && !stepOneData.email?.includes('@');
 
     const handleChange = (e) => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
-        if (errors[id]) {
-            setErrors(prev => ({ ...prev, [id]: null }));
-        }
+        if (errors[id]) setErrors(prev => ({ ...prev, [id]: null }));
     };
 
-    const handlePhoneBlur = () => {
+    const handleCityChange = (cityId) => {
+        setFormData(prev => ({ ...prev, cityId }));
+        if (errors.cityId) setErrors(prev => ({ ...prev, cityId: null }));
+    };
+
+    const handlePhoneBlur = async () => {
+        // Phone is locked — no need to validate or check
+        if (isPhoneLocked) return;
+
+        // 1. Format/validate the format first
         const validation = validatePhoneNumber(formData.phoneNumber);
         if (!validation.isValid) {
             setErrors(prev => ({ ...prev, phoneNumber: validation.message }));
+            return;
         }
+
+        // 2. Email-flow: phone typed in step 2 — check if it's already registered
+        if (!isSocial && !phoneEnteredInStep1) {
+            try {
+                const status = await checkUserStatus({ phoneNumber: formData.phoneNumber });
+                if (status.exists) {
+                    setErrors(prev => ({
+                        ...prev,
+                        phoneNumber: `This number is already registered (${status.name}). Please log in or use a different number.`
+                    }));
+                    return;
+                }
+            } catch {
+                // Silently ignore — the submit will catch it too
+            }
+        }
+
+        // Clear any previous phone error if now valid
+        setErrors(prev => ({ ...prev, phoneNumber: null }));
     };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
         setGlobalError(null);
 
-        const phoneValidation = validatePhoneNumber(formData.phoneNumber);
-        if (!phoneValidation.isValid) {
-            setErrors(prev => ({ ...prev, phoneNumber: phoneValidation.message }));
+        // --- ROLE-SPECIFIC VALIDATION ---
+        const role = stepOneData.role;
+        const newErrors = {};
+
+        // 1. Phone number validation (if not social/linked/locked)
+        if (!isPhoneLocked && !isSocial) {
+            const phoneValidation = validatePhoneNumber(formData.phoneNumber);
+            if (!phoneValidation.isValid) {
+                newErrors.phoneNumber = phoneValidation.message;
+            } else if (!phoneEnteredInStep1) {
+                // Email-flow: also check for duplicate before sending OTP
+                try {
+                    const status = await checkUserStatus({ phoneNumber: formData.phoneNumber });
+                    if (status.exists) {
+                        newErrors.phoneNumber = `This number is already registered (${status.name}). Please log in or use a different number.`;
+                    }
+                } catch {
+                    // Network error — let the OTP step surface it
+                }
+            }
+        }
+
+        // 2. City validation (common for all)
+        if (!formData.cityId) {
+            newErrors.cityId = "Please select your city.";
+        }
+
+        // 3. Name/Entity validation based on Role
+        if (role === ROLES.INSTITUTE) {
+            if (!formData.instituteName.trim()) {
+                newErrors.instituteName = "Institute Name is required.";
+            }
+            if (!formData.address.trim()) {
+                newErrors.address = "Address is required.";
+            }
+        } else {
+            // Tutors and Students
+            if (!formData.firstName.trim()) {
+                newErrors.firstName = "First Name is required.";
+            }
+            if (!formData.lastName.trim()) {
+                newErrors.lastName = "Last Name is required.";
+            }
+        }
+
+        // 4. Student specific validation
+        if (role === ROLES.STUDENT && !formData.grade) {
+            newErrors.grade = "Please select your grade.";
+        }
+
+        // If there are any errors, set them and stop
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            // Optional: set a global error if many fields are missing
+            if (Object.keys(newErrors).length > 2) {
+                setGlobalError("Please fill in all required fields.");
+            }
             return;
         }
 
@@ -151,13 +178,33 @@ const SelectField = ({ id, label, value, onChange, groups, placeholder, required
         const cleanDateOfBirth = formData.dateOfBirth === '' ? null : formData.dateOfBirth;
 
         try {
-            if (isSocial) {
-                // SOCIAL REGISTER FLOW 
+            if (isLinkedAccount) {
+                const siblingPayload = {
+                    identifier: linkedPhoneNumber,
+                    verificationToken: "VERIFIED",
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    schoolName: formData.school,
+                    grade: formData.grade,
+                    parentName: formData.parentName,
+                    dateOfBirth: cleanDateOfBirth || new Date().toISOString(),
+                    cityId: parseInt(formData.cityId)
+                };
+
+                const result = await registerSibling(siblingPayload);
+
+                if (result.success) {
+                    setIsSuccess(true);
+                    setTimeout(() => navigate('/login'), 2000);
+                } else {
+                    setGlobalError(result.error?.message || "Sibling registration failed.");
+                }
+            }
+            else if (isSocial) {
                 const payload = {
-                    provider: stepOneData.provider, // "Google"
-                    idToken: socialProfile.idToken, // The token from Google
+                    provider: stepOneData.provider,
+                    idToken: socialProfile.idToken,
                     role: stepOneData.role,
-                    // Extra Profile Data
                     phoneNumber: formData.phoneNumber,
                     firstName: formData.firstName,
                     lastName: formData.lastName,
@@ -169,36 +216,58 @@ const SelectField = ({ id, label, value, onChange, groups, placeholder, required
                     parentName: formData.parentName,
                     dateOfBirth: cleanDateOfBirth,
                     instituteName: formData.instituteName,
-                    address: formData.address
+                    address: formData.address,
+                    cityId: parseInt(formData.cityId)
                 };
-
-                // Call the updated Social Login Endpoint
-                const response = await socialLogin(payload);
-                navigate('/dashboard'); 
-            } else {
-                // MANUAL REGISTER FLOW
-                const fullRegistrationData = {
-                    ...stepOneData,
-                    ...formData,
-                    schoolName: formData.school,
-                    bankAccountNumber: formData.bankAccount,
-                    dateOfBirth: cleanDateOfBirth,
-                    ExperienceYears: 0,
-                    instituteName: formData.instituteName,
-                    address: formData.address
-                };
-                
-                const result = await manualRegister(fullRegistrationData);
-                if (result.success) {
-                    navigate('/dashboard');
-                } else {
-                    setGlobalError(extractErrorMessage(result.error));
+                await socialLogin(payload);
+                setIsSuccess(true);
+                setTimeout(() => navigate('/login'), 2000);
+            }
+            else {
+                try {
+                    setIsSubmitting(true);
+                    await sendRegistrationOtp(formData.phoneNumber);
+                    setShowOtpModal(true);
+                } catch (error) {
+                    setGlobalError(error.message);
+                } finally {
+                    setIsSubmitting(false);
                 }
             }
         } catch (error) {
-             setGlobalError(isSocial ? error.message : "Registration failed.");
+            setGlobalError(error.message || "Registration failed.");
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleVerifyOtp = async (otpCode) => {
+        try {
+            const fullRegistrationData = {
+                ...stepOneData,
+                ...formData,
+                cityId: parseInt(formData.cityId),
+                schoolName: formData.school,
+                bankAccountNumber: formData.bankAccount,
+                dateOfBirth: formData.dateOfBirth === '' ? null : formData.dateOfBirth,
+                ExperienceYears: 0,
+                instituteName: formData.instituteName,
+                address: formData.address,
+                otpCode: otpCode
+            };
+
+            const result = await manualRegister(fullRegistrationData);
+
+            if (result.success) {
+                setShowOtpModal(false);
+                setIsSuccess(true);
+                setTimeout(() => navigate('/login'), 2000);
+            } else {
+                throw new Error(result.error?.message || "Registration failed.");
+            }
+        } catch (error) {
+            console.error("Verification Error", error);
+            throw error;
         }
     };
 
@@ -207,39 +276,35 @@ const SelectField = ({ id, label, value, onChange, groups, placeholder, required
             case ROLES.TUTOR:
                 return (
                     <>
-                        <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required />
-                        <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required />
-                        <FormField id="bio" label="Bio" value={formData.bio} onChange={handleChange} />
-                        <FormField id="bankAccount" label="Bank Account" value={formData.bankAccount} onChange={handleChange} />
-                        <FormField id="bankName" label="Bank Name" value={formData.bankName} onChange={handleChange} />
+                        <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required error={errors.firstName} />
+                        <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required error={errors.lastName} />
                     </>
                 );
             case ROLES.STUDENT:
                 return (
-                <>
-            <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required />
-            <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required />
-            <FormField id="school" label="School Name" value={formData.school} onChange={handleChange} />
-       
-           <SelectField 
-                id="grade"
-                label="Grade / Course ..."
-                value={formData.grade}
-                onChange={handleChange}
-                groups={GRADE_GROUPS}      
-                placeholder="Select Grade"         
-                error={errors.grade}       
-            />
-
-            <FormField id="parentName" label="Parent Name" value={formData.parentName} onChange={handleChange} />
-            <FormField id="dateOfBirth" label="Date of Birth" type="date" value={formData.dateOfBirth} onChange={handleChange} />
-        </>
-    );
+                    <>
+                        <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required error={errors.firstName} />
+                        <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required error={errors.lastName} />
+                        <FormField id="school" label="School Name" value={formData.school} onChange={handleChange} error={errors.school} />
+                        <SelectField
+                            id="grade"
+                            label="Grade / Course"
+                            value={formData.grade}
+                            onChange={handleChange}
+                            groups={GRADE_GROUPS}
+                            placeholder="Select Grade"
+                            required={true}
+                            error={errors.grade}
+                        />
+                        <FormField id="parentName" label="Parent Name" value={formData.parentName} onChange={handleChange} error={errors.parentName} />
+                        <FormField id="dateOfBirth" label="Date of Birth" type="date" value={formData.dateOfBirth} onChange={handleChange} error={errors.dateOfBirth} />
+                    </>
+                );
             case ROLES.INSTITUTE:
                 return (
                     <>
-                        <FormField id="instituteName" label="Institute Name" value={formData.instituteName} onChange={handleChange} required />
-                        <FormField id="address" label="Address" value={formData.address} onChange={handleChange} required />
+                        <FormField id="instituteName" label="Institute Name" value={formData.instituteName} onChange={handleChange} required error={errors.instituteName} />
+                        <FormField id="address" label="Address" value={formData.address} onChange={handleChange} required error={errors.address} />
                     </>
                 );
             default:
@@ -247,39 +312,95 @@ const SelectField = ({ id, label, value, onChange, groups, placeholder, required
         }
     };
 
+    if (isSuccess) {
+        return (
+            <AuthLayout>
+                <div className="flex flex-col items-center justify-center py-16 px-4 text-center animate-in fade-in zoom-in-95 duration-300">
+                    <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6 shadow-sm ring-4 ring-green-50 dark:ring-green-900/10">
+                        <CheckCircle2 size={40} className="text-green-500 dark:text-green-400" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Registration Successful!</h2>
+                    <p className="text-gray-500 dark:text-gray-400 max-w-sm text-sm leading-relaxed">
+                        Your account has been securely created. Redirecting you to the login page to access your new dashboard...
+                    </p>
+                </div>
+            </AuthLayout>
+        );
+    }
+
     return (
         <AuthLayout>
             <div className="w-full">
-                <h1 className="text-2xl font-semibold text-gray-900 text-center">
+                <h1 className="text-2xl font-semibold text-gray-900 dark:text-white text-center">
                     {isSocial ? `Complete your ${stepOneData.provider} Sign up` : 'Tell us about yourself'}
                 </h1>
 
                 <form className="space-y-4 mt-6" onSubmit={handleSubmit}>
                     <FormField
                         id="phoneNumber"
-                        label={<>Phone Number <span className="text-red-500">*</span></>}
+                        label="Phone Number"
+                        required
                         type="tel"
                         placeholder="0712345678"
                         value={formData.phoneNumber}
                         onChange={handleChange}
                         onBlur={handlePhoneBlur}
                         error={errors.phoneNumber}
+                        disabled={isPhoneLocked}
                     />
-                    {renderRoleFields()}
-                    
-                    {globalError && (
-                        <p className="text-xs text-red-500 mt-1 text-center">{globalError}</p>
+
+                    {/* Help text under the phone field */}
+                    {isLinkedAccount && (
+                        <p className="text-xs text-blue-600 dark:text-blue-400 -mt-3 mb-2">* Linked to parent account</p>
                     )}
+                    {phoneEnteredInStep1 && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 -mt-3 mb-2 flex items-center gap-1">
+                            <ArrowLeft size={12} />
+                            To use a different number,{' '}
+                            <button
+                                type="button"
+                                onClick={() => navigate('/register')}
+                                className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                            >
+                                go back
+                            </button>
+                            {' '}and enter it there.
+                        </p>
+                    )}
+
+                    {/* Stacked Vertical Layout for better UI */}
+                    <div className="pt-2">
+                        <LocationSelector
+                            onCityChange={handleCityChange}
+                            error={errors.cityId}
+                        />
+                    </div>
+
+                    {renderRoleFields()}
+
+                    {globalError && <p className="text-xs text-red-500 dark:text-red-400 mt-1 text-center">{globalError}</p>}
 
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-all"
+                        className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-500 transition-all"
                     >
                         {isSubmitting ? 'Completing...' : 'Complete Registration'}
                     </button>
                 </form>
             </div>
+            
+            <OtpVerificationModal
+                isOpen={showOtpModal}
+                onClose={() => {
+                    setShowOtpModal(false);
+                    // Fix: No account is created yet at this point.
+                    // Registration only happens after OTP is successfully verified.
+                    setGlobalError("OTP verification cancelled. Please click 'Complete Registration' again to resend the code.");
+                }}
+                onVerify={handleVerifyOtp}
+                identifier={formData.phoneNumber}
+            />
         </AuthLayout>
     );
 };

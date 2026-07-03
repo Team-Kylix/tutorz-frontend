@@ -1,9 +1,15 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
+  // We no longer manually load from localStorage on boot.
+  // redux-persist will intercept the store initialization and 
+  // automatically rehydrate 'user' and 'token' from IndexedDB 
+  // asynchronously, preventing the UI thread from blocking.
   user: null,
   token: null,
   isAuthenticated: false,
+  loading: false,
+  error: null
 };
 
 const authSlice = createSlice({
@@ -11,17 +17,28 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     loginSuccess: (state, action) => {
+      // We only update the Redux state in memory. 
+      // redux-persist will detect this change and automatically push 
+      // the new state into the background IndexedDB storage.
       state.user = action.payload.user;
       state.token = action.payload.token;
       state.isAuthenticated = true;
     },
     logout: (state) => {
+      // Reset auth state — redux-persist will sync this wipe to IndexedDB.
+      // Full cache + storage clearing is handled by logoutUser() in useAuth.js
+      // and the 401 interceptor in apiClient.js.
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
     },
+    updateUser: (state, action) => {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload };
+      }
+    },
   },
 });
 
-export const { loginSuccess, logout } = authSlice.actions;
+export const { loginSuccess, logout, updateUser } = authSlice.actions;
 export default authSlice.reducer;
