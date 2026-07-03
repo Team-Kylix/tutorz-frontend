@@ -1,12 +1,27 @@
 import apiClient from './apiClient';
 
-export const getStudentProfile = async () => {
+let cache = {
+  profile: null,
+  classes: null,
+  attendance: null,
+  payments: null,
+  medals: null
+};
+
+export const clearStudentDashboardCache = () => {
+  cache = { profile: null, classes: null, attendance: null, payments: null, medals: null };
+};
+
+export const getStudentProfile = async (forceRefresh = false) => {
+  if (cache.profile && !forceRefresh) return cache.profile;
   const response = await apiClient.get('/student/profile');
+  cache.profile = response.data;
   return response.data;
 };
 
 export const updateStudentProfile = async (data) => {
   const response = await apiClient.put('/student/profile', data);
+  clearStudentDashboardCache();
   return response.data;
 };
 
@@ -30,14 +45,17 @@ export const requestJoinClass = async (classId) => {
   // Ensure the body matches the JoinClassRequest DTO on the backend
   // Backend expects: public class JoinClassRequest { public Guid ClassId { get; set; } }
   const response = await apiClient.post('/student/join-class', { classId: classId });
+  clearStudentDashboardCache();
   return response.data;
 };
 
 /**
  * Gets all classes the student has joined with Approved status.
  */
-export const getStudentClasses = async () => {
+export const getStudentClasses = async (forceRefresh = false) => {
+  if (cache.classes && !forceRefresh) return cache.classes;
   const response = await apiClient.get('/student/classes');
+  cache.classes = response.data;
   return response.data;
 };
 
@@ -67,6 +85,7 @@ export const getTimetableByDate = async (date) => {
  */
 export const leaveClass = async (classId) => {
   const response = await apiClient.put(`/student/leave-class/${classId}`);
+  clearStudentDashboardCache();
   return response.data;
 };
 
@@ -76,7 +95,10 @@ export const leaveClass = async (classId) => {
  * @param {string} classId - Optional class GUID
  * @param {string} date - Optional date string (YYYY-MM-DD)
  */
-export const getStudentAttendanceHistory = async (tutorId, classId, date) => {
+export const getStudentAttendanceHistory = async (tutorId, classId, date, forceRefresh = false) => {
+  const isDefaultCall = !tutorId && !classId && !date;
+  if (isDefaultCall && cache.attendance && !forceRefresh) return cache.attendance;
+
   let targetDate;
   if (date instanceof Date) {
     const y = date.getFullYear();
@@ -90,6 +112,8 @@ export const getStudentAttendanceHistory = async (tutorId, classId, date) => {
   const response = await apiClient.get('/student/attendance-history', {
     params: { tutorId, classId, date: targetDate }
   });
+
+  if (isDefaultCall) cache.attendance = response.data;
   return response.data;
 };
 
@@ -101,7 +125,10 @@ export const getStudentAttendanceHistory = async (tutorId, classId, date) => {
  * @param {number} page - Page number (default 1)
  * @param {number} pageSize - Page size (default 10)
  */
-export const getStudentPaymentHistory = async (tutorId, classId, monthYear, page = 1, pageSize = 10) => {
+export const getStudentPaymentHistory = async (tutorId, classId, monthYear, page = 1, pageSize = 10, forceRefresh = false) => {
+  const isDefaultCall = !tutorId && !classId && !monthYear && page === 1 && pageSize === 200;
+  if (isDefaultCall && cache.payments && !forceRefresh) return cache.payments;
+
   const response = await apiClient.get('/student/payment-history', {
     params: {
       tutorId: tutorId || undefined,
@@ -111,6 +138,8 @@ export const getStudentPaymentHistory = async (tutorId, classId, monthYear, page
       pageSize
     }
   });
+
+  if (isDefaultCall) cache.payments = response.data;
   return response.data;
 };
 
@@ -152,7 +181,9 @@ export const downloadClassPaymentPdf = async (paymentId, reference = 'ClassFee')
   }
 };
 
-export const getStudentMedalsCount = async () => {
+export const getStudentMedalsCount = async (forceRefresh = false) => {
+  if (cache.medals && !forceRefresh) return cache.medals;
   const response = await apiClient.get('/student/medals/count');
+  cache.medals = response.data;
   return response.data;
 };

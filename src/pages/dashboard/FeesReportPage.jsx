@@ -152,57 +152,7 @@ const FeesReportPage = () => {
                 )}
             </div>
 
-            {/* Request Withdrawal Modal */}
-            {requestModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                            <BellRing className="h-5 w-5 text-indigo-500" />
-                            Request Withdrawal
-                        </h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                            This will send a notification to the institute. They will process the payment.
-                        </p>
-                        {availableBalance !== null && (
-                            <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3 flex justify-between items-center">
-                                <span className="text-sm text-indigo-700 dark:text-indigo-300">Available Balance</span>
-                                <span className="font-bold text-indigo-700 dark:text-indigo-300">{formatCurrency(availableBalance)}</span>
-                            </div>
-                        )}
-                        <div className="space-y-1">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Withdrawal Amount (Rs)
-                            </label>
-                            <input
-                                type="number"
-                                min="1"
-                                max={availableBalance ?? undefined}
-                                step="0.01"
-                                value={requestAmount}
-                                onChange={e => setRequestAmount(e.target.value)}
-                                placeholder="e.g. 5000.00"
-                                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                            />
-                        </div>
-                        <div className="flex gap-3 pt-2">
-                            <button
-                                onClick={() => { setRequestModalOpen(false); setRequestAmount(''); }}
-                                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleRequestConfirm}
-                                disabled={isRequesting || !requestAmount || Number(requestAmount) <= 0}
-                                className="flex-1 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                            >
-                                {isRequesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellRing className="h-4 w-4" />}
-                                Send Request
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+
 
             {/* Download Confirm Modal */}
             <ConfirmationModal

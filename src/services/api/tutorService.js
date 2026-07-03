@@ -1,17 +1,29 @@
 import apiClient from './apiClient';
 
-export const getClasses = async () => {
+let dashboardStatsCache = null;
+let classesCache = null;
+
+export const clearTutorDashboardCache = () => {
+  dashboardStatsCache = null;
+  classesCache = null;
+};
+
+export const getClasses = async (forceRefresh = false) => {
+  if (classesCache && !forceRefresh) return classesCache;
   const response = await apiClient.get('/tutor/classes');
+  classesCache = response.data;
   return response.data;
 };
 
 export const createClass = async (data) => {
   const response = await apiClient.post('/tutor/classes', data);
+  clearTutorDashboardCache();
   return response.data;
 };
 
 export const updateClass = async (id, data) => {
   const response = await apiClient.put(`/tutor/classes/${id}`, data);
+  clearTutorDashboardCache();
   return response.data;
 };
 
@@ -22,6 +34,7 @@ export const addStudentToClass = async (data) => {
 
 export const deleteClass = async (id) => {
   const response = await apiClient.delete(`/tutor/classes/${id}`);
+  clearTutorDashboardCache();
   return response.data;
 };
 
@@ -53,6 +66,13 @@ export const processStudentRequests = async (enrollmentIds, action) => {
 
 export const getStudentProfileForTutor = async (studentId) => {
   const response = await apiClient.get(`/tutor/student-profile/${studentId}`);
+  return response.data;
+};
+
+export const getDashboardStats = async (forceRefresh = false) => {
+  if (dashboardStatsCache && !forceRefresh) return dashboardStatsCache;
+  const response = await apiClient.get('/tutor/dashboard-stats');
+  dashboardStatsCache = response.data;
   return response.data;
 };
 

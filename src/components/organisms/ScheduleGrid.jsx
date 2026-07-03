@@ -97,17 +97,17 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
                 if (user?.role === ROLES.STUDENT) {
                     // Student: fetch enrolled classes for this specific date
                     const res = await getStudentTimetable(viewDate, bypassCache);
-                    rawList = res?.data || [];
+                    rawList = Array.isArray(res) ? res : (res?.data || []);
 
                 } else if (user?.role === ROLES.INSTITUTE) {
                     // Institute: fetch all institute classes for this specific date
                     const res = await getInstituteTimetable(viewDate, bypassCache);
-                    rawList = res?.data || [];
+                    rawList = Array.isArray(res) ? res : (res?.data || []);
 
                 } else if (user?.role === ROLES.TUTOR) {
                     // Tutor: fetch ALL tutor classes then filter client-side by the selected date.
-                    const res = await getTutorClasses('', 1, 100);
-                    const allTutorClasses = res?.data?.items || res?.data || [];
+                    const res = await getTutorClasses();
+                    const allTutorClasses = Array.isArray(res) ? res : (res?.data?.items || res?.data || []);
                     const selectedDayStr = format(viewDate, 'EEEE');
                     rawList = allTutorClasses.filter(c => {
                         if (c.classType === 'Class' && c.dayOfWeek) {
