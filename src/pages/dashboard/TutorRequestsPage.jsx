@@ -6,20 +6,22 @@ import {
 import RowActions from '../../components/molecules/RowActions';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
-import StatCard from '../../components/molecules/StatCard';
-import { getInstituteRequests, processInstituteRequest } from '../../services/api/tutorService';
+import { getInstituteRequests, processInstituteRequest, searchInstituteExact, requestJoinInstitute } from '../../services/api/tutorService';
+import SearchAssignModal from '../../components/organisms/SearchAssignModal';
+import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 
 const TutorRequestsPage = () => {
-    // State for requests
-    const [requests, setRequests] = useState([
-        // Mock data to show the table UI
-        { requestId: 1, instituteName: 'Apex Academy', instituteId: 'INST-001', requestDate: '2023-10-27' },
-        { requestId: 2, instituteName: 'Pioneer Institute', instituteId: 'INST-002', requestDate: '2023-10-28' }
-    ]);
-    const [totalCount, setTotalCount] = useState(2);
+    const [requests, setRequests] = useState([]);
+    const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [error, setError] = useState('');
+
+    const [showSearchModal, setShowSearchModal] = useState(false);
+    const [isSendingRequest, setIsSendingRequest] = useState(false);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [selectedInstituteId, setSelectedInstituteId] = useState(null);
 
     // Pagination and Search State
     const [searchTerm, setSearchTerm] = useState('');
@@ -113,6 +115,26 @@ const TutorRequestsPage = () => {
         }
     };
 
+    const handleSendRequest = (instituteId) => {
+        setSelectedInstituteId(instituteId);
+        setShowConfirmModal(true);
+    };
+
+    const confirmSendRequest = async () => {
+        setIsSendingRequest(true);
+        try {
+            await requestJoinInstitute(selectedInstituteId);
+            setShowConfirmModal(false);
+            setShowSearchModal(false);
+            setShowSuccessModal(true);
+        } catch (err) {
+            setError(err.message || 'Failed to send request.');
+            setShowConfirmModal(false);
+        } finally {
+            setIsSendingRequest(false);
+        }
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
@@ -124,6 +146,13 @@ const TutorRequestsPage = () => {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <Button
+                        onClick={() => setShowSearchModal(true)}
+                        className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                        <Building size={16} />
+                        Send Request
+                    </Button>
                     <button
                         onClick={fetchRequests}
                         disabled={isLoading}
@@ -135,55 +164,52 @@ const TutorRequestsPage = () => {
                 </div>
             </div>
 
-            {/* Stats Banner & Search */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="w-full md:w-64">
-                    <StatCard
-                        label="Pending Requests"
-                        value={totalCount}
-                        change="Awaiting your response"
-                        icon={Clock}
-                        color="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
-                    />
-                </div>
-
-                <div className="relative w-full max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <Input
-                        type="text"
-                        placeholder="Search institutes..."
-                        className="pl-10 shadow-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-            </div>
-
-            {/* Content Table */}
-            {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400">
-                    <Loader2 size={32} className="animate-spin text-purple-500" />
-                    <span className="text-sm font-medium">Loading requests...</span>
-                </div>
-            ) : error ? (
-                <div className="flex flex-col items-center gap-3 py-16 text-red-500 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30">
-                    <AlertCircle size={36} strokeWidth={1.5} />
-                    <p className="text-sm font-medium">{error}</p>
-                    <Button variant="outline" onClick={fetchRequests}>Retry</Button>
-                </div>
-            ) : requests.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 transition-colors">
-                    <Building size={48} className="mx-auto mb-4 opacity-20" />
-                    <p className="font-medium text-gray-600 dark:text-gray-400">
-                        {debouncedSearchTerm ? 'No matching requests found.' : 'No pending requests.'}
-                    </p>
-                    {debouncedSearchTerm && (
-                        <p className="text-sm mt-2 text-gray-400">Try a different search term.</p>
+            {/* Main Content Container */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+                
+                {/* Top Bar with Search */}
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
+                    <div className="relative w-full max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <Input
+                            type="text"
+                            placeholder="Search institutes..."
+                            className="pl-10 shadow-sm"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    {totalCount > 0 && (
+                        <span className="ml-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 whitespace-nowrap">
+                            <Clock size={12} />
+                            {totalCount} pending
+                        </span>
                     )}
                 </div>
-            ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
-                    {/* Fixed Height Scrollable Container */}
+
+                {/* Content Area */}
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400">
+                        <Loader2 size={32} className="animate-spin text-purple-500" />
+                        <span className="text-sm font-medium">Loading requests...</span>
+                    </div>
+                ) : error ? (
+                    <div className="flex flex-col items-center gap-3 py-16 text-red-500 bg-red-50 dark:bg-red-900/10">
+                        <AlertCircle size={36} strokeWidth={1.5} />
+                        <p className="text-sm font-medium">{error}</p>
+                        <Button variant="outline" onClick={fetchRequests}>Retry</Button>
+                    </div>
+                ) : requests.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50">
+                        <Building size={48} className="mx-auto mb-4 opacity-20" />
+                        <p className="font-medium text-gray-600 dark:text-gray-400">
+                            {debouncedSearchTerm ? 'No matching requests found.' : 'No pending requests.'}
+                        </p>
+                        {debouncedSearchTerm && (
+                            <p className="text-sm mt-2 text-gray-400">Try a different search term.</p>
+                        )}
+                    </div>
+                ) : (
                     <div
                         className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar"
                         onScroll={handleScroll}
@@ -192,7 +218,8 @@ const TutorRequestsPage = () => {
                             <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                                 <tr>
                                     <th className="px-6 py-4 font-semibold">Institute Name</th>
-                                    <th className="px-6 py-4 font-semibold">Institute ID</th>
+                                    <th className="px-6 py-4 font-semibold">Registration No</th>
+                                    <th className="px-6 py-4 font-semibold">Mobile Number</th>
                                     <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                                 </tr>
                             </thead>
@@ -215,8 +242,11 @@ const TutorRequestsPage = () => {
                                             </td>
                                             <td className="px-6 py-4 font-mono text-xs">
                                                 <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300">
-                                                    {request.instituteId || '-'}
+                                                    {request.instituteRegNumber || '-'}
                                                 </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm">
+                                                {request.institutePhoneNumber || '-'}
                                             </td>
                                             <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
                                                 <RowActions actions={[
@@ -243,8 +273,38 @@ const TutorRequestsPage = () => {
                             </div>
                         )}
                     </div>
-                </div>
-            )}
+                )}
+            </div>
+            <SearchAssignModal
+                isOpen={showSearchModal}
+                onClose={() => setShowSearchModal(false)}
+                onSendRequest={handleSendRequest}
+                searchFunction={searchInstituteExact}
+                entityType="Institute"
+                isLoadingAction={isSendingRequest}
+            />
+
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showConfirmModal}
+                onClose={() => setShowConfirmModal(false)}
+                onConfirm={confirmSendRequest}
+                title="Send Join Request"
+                message="Are you sure you want to send a join request to this institute?"
+                confirmLabel="Send Request"
+                isSubmitting={isSendingRequest}
+            />
+
+            {/* Success Modal */}
+            <ConfirmationModal
+                isOpen={showSuccessModal}
+                onClose={() => setShowSuccessModal(false)}
+                onConfirm={() => setShowSuccessModal(false)}
+                title="Request Sent!"
+                message="Your join request has been sent successfully to the institute."
+                variant="success"
+                confirmLabel="Got it"
+            />
         </div>
     );
 };

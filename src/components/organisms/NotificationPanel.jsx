@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
   X, 
@@ -98,12 +99,13 @@ const NotificationPanel = () => {
     dispatch(markAllAsReadThunk());
   };
 
-  return (
+  return createPortal(
     <>
       {/* Background Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/20 dark:bg-black/40 z-40 transition-opacity duration-300"
+          className="fixed inset-0 bg-black/20 dark:bg-black/40 transition-opacity duration-300"
+          style={{ zIndex: 9999 }}
           onMouseDown={(e) => {
             // Stop propagation so the document mousedown handler doesn't
             // also fire (both would call closePanel — harmless but cleaner).
@@ -118,11 +120,12 @@ const NotificationPanel = () => {
         ref={panelRef}
         className={`
           fixed top-0 right-0 h-full w-80 sm:w-[380px] bg-white dark:bg-gray-800 
-          border-l border-gray-200 dark:border-gray-700 shadow-2xl z-50 
+          border-l border-gray-200 dark:border-gray-700 shadow-2xl 
           transition-transform duration-300 ease-in-out transform
           ${isOpen ? 'translate-x-0' : 'translate-x-full'}
           flex flex-col scrollbar-hide
         `}
+        style={{ zIndex: 10000 }}
       >
         {/* Header */}
         <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
@@ -227,7 +230,8 @@ const NotificationPanel = () => {
           <p className="text-[10px] text-gray-400 uppercase tracking-[0.2em] font-medium">Tutorz Cloud Hub v1.0</p>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };
 

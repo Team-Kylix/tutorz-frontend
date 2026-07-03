@@ -20,7 +20,7 @@ const GRADE_GROUPS = [
     { label: "Other", options: ['Course', 'Seminar', 'Workshop'] }
 ];
 
-const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, user }) => {
+const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, user, customAssignFn, extraRegisterPayload }) => {
     const dispatch = useDispatch();
     
     // Flow states
@@ -106,8 +106,8 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             setIsRegistering(false);
 
             // Fetch profile if needed (only for Institutes)
-            if (user?.role === 'Institute' && !instituteProfile && user?.userId) {
-                getInstituteProfile(user.userId).then(res => {
+            if (user?.role === 'Institute' && !instituteProfile) {
+                getInstituteProfile().then(res => {
                     if (res?.success) setInstituteProfile(res.data);
                 }).catch(err => console.error("Failed to fetch institute profile", err));
             }
@@ -145,9 +145,14 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
         setAssigningId(item.roleSpecificId);
         setFeedback({ id: null, type: '', message: '' });
         try {
-            const assignFn = selectedRole === 'Student' ? assignStudent : sendTutorRequest;
-            await assignFn(item.roleSpecificId);
-            setFeedback({ id: item.roleSpecificId, type: 'success', message: selectedRole === 'Student' ? 'Assigned successfully!' : 'Join request sent successfully!' });
+            if (customAssignFn) {
+                await customAssignFn(item);
+                setFeedback({ id: item.roleSpecificId, type: 'success', message: 'Assigned successfully!' });
+            } else {
+                const assignFn = selectedRole === 'Student' ? assignStudent : sendTutorRequest;
+                await assignFn(item.roleSpecificId);
+                setFeedback({ id: item.roleSpecificId, type: 'success', message: selectedRole === 'Student' ? 'Assigned successfully!' : 'Join request sent successfully!' });
+            }
             
             setResults(prev =>
                 prev.map(r => r.roleSpecificId === item.roleSpecificId ? { ...r, isAlreadyAssigned: true } : r)
@@ -323,7 +328,13 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             const isSibling = isSiblingRegistration && selectedRole === 'Student';
             
             let actionType = SYNC_ACTION_TYPES.REGISTER_USER;
-            let actualPayload = { isSibling, registrationData: payload };
+            let actualPayload = { 
+                isSibling, 
+                registrationData: {
+                    ...payload,
+                    ...(extraRegisterPayload || {})
+                } 
+            };
             let dedupeKey = `register_${payload.phoneNumber || payload.identifier}`;
 
             if (selectedRole === 'Admin') {
@@ -441,7 +452,6 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                     role: "Student",
                     email: checkData.email || `student.${mobileStr}@tutorz.lk`,
                     phoneNumber: mobileStr,
-                    password: generatedPassword,
                     schoolName: "Not Provided",
                     parentName: "Not Provided",
                     dateOfBirth: new Date().toISOString(),
@@ -451,7 +461,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 });
                 setSuccessMessage({ 
                     title: "Registration Successful!", 
-                    message: `Student account created successfully.\n\nDefault Password: ${generatedPassword}` 
+                    message: `Student account created successfully.\n\nA secure password has been sent to ${mobileStr} via SMS.` 
                 });
             }
         } else {
@@ -466,7 +476,6 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 role: "Tutor",
                 email: checkData.email || `tutor.${mobileStr}@tutorz.lk`,
                 phoneNumber: mobileStr,
-                password: generatedPassword,
                 bio: formData.bio,
                 bankAccountNumber: formData.bankAccountNumber,
                 bankName: formData.bankName,
@@ -477,7 +486,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             });
             setSuccessMessage({ 
                 title: "Tutor Added Successfully!", 
-                message: `Tutor account created successfully.\n\nDefault Password: ${generatedPassword}` 
+                message: `Tutor account created successfully.\n\nA secure password has been sent to ${mobileStr} via SMS.` 
             });
         }
     };

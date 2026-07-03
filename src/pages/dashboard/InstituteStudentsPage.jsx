@@ -7,6 +7,7 @@ import RowActions from '../../components/molecules/RowActions';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import InstituteSearchAssignModal from '../../components/organisms/InstituteSearchAssignModal';
+import AccountViewModal from '../../components/organisms/AccountViewModal';
 import { getAssignedStudents } from '../../services/api/instituteService';
 import { useAuth } from '../../hooks/useAuth';
 import { BASE_URL } from '../../services/api/apiClient';
@@ -47,6 +48,10 @@ const InstituteStudentsPage = () => {
     const [error, setError] = useState('');
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
 
+    // Profile Modal State
+    const [selectedAccount, setSelectedAccount] = useState(null);
+    const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+
     // Pagination and Search State
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -62,7 +67,7 @@ const InstituteStudentsPage = () => {
         return () => clearTimeout(handler);
     }, [searchTerm]);
 
-    const fetchStudents = useCallback(async (isLoadMore = false, currentPage = 1, currentSearch = '') => {
+    const fetchStudents = useCallback(async (isLoadMore = false, currentPage = 1, currentSearch = '', bypassCache = false) => {
         if (!isLoadMore) {
             setIsLoading(true);
         } else {
@@ -71,7 +76,7 @@ const InstituteStudentsPage = () => {
         setError('');
 
         try {
-            const res = await getAssignedStudents(currentSearch, currentPage, PAGE_SIZE);
+            const res = await getAssignedStudents(currentSearch, currentPage, PAGE_SIZE, bypassCache);
             const newStudents = res.data?.items || [];
 
             if (isLoadMore) {
@@ -100,7 +105,7 @@ const InstituteStudentsPage = () => {
         // Refresh from start
         setSearchTerm('');
         setPage(1);
-        fetchStudents(false, 1, '');
+        fetchStudents(false, 1, '', true);
     };
 
     const handleScroll = (e) => {
@@ -111,6 +116,17 @@ const InstituteStudentsPage = () => {
             setPage(nextPage);
             fetchStudents(true, nextPage, debouncedSearchTerm);
         }
+    };
+
+    const handleViewProfile = (student) => {
+        setSelectedAccount({
+            ...student,
+            role: 'Student',
+            name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Unknown',
+            profileImageUrlLarge: student.profileImageUrlLarge,
+            profileImageUrlSmall: student.profileImageUrlSmall
+        });
+        setIsAccountModalOpen(true);
     };
 
     return (
@@ -125,7 +141,7 @@ const InstituteStudentsPage = () => {
                 </div>
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={fetchStudents}
+                        onClick={() => fetchStudents(false, 1, debouncedSearchTerm, true)}
                         disabled={isLoading}
                         className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
                         title="Refresh"
@@ -234,7 +250,7 @@ const InstituteStudentsPage = () => {
                                             </td>
                                             <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
                                                 <RowActions actions={[
-                                                    { label: 'View Profile', icon: Eye, onClick: () => {} },
+                                                    { label: 'View Profile', icon: Eye, onClick: () => handleViewProfile(student) },
                                                 ]} />
                                             </td>
                                         </tr>
@@ -264,8 +280,14 @@ const InstituteStudentsPage = () => {
                 isOpen={isAssignModalOpen}
                 onClose={() => setIsAssignModalOpen(false)}
                 type="Student"
-                onAssigned={handleAssigned}
+                onAssigned={() => fetchStudents(false, 1, debouncedSearchTerm, true)}
                 user={user}
+            />
+
+            <AccountViewModal 
+                isOpen={isAccountModalOpen} 
+                onClose={() => setIsAccountModalOpen(false)} 
+                account={selectedAccount} 
             />
         </div>
     );

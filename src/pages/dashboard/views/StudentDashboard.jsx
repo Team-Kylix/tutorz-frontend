@@ -14,6 +14,8 @@ const StudentDashboard = ({ user, setActivePage }) => {
   const [enrolledClasses, setEnrolledClasses] = useState([]);
   const [attendanceStats, setAttendanceStats] = useState(0);
   const [fullProfile, setFullProfile] = useState(null);
+  const [financialStats, setFinancialStats] = useState({ dueAmount: 0, pendingCount: 0, paidThisMonth: 0 });
+  const [medalsStats, setMedalsStats] = useState(0);
   const { loading: isLoading } = useApi();
   
   const userGrade = fullProfile?.grade || user?.grade;
@@ -21,10 +23,12 @@ const StudentDashboard = ({ user, setActivePage }) => {
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
-        const [classesRes, attendanceRes, profileRes] = await Promise.all([
+        const [classesRes, attendanceRes, profileRes, financialsRes, medalsRes] = await Promise.all([
           studentService.getStudentClasses(),
           studentService.getStudentAttendanceHistory(),
-          studentService.getStudentProfile()
+          studentService.getStudentProfile(),
+          studentService.getStudentPaymentHistory(undefined, undefined, undefined, 1, 200).catch(() => ([])),
+          studentService.getStudentMedalsCount().catch(() => ({ data: 0 }))
         ]);
         
         if (classesRes.success) {
@@ -57,6 +61,36 @@ const StudentDashboard = ({ user, setActivePage }) => {
            
            const visualRate = totalSlots > 0 ? Math.round((totalAttended / totalSlots) * 100) : 0;
            setAttendanceStats(visualRate);
+        }
+
+        let dueSum = 0;
+        let pendingC = 0;
+        let paidMonth = 0;
+        
+        let paymentResponse = financialsRes;
+        if (paymentResponse?.data && paymentResponse.success !== false) {
+            paymentResponse = paymentResponse.data;
+        }
+        const paymentsData = paymentResponse?.paginatedPayments?.items || paymentResponse?.items || (Array.isArray(paymentResponse) ? paymentResponse : []);
+        
+        const currentMonthPrefix = new Date().toISOString().substring(0, 7);
+        
+        paymentsData.forEach(payment => {
+           const status = (payment.status || '').toLowerCase();
+           if (status === 'due') {
+              dueSum += Number(payment.classFee || 0);
+              pendingC++;
+           } else if (status === 'paid') {
+              if (payment.paidAt && payment.paidAt.startsWith(currentMonthPrefix)) {
+                 paidMonth += Number(payment.amountPaid || 0);
+              }
+           }
+        });
+        
+        setFinancialStats({ dueAmount: dueSum, pendingCount: pendingC, paidThisMonth: paidMonth });
+
+        if (medalsRes && (medalsRes.success !== false)) {
+            setMedalsStats(medalsRes.data || 0);
         }
       } catch (err) {
         console.error("Dashboard error", err);
@@ -98,7 +132,15 @@ const StudentDashboard = ({ user, setActivePage }) => {
       </div>
 
       {/* Stats Row */}
-      <StudentStatsGrid classesCount={enrolledClasses.length} attendanceRate={attendanceStats} isLoading={isLoading} />
+      <StudentStatsGrid 
+        classesCount={enrolledClasses.length} 
+        attendanceRate={attendanceStats} 
+        dueAmount={financialStats.dueAmount}
+        pendingCount={financialStats.pendingCount}
+        paidThisMonth={financialStats.paidThisMonth}
+        medalsCount={medalsStats}
+        isLoading={isLoading} 
+      />
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

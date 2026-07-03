@@ -19,8 +19,9 @@ import Select from '../atoms/Select';
 import { enqueueAction, SYNC_ACTION_TYPES, selectPendingCount, selectUnseenConflicts, markConflictAsSeen, clearSeenConflicts, selectTombstones } from '../../store/syncSlice';
 
 /**
- * MarkAttendanceModal (Rapid Attendance Marker)
- * High-speed multi-step modal for marking student attendance.
+ * StudentHub Modal
+ * Multi-purpose modal for marking attendance, recording fee payments,
+ * and assigning students to classes — all from a single fast flow.
  */
 const MarkAttendanceModal = ({ isOpen, onClose }) => {
     const dispatch = useDispatch();
@@ -504,7 +505,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                             <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200">
                             {isTodayMode ? "Other Classes Today" : isSearchMode ? "Search & Assign Any Class" : "Active Enrolled Classes"}
                         </h4>
-                        {!assignmentMode && (
+                        {!assignmentMode && classesToList.length > 0 && (
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => {
@@ -758,7 +759,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                 onClose={onClose}
                 title={
                     <div className="flex items-center gap-2">
-                        {step === 1 ? "Rapid Attendance" : "Smart Class Confirm"}
+                        {step === 1 ? "Student Hub" : "Confirm Action"}
                         {successToast && step === 1 && (
                             <span className="ml-auto text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full animate-in slide-in-from-top">
                                 {successToast}

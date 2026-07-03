@@ -8,6 +8,9 @@ const Select = ({ children, className = '', ...props }) => {
                 bg-white dark:bg-gray-800 
                 border-gray-300 dark:border-gray-700 
                 text-gray-900 dark:text-white 
+                disabled:bg-gray-100 dark:disabled:bg-gray-900/50 
+                disabled:text-gray-400 dark:disabled:text-gray-500 
+                disabled:cursor-not-allowed disabled:border-gray-200 dark:disabled:border-gray-800
                 ${className}
             `.trim()}
             {...props}

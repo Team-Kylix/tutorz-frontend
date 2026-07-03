@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, BookOpen, Calendar, DollarSign,
   FileText, QrCode, Settings, ChevronRight, ChevronLeft, LogOut,
   Building, ShieldAlert, UserCog, CheckSquare, GraduationCap, UserCheck, UserPlus, Clock, Info, CloudOff, MessageSquareWarning,
-  Bell, Receipt, CreditCard, HelpCircle
+  Bell, Receipt, CreditCard, HelpCircle, Wallet, Award
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SidebarItem from '../molecules/SidebarItem';
@@ -93,10 +93,12 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'timetable', label: 'Timetable', icon: Clock },
     { id: 'student-requests', label: 'Student Requests', icon: Users },
     { id: 'tutor-requests', label: 'Institute Requests', icon: Building },
-    { id: 'students', label: 'Students & Medals', icon: GraduationCap },
+    { id: 'marks-management', label: 'Marks Management', icon: Award },
     { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
     { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
     { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
+    { id: 'fees-report', label: 'Fees Report', icon: FileText },
+    { id: 'withdrawals', label: 'Withdrawals', icon: Wallet },
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'profile', label: 'Profile & QR', icon: QrCode },
     { id: 'complains', label: 'Complains', icon: MessageSquareWarning },
@@ -109,6 +111,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'timetable', label: 'Timetable', icon: Clock },
     { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
     { id: 'financials', label: 'Financials', icon: CreditCard },
+    { id: 'my-marks', label: 'My Marks', icon: Award },
     { id: 'attendance', label: 'My Attendance', icon: Calendar },
     { id: 'profile', label: 'My Profile', icon: QrCode },
     { id: 'complains', label: 'Complains', icon: MessageSquareWarning },
@@ -120,12 +123,14 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
     { id: 'classes', label: 'My Classes', icon: BookOpen },
     { id: 'timetable', label: 'Timetable', icon: Clock },
     { id: 'hall-management', label: 'Hall Management', icon: Building },
-    { id: 'institute-requests', label: 'Requests', icon: UserPlus },
+    { id: 'institute-requests', label: 'Tutors Requests', icon: UserPlus },
     { id: 'institute-students', label: 'Students', icon: GraduationCap },
     { id: 'institute-tutors', label: 'Tutors', icon: UserCheck },
     { id: 'attendance', label: 'Mark Attendance', icon: Calendar },
     { id: 'financials', label: 'Financials & Invoices', icon: DollarSign },
     { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
+    { id: 'fees-report', label: 'Fees Report', icon: FileText },
+    { id: 'withdrawals', label: 'Withdrawals', icon: Wallet },
     { id: 'profile', label: 'Profile & QR', icon: QrCode },
     { id: 'complains', label: 'Complains', icon: MessageSquareWarning },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -133,19 +138,15 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
 
   const adminMenu = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+    { id: 'classes', label: 'System Classes', icon: BookOpen },
     { id: 'institutes', label: 'Institutes', icon: Building },
     { id: 'admin-students', label: 'Students', icon: GraduationCap },
     { id: 'admin-teachers', label: 'Teachers', icon: UserCheck },
-
-
-
-    { id: 'platform-finance', label: 'Platform Finance', icon: DollarSign },
-
+    { id: 'financials', label: 'System Financials', icon: CreditCard },
+    { id: 'platform-finance', label: 'Platform Finance', icon: Receipt },
     { id: 'disputes', label: 'Disputes', icon: HelpCircle },
     { id: 'system-config', label: 'System Configuration', icon: Settings },
-
     { id: 'profile', label: 'My Profile', icon: QrCode },
-
   ];
 
   const getMenuItems = () => {
@@ -164,7 +165,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   return (
     <>
       {!isCollapsed && (
-        <div className="fixed inset-0 bg-black/20 z-20 md:hidden" onClick={toggleSidebar}></div>
+        <div className="fixed inset-0 bg-black/20 z-50 md:hidden" onClick={toggleSidebar}></div>
       )}
 
       {/* Standard Logout Confirmation */}
@@ -209,7 +210,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
         )}
       </ConfirmationModal>
 
-      <aside className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen fixed left-0 top-0 z-30 transition-all duration-300 ease-in-out scrollbar-hide ${isCollapsed ? '-translate-x-full md:translate-x-0 md:w-20' : 'w-64'}`}>
+      <aside className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen fixed left-0 top-0 z-50 transition-all duration-300 ease-in-out scrollbar-hide ${isCollapsed ? '-translate-x-full md:translate-x-0 md:w-20' : 'w-64'}`}>
 
         {/* Header */}
         <div className={`h-16 flex items-center px-4 border-b border-gray-100 dark:border-gray-700 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>

@@ -1,33 +1,36 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, UserPlus, Search, RefreshCw, BookOpen } from 'lucide-react';
+import { Plus, Edit2, UserPlus, Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar } from 'lucide-react';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
-import ClassCard from '../../components/molecules/ClassCard';
+import RowActions from '../../components/molecules/RowActions';
 import ClassFormModal from '../../components/organisms/ClassFormModal';
 import AddStudentModal from '../../components/organisms/AddStudentModal';
+import InstituteSearchAssignModal from '../../components/organisms/InstituteSearchAssignModal';
 import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 import useApi from '../../hooks/useApi';
 import * as tutorService from '../../services/api/tutorService';
 import { useDispatch, useSelector } from 'react-redux';
-import { enqueueAction, SYNC_ACTION_TYPES, selectPendingCount } from '../../store/syncSlice';
-import { setClassesData, addTutorClass, updateTutorClass, removeTutorClass } from '../../store/tutorSlice';
+import { selectPendingCount } from '../../store/syncSlice';
+import { enqueueAction, SYNC_ACTION_TYPES } from '../../store/syncSlice';
+import { setClassesData, updateTutorClass, removeTutorClass } from '../../store/tutorSlice';
 
 const ClassesPage = () => {
   const dispatch = useDispatch();
   const pendingCount = useSelector(selectPendingCount);
   const prevPendingRef = React.useRef(pendingCount);
   const { classes, isFetched } = useSelector(state => state.tutorData);
+  const { user } = useSelector(state => state.auth);
 
   // State
   const [isClassModalOpen, setClassModalOpen] = useState(false);
   const [isStudentModalOpen, setStudentModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
-  const [selectedClassId, setSelectedClassId] = useState(null);
+  const [selectedClass, setSelectedClass] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Confirmation & Success Modal States
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [isRegisterModalOpen, setRegisterModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
   // Delete States
@@ -97,8 +100,8 @@ const ClassesPage = () => {
     setDeleteConfirmOpen(true);
   };
 
-  const handleAddStudentClick = (classId) => {
-    setSelectedClassId(classId);
+  const handleAddStudentClick = (cls) => {
+    setSelectedClass(cls);
     setStudentModalOpen(true);
   };
 
@@ -152,45 +155,52 @@ const ClassesPage = () => {
   };
 
   const handleConfirmSave = async () => {
-    // Ensure payload is prepared
+    // Close the confirmation modal immediately
+    setIsConfirmOpen(false);
+
     const cleanPayload = preparePayload(pendingFormData);
 
-    setIsConfirmOpen(false);
-    setClassModalOpen(false);
-    setClassFormError('');
-    setPendingFormData(null);
-
     if (editingClass) {
-      // Update Mode
-      dispatch(updateTutorClass({ classId: editingClass.classId, ...cleanPayload }));
-      
-      dispatch(enqueueAction({
-        actionType: SYNC_ACTION_TYPES.UPDATE_CLASS,
-        payload: { id: editingClass.classId, classData: cleanPayload },
-        label: `Update Class: ${cleanPayload.className}`,
-      }));
-      setSuccessMessage("Class updated offline (Syncing...)!");
+      // ── Update Mode: direct API call (overlap errors need immediate feedback) ──
+      const { data, error } = await saveClass(tutorService.updateClass, editingClass.classId, cleanPayload);
+      if (error) {
+        // Show the error in the form modal
+        setClassFormError(error);
+        setEditingClass(editingClass);   // keep editing context
+        setClassModalOpen(true);         // reopen form so user sees the error
+        setPendingFormData(null);
+        return;
+      }
+      if (data) {
+        // Refresh the list so the updated class appears with its real data
+        dispatch(updateTutorClass({ classId: editingClass.classId, ...cleanPayload }));
+        loadClasses(true);
+        setClassModalOpen(false);
+        setClassFormError('');
+        setPendingFormData(null);
+        setSuccessMessage("Class updated successfully!");
+        setIsSuccessOpen(true);
+      }
     } else {
-      // Create Mode
-      const tempId = `temp_${Date.now()}`;
-      const newClass = {
-        ...cleanPayload,
-        classId: tempId,
-        studentCount: 0,
-        isOptimistic: true
-      };
-      
-      dispatch(addTutorClass(newClass));
-      
-      dispatch(enqueueAction({
-        actionType: SYNC_ACTION_TYPES.CREATE_CLASS,
-        payload: { classData: cleanPayload },
-        label: `Create Class: ${cleanPayload.className}`,
-      }));
-      setSuccessMessage("Class added offline (Syncing...)!");
+      // ── Create Mode: direct API call (overlap errors need immediate feedback) ──
+      const { data, error } = await saveClass(tutorService.createClass, cleanPayload);
+      if (error) {
+        // Show the error in the form modal
+        setClassFormError(error);
+        setClassModalOpen(true);   // reopen form so user sees the error
+        setPendingFormData(null);
+        return;
+      }
+      if (data) {
+        // Reload from server so the new class has its real ID (no temp_ / Syncing...)
+        loadClasses(true);
+        setClassModalOpen(false);
+        setClassFormError('');
+        setPendingFormData(null);
+        setSuccessMessage("Class created successfully!");
+        setIsSuccessOpen(true);
+      }
     }
-
-    setIsSuccessOpen(true);
   };
 
   const handleConfirmDelete = async () => {
@@ -212,14 +222,17 @@ const ClassesPage = () => {
   };
 
   const handleStudentSubmit = async (regNo) => {
-    const { data } = await saveClass(tutorService.addStudentToClass, {
-      classId: selectedClassId,
+    const { data, error } = await saveClass(tutorService.addStudentToClass, {
+      classId: selectedClass?.classId,
       studentRegistrationNumber: regNo
     });
     if (data) {
       setSuccessMessage("Student added successfully!");
       setIsSuccessOpen(true);
       setStudentModalOpen(false);
+      return { success: true };
+    } else if (error) {
+      return { success: false, error: error || "Failed to add student." };
     }
   };
 
@@ -268,55 +281,117 @@ const ClassesPage = () => {
             </div>
         </div>
 
-        {/* Content Area */}
-        {isLoading ? (
-          <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading classes...</div>
-        ) : (
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-gray-50/50 dark:bg-gray-900/50">
-          {filteredClasses.map((cls) => {
-            const isTemp = cls.isOptimistic || cls.classId.toString().startsWith('temp_');
-            return (
-            <div key={cls.classId} className="relative group">
-              <ClassCard
-                className={cls.className}
-                subject={cls.subject}
-                grade={cls.grade}
-                classType={cls.classType}
-                time={`${cls.dayOfWeek || (cls.date ? cls.date.split('T')[0] : '')} ${cls.startTime} - ${cls.endTime}`}
-                students={cls.studentCount}
-                fee={cls.fee}
-                status={cls.isActive ? 'active' : 'inactive'}
-                instituteName={cls.instituteName}
-              />
-              <div className="absolute top-4 right-4 flex gap-2">
-                <button
-                  onClick={() => !isTemp && handleEditClick(cls)}
-                  disabled={isTemp}
-                  className={`p-1.5 shadow-sm border border-gray-100 dark:border-gray-700 rounded-full transition-colors ${
-                    isTemp ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
-                  }`}
-                  title={isTemp ? "Syncing to server..." : "Edit Class"}
-                >
-                  <Edit2 size={16} />
-                </button>
-                <button
-                  onClick={() => handleAddStudentClick(cls.classId)}
-                  className="p-1.5 bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 text-blue-600 dark:text-blue-400 transition-colors"
-                  title="Add Student"
-                >
-                  <UserPlus size={16} />
-                </button>
-              </div>
-            </div>
-            );
-          })}
-          {filteredClasses.length === 0 && (
-            <div className="col-span-full text-center py-10 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 transition-colors">
-              No classes found. Create one to get started!
-            </div>
-          )}
+        {/* Table View */}
+        <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
+            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
+                <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
+                    <tr>
+                        <th className="px-6 py-4 font-semibold">Class Name</th>
+                        <th className="px-6 py-4 font-semibold">Subject / Grade</th>
+                        <th className="px-6 py-4 font-semibold">Time</th>
+                        <th className="px-6 py-4 font-semibold">Date / Day</th>
+                        <th className="px-6 py-4 font-semibold">Location</th>
+                        <th className="px-6 py-4 font-semibold">Fees (Rs)</th>
+                        <th className="px-6 py-4 font-semibold text-center">Students</th>
+                        <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                    {filteredClasses.length > 0 ? (
+                        filteredClasses.map((cls, index) => {
+                            const isTemp = cls.isOptimistic || cls.classId.toString().startsWith('temp_');
+                            return (
+                                <tr
+                                    key={cls.classId || index}
+                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors group ${
+                                        !cls.isActive ? 'opacity-60 bg-gray-50/50 dark:bg-gray-800/50' : ''
+                                    }`}
+                                >
+                                    <td className="px-6 py-4">
+                                        <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                            <span>{cls.className || '-'}</span>
+                                            {!cls.isActive && (
+                                                <span className="px-2 py-0.5 text-[10px] tracking-wider font-bold bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md">
+                                                    INACTIVE
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                            <span className="text-blue-600 dark:text-blue-400 opacity-75">{cls.classType || 'Class'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-md font-medium w-max">
+                                                {cls.subject || '-'}
+                                            </span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{cls.grade || '-'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                                            <Clock size={14} />
+                                            <span>{cls.startTime} - {cls.endTime}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                                            <Calendar size={14} />
+                                            <span className="capitalize">{cls.dayOfWeek || (cls.date ? new Date(cls.date).toLocaleDateString() : '-')}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-1.5">
+                                            <Building2 size={14} className="text-gray-400" />
+                                            <span className="font-medium">{cls.instituteName || 'Online/Private'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-sm font-semibold text-green-500 mr-1">Rs</span>
+                                            <span>{cls.fee?.toLocaleString() || '0'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <div className="inline-flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full text-sm font-bold min-w-[3rem] gap-1.5">
+                                            <Users size={14} />
+                                            <span>{cls.studentCount || 0}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                        {!isTemp ? (
+                                            <RowActions actions={[
+                                                { label: 'Edit Class', icon: Edit2, onClick: () => handleEditClick(cls) },
+                                                { label: 'Add Student', icon: UserPlus, onClick: () => handleAddStudentClick(cls) },
+                                            ]} />
+                                        ) : (
+                                            <span className="text-xs text-gray-400 px-4 whitespace-nowrap">Syncing...</span>
+                                        )}
+                                    </td>
+                                </tr>
+                            );
+                        })
+                    ) : (
+                        <tr>
+                            <td colSpan={8} className="px-6 py-12 text-center">
+                                {isLoading ? (
+                                    <div className="flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+                                        <RefreshCw size={24} className="animate-spin text-blue-500 mb-3" />
+                                        <p>Loading classes...</p>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+                                        <BookOpen size={32} className="text-gray-300 dark:text-gray-600 mb-3" />
+                                        <p className="text-lg font-medium text-gray-900 dark:text-white mb-1">No Classes Found</p>
+                                        <p className="max-w-md">There are no classes matching your current search criteria, or you haven't created any classes yet.</p>
+                                    </div>
+                                )}
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
         </div>
-      )}
       </div>
 
       {/* --- MODALS --- */}
@@ -331,6 +406,7 @@ const ClassesPage = () => {
         isSubmitting={isSaving}
         existingClasses={classes}
         backendError={classFormError}
+        onClearBackendError={() => setClassFormError('')}
       />
 
       <AddStudentModal
@@ -338,6 +414,22 @@ const ClassesPage = () => {
         onClose={() => setStudentModalOpen(false)}
         onSubmit={handleStudentSubmit}
         isSubmitting={isSaving}
+        selectedClass={selectedClass}
+        onOpenRegister={() => {
+            setStudentModalOpen(false);
+            setRegisterModalOpen(true);
+        }}
+      />
+
+      <InstituteSearchAssignModal
+        isOpen={isRegisterModalOpen}
+        onClose={() => setRegisterModalOpen(false)}
+        type="Student"
+        user={user}
+        customAssignFn={async (item) => {
+            await handleStudentSubmit(item.registrationNumber || item.identifier);
+        }}
+        extraRegisterPayload={{ classId: selectedClass?.classId }}
       />
 
       <ConfirmationModal

@@ -1,5 +1,6 @@
 import apiClient from '../api/apiClient';
 import { store } from '../../store';
+import { clearNotificationsCache } from '../api/notificationService';
 
 /**Calls the backend API to register a new user.
  * @param {object} registrationData - The complete data object from the multi-step form.
@@ -12,14 +13,18 @@ export const register = async (registrationData) => {
 
         // We pass the whole object directly
         const response = await apiClient.post('/auth/register', registrationData);
+        
+        clearNotificationsCache(); // Clear notification cache so dashboard updates
 
         // response.data will be the AuthResponse object from your C# backend
         // { userId, email, role, token }
         return response.data;
 
-    } catch (err) {
-        // If the API returns an error, throw it
-        throw new Error(err.response?.data?.message || 'Registration failed. Please try again.');
+    } catch (error) {
+        console.error("Registration error:", error.response?.data || error.message);
+        const err = new Error(error.response?.data?.message || 'Registration failed');
+        if (error.response) err.response = error.response;
+        throw err;
     }
 };
 
@@ -139,9 +144,15 @@ export const registerSibling = async (siblingData) => {
     try {
         // Matches Backend: [HttpPost("register-sibling")]
         const response = await apiClient.post('/auth/register-sibling', siblingData);
+        
+        clearNotificationsCache(); // Clear notification cache so dashboard updates
+        
         return response.data;
-    } catch (err) {
-        throw new Error(err.response?.data?.message || 'Sibling registration failed.');
+    } catch (error) {
+        console.error("Sibling Registration error:", error.response?.data || error.message);
+        const err = new Error(error.response?.data?.message || 'Sibling registration failed');
+        if (error.response) err.response = error.response;
+        throw err;
     }
 };
 

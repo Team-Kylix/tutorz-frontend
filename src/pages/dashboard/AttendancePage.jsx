@@ -4,6 +4,10 @@ import Select from '../../components/atoms/Select';
 import Input from '../../components/atoms/Input';
 import AttendanceTable from '../../components/organisms/AttendanceTable';
 import { searchTutors, getInstituteClasses, getClassAttendanceHistory, markAttendance } from '../../services/api/instituteService';
+import * as tutorService from '../../services/api/tutorService';
+import { getTutorAttendanceHistory } from '../../services/api/tutorService';
+import { useAuth } from '../../hooks/useAuth';
+import { ROLES } from '../../utils/constants';
 
 // Fallback toast since react-toastify is not installed
 const toast = {
@@ -12,15 +16,19 @@ const toast = {
 };
 
 const AttendancePage = () => {
+    const { user } = useAuth();
+    const isTutor = user?.role === ROLES.TUTOR;
+
     // Dropdown Data State
     const [classes, setClasses] = useState([]);
     const [isLoadingDropdowns, setIsLoadingDropdowns] = useState(true);
 
     // Selection State
     const [selectedTutorId, setSelectedTutorId] = useState('');
+    const [selectedInstituteId, setSelectedInstituteId] = useState('');
     const [selectedClassId, setSelectedClassId] = useState('');
 
-    // Tutor Search State
+    // Tutor Search State (For Institute Role)
     const [tutorSearchQuery, setTutorSearchQuery] = useState('');
     const [debouncedTutorQuery, setDebouncedTutorQuery] = useState('');
     const [tutorSuggestions, setTutorSuggestions] = useState([]);
@@ -37,12 +45,6 @@ const AttendancePage = () => {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [error, setError] = useState(null);
 
-    // Summary Stats State
-    const [stats, setStats] = useState({
-        totalReceived: 0,
-        totalDue: 0,
-        totalStudentCount: 0
-    });
 
     // Pagination State
     const [page, setPage] = useState(1);
@@ -58,14 +60,16 @@ const AttendancePage = () => {
 
     // Debounce tutor search
     useEffect(() => {
+        if (isTutor) return;
         const handler = setTimeout(() => {
             setDebouncedTutorQuery(tutorSearchQuery);
         }, 500);
         return () => clearTimeout(handler);
-    }, [tutorSearchQuery]);
+    }, [tutorSearchQuery, isTutor]);
 
-    // Fetch Tutor Suggestions
+    // Fetch Tutor Suggestions (Only for Institute)
     useEffect(() => {
+        if (isTutor) return;
         const fetchTutors = async () => {
             if (!debouncedTutorQuery.trim()) {
                 setTutorSuggestions([]);
@@ -88,17 +92,22 @@ const AttendancePage = () => {
         };
 
         fetchTutors();
-    }, [debouncedTutorQuery, selectedTutorId]);
+    }, [debouncedTutorQuery, selectedTutorId, isTutor]);
 
     // Fetch Classes on Mount
     useEffect(() => {
         const fetchDropdownData = async () => {
             setIsLoadingDropdowns(true);
             try {
-                // Fetch up to 100 classes to populate the dropdowns
-                const classesRes = await getInstituteClasses('', 1, 100);
-                const classesData = classesRes.data ? classesRes.data : classesRes;
-                setClasses(classesData.items || classesData || []);
+                if (isTutor) {
+                    const classesData = await tutorService.getClasses();
+                    setClasses(classesData || []);
+                } else {
+                    // Fetch up to 100 classes to populate the dropdowns for Institute
+                    const classesRes = await getInstituteClasses('', 1, 100);
+                    const classesData = classesRes.data ? classesRes.data : classesRes;
+                    setClasses(classesData.items || classesData || []);
+                }
             } catch (err) {
                 console.error("Failed to fetch dropdown data:", err);
                 toast?.error?.("Failed to load classes.");
@@ -108,18 +117,43 @@ const AttendancePage = () => {
         };
 
         fetchDropdownData();
-    }, []);
+    }, [isTutor]);
 
-    // Derived State: Filter classes by the selected tutor
+    // Derived State for Tutors: Available Institutes
+    const availableInstitutes = useMemo(() => {
+        if (!isTutor) return [];
+        const instMap = new Map();
+        let hasOwnPlace = false;
+        classes.forEach(cls => {
+            if (cls.instituteId) {
+                instMap.set(cls.instituteId, cls.instituteName);
+            } else {
+                hasOwnPlace = true;
+            }
+        });
+        const instList = Array.from(instMap.entries()).map(([id, name]) => ({ id, name }));
+        if (hasOwnPlace) {
+            instList.unshift({ id: 'own', name: 'My Own Place' });
+        }
+        return instList;
+    }, [classes, isTutor]);
+
+    // Derived State: Filter classes
     const availableClasses = useMemo(() => {
-        if (!selectedTutorId) return [];
-        // Optional: filter classes by tutor. Fallback to all if property is missing.
-        return classes.filter(cls => !cls.tutorId || cls.tutorId === selectedTutorId || cls.tutor?.tutorId === selectedTutorId);
-    }, [selectedTutorId, classes]);
+        if (isTutor) {
+            if (!selectedInstituteId) return classes;
+            if (selectedInstituteId === 'own') return classes.filter(cls => !cls.instituteId);
+            return classes.filter(cls => String(cls.instituteId) === String(selectedInstituteId));
+        } else {
+            if (!selectedTutorId) return [];
+            return classes.filter(cls => !cls.tutorId || cls.tutorId === selectedTutorId || cls.tutor?.tutorId === selectedTutorId);
+        }
+    }, [isTutor, selectedInstituteId, selectedTutorId, classes]);
 
     // Fetch Attendance History when Class, Search, or Page changes
     const fetchAttendanceHistory = useCallback(async (currentPage = 1) => {
-        if (!selectedClassId) {
+        // For Institute role: require a tutor to be selected first
+        if (!isTutor && !selectedTutorId) {
             setStudents([]);
             setClassDates([]);
             return;
@@ -131,10 +165,24 @@ const AttendancePage = () => {
         setError(null);
 
         try {
-            let response = await getClassAttendanceHistory(selectedTutorId, selectedClassId, undefined, undefined, debouncedSearchQuery, currentPage, 10);
-
-            if (response.data && response.success !== false) {
-                response = response.data;
+            let response;
+            if (isTutor) {
+                // Use the tutor-specific endpoint (avoids 403 from institute route)
+                const cId = selectedClassId || undefined;
+                // Pass institute filter: selectedInstituteId ('own', a GUID, or '' for all)
+                const instId = selectedInstituteId || undefined;
+                response = await getTutorAttendanceHistory(cId, instId, debouncedSearchQuery, currentPage, 10);
+                if (response.data && response.success !== false) {
+                    response = response.data;
+                }
+            } else {
+                const tId = selectedTutorId;
+                // Pass undefined when no class is selected so backend returns all classes
+                const cId = selectedClassId || undefined;
+                response = await getClassAttendanceHistory(tId, cId, undefined, undefined, debouncedSearchQuery, currentPage, 10);
+                if (response.data && response.success !== false) {
+                    response = response.data;
+                }
             }
 
             const normalizeDate = (isoString) => isoString.split('T')[0];
@@ -150,24 +198,22 @@ const AttendancePage = () => {
                         normalizedAttendance[normalizeDate(isoDate)] = student.attendanceRecord[isoDate];
                     });
                 }
+                // Per-student conducted dates from the backend (dates when THIS student's class ran).
+                // Falls back to the global list only if not provided.
+                const perStudentConductedDates = (student.classConductedDates || []).map(normalizeDate);
                 return {
                     ...student,
                     id: student.studentId,
                     name: student.name,
                     regNo: student.registrationNumber,
                     mobile: student.mobileNumber,
-                    attendance: normalizedAttendance
+                    attendance: normalizedAttendance,
+                    classConductedDates: perStudentConductedDates.length > 0 ? perStudentConductedDates : normalizedDates
                 };
             });
 
             if (currentPage === 1) {
                 setStudents(normalizedStudents);
-                // Extract summary statistics
-                setStats({
-                    totalReceived: response.totalReceived || 0,
-                    totalDue: response.totalDue || 0,
-                    totalStudentCount: response.totalStudentCount || 0
-                });
             } else {
                 setStudents(prev => [...prev, ...normalizedStudents]);
             }
@@ -185,14 +231,14 @@ const AttendancePage = () => {
             setIsLoadingAttendance(false);
             setIsLoadingMore(false);
         }
-    }, [selectedClassId, debouncedSearchQuery, selectedTutorId]);
+    }, [selectedClassId, selectedInstituteId, debouncedSearchQuery, selectedTutorId, isTutor]);
 
     // Trigger fetch on filter change
     useEffect(() => {
         setPage(1);
         setHasMore(true);
         fetchAttendanceHistory(1);
-    }, [selectedClassId, debouncedSearchQuery, fetchAttendanceHistory]);
+    }, [selectedClassId, selectedInstituteId, debouncedSearchQuery, fetchAttendanceHistory]);
 
     // Trigger fetch on page increment
     useEffect(() => {
@@ -216,6 +262,11 @@ const AttendancePage = () => {
     }, [handleScroll]);
 
     // Handlers
+    const handleInstituteChange = (e) => {
+        setSelectedInstituteId(e.target.value);
+        setSelectedClassId(''); // Reset class when institute changes
+    };
+
     const handleClassChange = (e) => {
         setSelectedClassId(e.target.value);
         setSearchQuery(''); // Reset search when class changes
@@ -241,11 +292,6 @@ const AttendancePage = () => {
         }));
 
         try {
-            // The existing backend markAttendance asks for studentId and classId. 
-            // It inherently marks it for "now" or "today".
-            // Since this API was pre-existing (`instituteService.markAttendance(studentId, classId)`), we'll call it.
-            // If the user tries to mark old dates, the backend needs an explicit date param,
-            // but for now we'll assume the markAttendance endpoint handles it or we're marking today.
             await markAttendance(studentId, selectedClassId);
             toast?.success?.("Attendance marked successfully");
         } catch (err) {
@@ -280,73 +326,93 @@ const AttendancePage = () => {
             {/* Filter Controls Area */}
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col md:flex-row gap-4 items-end">
 
-                {/* Tutor Selection (Search) */}
-                <div className="w-full md:w-1/4 flex flex-col items-start gap-1 relative">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Search Tutor
-                    </label>
-                    <div className="relative w-full">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search className="h-4 w-4 text-gray-400" />
-                        </div>
-                        <Input
-                            type="text"
-                            placeholder="Type name, reg no or mobile..."
-                            className="pl-10 relative !w-full"
-                            value={tutorSearchQuery}
-                            onFocus={() => setShowTutorDropdown(true)}
-                            onBlur={() => setTimeout(() => setShowTutorDropdown(false), 200)}
-                            onChange={(e) => {
-                                setTutorSearchQuery(e.target.value);
-                                if (selectedTutorId) {
-                                    setSelectedTutorId(''); // Clear selection on new typing
-                                    setSelectedClassId(''); // Reset class
-                                }
-                            }}
+                {/* Conditional Selection: Institute (for Tutors) vs Tutor (for Institutes) */}
+                {isTutor ? (
+                    <div className="w-full md:w-1/4 flex flex-col items-start gap-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Select Institute
+                        </label>
+                        <Select
+                            value={selectedInstituteId}
+                            onChange={handleInstituteChange}
                             disabled={isLoadingDropdowns}
-                        />
-                        {isSearchingTutors && (
-                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                        >
+                            <option value="">-- All Institutes --</option>
+                            {availableInstitutes.map(inst => (
+                                <option key={inst.id} value={inst.id}>
+                                    {inst.name}
+                                </option>
+                            ))}
+                        </Select>
+                    </div>
+                ) : (
+                    <div className="w-full md:w-1/4 flex flex-col items-start gap-1 relative">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Search Tutor
+                        </label>
+                        <div className="relative w-full">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <Search className="h-4 w-4 text-gray-400" />
+                            </div>
+                            <Input
+                                type="text"
+                                placeholder="Type name, reg no or mobile..."
+                                className="pl-10 relative !w-full"
+                                value={tutorSearchQuery}
+                                onFocus={() => setShowTutorDropdown(true)}
+                                onBlur={() => setTimeout(() => setShowTutorDropdown(false), 200)}
+                                onChange={(e) => {
+                                    setTutorSearchQuery(e.target.value);
+                                    if (selectedTutorId) {
+                                        setSelectedTutorId(''); // Clear selection on new typing
+                                        setSelectedClassId(''); // Reset class
+                                    }
+                                }}
+                                disabled={isLoadingDropdowns}
+                            />
+                            {isSearchingTutors && (
+                                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Tutor Autocomplete Dropdown */}
+                        {showTutorDropdown && tutorSuggestions.length > 0 && tutorSearchQuery && !selectedTutorId && (
+                            <ul className="absolute z-50 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm top-[100%] mt-1">
+                                {tutorSuggestions.map((tutor) => {
+                                    const tId = tutor.roleSpecificId || tutor.tutorId || tutor.id;
+                                    return (
+                                        <li
+                                            key={tId}
+                                            className="text-gray-900 dark:text-gray-100 cursor-pointer select-none relative py-2 pl-3 pr-4 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                            onMouseDown={() => {
+                                                setSelectedTutorId(tId);
+                                                setTutorSearchQuery(tutor.name || `${tutor.firstName || ''} ${tutor.lastName || ''}`.trim() || tutor.registrationNumber);
+                                                setShowTutorDropdown(false);
+                                                setSelectedClassId('');
+                                            }}
+                                        >
+                                            <div className="flex flex-col">
+                                                <span className="font-semibold">{tutor.name || `${tutor.firstName || ''} ${tutor.lastName || ''}`.trim()}</span>
+                                                <div className="flex text-[10px] md:text-xs space-x-1 text-gray-500">
+                                                    <span>{tutor.registrationNumber || 'N/A'}</span>
+                                                    <span>•</span>
+                                                    <span>{tutor.phoneNumber || tutor.mobileNumber || 'N/A'}</span>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}
+                        {showTutorDropdown && tutorSuggestions.length === 0 && !isSearchingTutors && tutorSearchQuery && !selectedTutorId && (
+                            <div className="absolute z-50 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg rounded-md py-3 px-3 text-sm text-center text-gray-500 top-[100%] mt-1">
+                                No tutors found.
                             </div>
                         )}
                     </div>
-
-                    {/* Tutor Autocomplete Dropdown */}
-                    {showTutorDropdown && tutorSuggestions.length > 0 && tutorSearchQuery && !selectedTutorId && (
-                        <ul className="absolute z-50 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm top-[100%] mt-1">
-                            {tutorSuggestions.map((tutor) => {
-                                const tId = tutor.roleSpecificId || tutor.tutorId || tutor.id;
-                                return (
-                                    <li
-                                        key={tId}
-                                        className="text-gray-900 dark:text-gray-100 cursor-pointer select-none relative py-2 pl-3 pr-4 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                        onMouseDown={() => {
-                                            setSelectedTutorId(tId);
-                                            setTutorSearchQuery(tutor.name || `${tutor.firstName || ''} ${tutor.lastName || ''}`.trim() || tutor.registrationNumber);
-                                            setShowTutorDropdown(false);
-                                            setSelectedClassId('');
-                                        }}
-                                    >
-                                        <div className="flex flex-col">
-                                            <span className="font-semibold">{tutor.name || `${tutor.firstName || ''} ${tutor.lastName || ''}`.trim()}</span>
-                                            <div className="flex text-[10px] md:text-xs space-x-1 text-gray-500">
-                                                <span>{tutor.registrationNumber || 'N/A'}</span>
-                                                <span>•</span>
-                                                <span>{tutor.phoneNumber || tutor.mobileNumber || 'N/A'}</span>
-                                            </div>
-                                        </div>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    )}
-                    {showTutorDropdown && tutorSuggestions.length === 0 && !isSearchingTutors && tutorSearchQuery && !selectedTutorId && (
-                        <div className="absolute z-50 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg rounded-md py-3 px-3 text-sm text-center text-gray-500 top-[100%] mt-1">
-                            No tutors found.
-                        </div>
-                    )}
-                </div>
+                )}
 
                 {/* Class Selection */}
                 <div className="w-full md:w-1/4 flex flex-col items-start gap-1">
@@ -356,7 +422,7 @@ const AttendancePage = () => {
                     <Select
                         value={selectedClassId}
                         onChange={handleClassChange}
-                        disabled={!selectedTutorId || isLoadingDropdowns}
+                        disabled={(!isTutor && !selectedTutorId) || isLoadingDropdowns || availableClasses.length === 0}
                     >
                         <option value="">-- Choose a Class --</option>
                         {availableClasses.map(cls => {
@@ -392,29 +458,12 @@ const AttendancePage = () => {
 
             </div>
 
-            {/* Summary Statistics Boxes */}
-            {selectedClassId && !isLoadingAttendance && !error && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
-                    <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Total Students</p>
-                        <p className="text-xl font-bold text-gray-900 dark:text-white">{stats.totalStudentCount}</p>
-                    </div>
-                    <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Amount Received</p>
-                        <p className="text-xl font-bold text-green-600 dark:text-green-400">Rs. {stats.totalReceived.toLocaleString()}</p>
-                    </div>
-                    <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Amount Due</p>
-                        <p className="text-xl font-bold text-orange-600 dark:text-orange-400">Rs. {stats.totalDue.toLocaleString()}</p>
-                    </div>
-                </div>
-            )}
 
             {/* Content Area */}
             <div className="mt-4">
-                {!selectedClassId ? (
+                {!isTutor && !selectedTutorId ? (
                     <div className="bg-gray-50 dark:bg-gray-800/50 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-12 text-center">
-                        <p className="text-gray-500 dark:text-gray-400">Please select a tutor and a class to view attendance history.</p>
+                        <p className="text-gray-500 dark:text-gray-400">Please search for and select a tutor to view attendance history.</p>
                     </div>
                 ) : isLoadingAttendance ? (
                     <div className="flex justify-center items-center p-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">

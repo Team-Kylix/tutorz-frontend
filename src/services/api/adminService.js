@@ -37,13 +37,16 @@ export const getAllStudents = async (searchQuery = '', page = 1, pageSize = 10) 
   }
 };
 
-export const getAllTutors = async (searchQuery = '', page = 1, pageSize = 10) => {
+export const getAllTutors = async (searchQuery = '', page = 1, pageSize = 10, instituteId = null) => {
   try {
     const params = new URLSearchParams({
       searchQuery: searchQuery,
       page: page.toString(),
       pageSize: pageSize.toString()
     });
+    if (instituteId) {
+      params.append('instituteId', instituteId);
+    }
     const response = await apiClient.get(`/system/tutors?${params.toString()}`);
     return response.data;
   } catch (error) {
@@ -93,5 +96,35 @@ export const updateAdminProfile = async (formData) => {
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to update admin profile' };
+  }
+};
+
+export const getSystemPaymentHistory = async (instituteId, tutorId, classId, searchQuery = '', page = 1, pageSize = 10) => {
+  try {
+    const params = new URLSearchParams();
+    if (instituteId) params.append('instituteId', instituteId);
+    if (tutorId) params.append('tutorId', tutorId);
+    if (classId) params.append('classId', classId);
+    if (searchQuery) params.append('searchQuery', searchQuery);
+    params.append('page', page.toString());
+    params.append('pageSize', pageSize.toString());
+
+    const response = await apiClient.get(`/system/payments-history?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch system payments' };
+  }
+};
+
+export const getSystemClasses = async (instituteId, tutorId) => {
+  try {
+    const params = new URLSearchParams();
+    if (instituteId) params.append('instituteId', instituteId);
+    if (tutorId) params.append('tutorId', tutorId);
+
+    const response = await apiClient.get(`/system/classes?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch system classes' };
   }
 };

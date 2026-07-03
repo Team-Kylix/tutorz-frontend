@@ -29,12 +29,6 @@ export const MOCK_USER = {
   tutorId: "T-8821"
 };
 
-export const STATS_DATA = [
-  { label: "Total Students", value: "142", icon: Users, color: "bg-blue-100 text-blue-600", change: "+12%" },
-  { label: "Monthly Income", value: "LKR 125,000", icon: DollarSign, color: "bg-green-100 text-green-600", change: "+5.4%" },
-  { label: "Active Classes", value: "08", icon: BookOpen, color: "bg-purple-100 text-purple-600", change: "0" },
-  { label: "Pending Withdrawals", value: "LKR 25,000", icon: CreditCard, color: "bg-orange-100 text-orange-600", change: "Pending" },
-];
 
 export const UPCOMING_CLASSES_DATA = [
   { id: 1, subject: "Grade 11 Mathematics", time: "02:30 PM - 04:30 PM", hall: "Hall A", students: 45, status: "Starting Soon" },

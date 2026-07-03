@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   MessageSquareWarning, Plus, Loader2, AlertCircle, RefreshCw,
   Clock, CheckCircle, XCircle, Search, ChevronDown, Image as ImageIcon,
-  ShieldAlert, Info
+  ShieldAlert, Info, Trash2
 } from 'lucide-react';
-import { getMyComplaints } from '../../services/api/disputeService';
+import { getMyComplaints, deleteComplaint } from '../../services/api/disputeService';
 import CreateComplaintModal from './CreateComplaintModal';
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ const TrackingTimeline = ({ status }) => {
 };
 
 // ─── Complaint Card ───────────────────────────────────────────────────────────
-const ComplaintCard = ({ dispute }) => {
+const ComplaintCard = ({ dispute, onDeleteRequest }) => {
   const [expanded, setExpanded] = useState(false);
   const date = new Date(dispute.createdAt).toLocaleDateString('en-US', {
     year: 'numeric', month: 'short', day: 'numeric'
@@ -109,6 +109,15 @@ const ComplaintCard = ({ dispute }) => {
             <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">{dispute.title}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {dispute.status === 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDeleteRequest(dispute.id); }}
+                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors border border-transparent hover:border-red-100 dark:hover:border-red-800"
+                title="Delete Complaint"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
             <StatusBadge status={dispute.status} label={dispute.statusLabel} />
             <ChevronDown
               size={18}
@@ -167,6 +176,8 @@ const ComplaintsContent = () => {
   const [page, setPage]                 = useState(1);
   const [hasMore, setHasMore]           = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [deleteId, setDeleteId]         = useState(null);
+  const [isDeleting, setIsDeleting]     = useState(false);
   const PAGE_SIZE = 10;
 
   const fetchComplaints = useCallback(async (isLoadMore = false, currentPage = 1) => {
@@ -205,6 +216,22 @@ const ComplaintsContent = () => {
   const handleSuccess = () => {
     setPage(1);
     fetchComplaints(false, 1);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteId) return;
+    setIsDeleting(true);
+    try {
+      await deleteComplaint(deleteId);
+      setDeleteId(null);
+      // Refresh the list after successful deletion
+      setPage(1);
+      fetchComplaints(false, 1);
+    } catch (err) {
+      alert(err.message || 'Failed to delete complaint.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -268,7 +295,7 @@ const ComplaintsContent = () => {
           onScroll={handleScroll}
         >
           {complaints.map((complaint) => (
-            <ComplaintCard key={complaint.id} dispute={complaint} />
+            <ComplaintCard key={complaint.id} dispute={complaint} onDeleteRequest={setDeleteId} />
           ))}
           {isLoadingMore && (
             <div className="flex items-center justify-center p-4 text-indigo-500 space-x-2">
@@ -290,6 +317,39 @@ const ComplaintsContent = () => {
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleSuccess}
       />
+
+      {/* Delete Confirmation Modal */}
+      {deleteId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-xl border border-gray-100 dark:border-gray-700 transform transition-all scale-100">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                <AlertCircle className="text-red-600 dark:text-red-400" size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Delete Complaint</h3>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
+              Are you sure you want to delete this complaint? This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setDeleteId(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors disabled:opacity-70"
+              >
+                {isDeleting ? <Loader2 size={16} className="animate-spin" /> : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -8,11 +8,14 @@ import StudentDashboard from './views/StudentDashboard';
 import InstituteDashboard from './views/InstituteDashboard';
 import AdminDashboard from './views/AdminDashboard';
 import HallManagement from './views/HallManagement';
+import TutorMarksPage from './TutorMarksPage';
+import StudentMarksPage from './StudentMarksPage';
 
 // Import Pages for Navigation Switching
 import ClassesPage from './ClassesPage';
 import InstituteClassesPage from './InstituteClassesPage';
 import StudentClassesPage from './StudentClassesPage';
+import AdminClassesPage from './AdminClassesPage';
 import TimetablePage from './TimetablePage';
 // Import only the unified profile page
 import UserProfile from './UserProfile';
@@ -25,6 +28,8 @@ import AttendancePage from './AttendancePage';
 import StudentAttendancePage from './StudentAttendancePage';
 import FinancialsPage from './FinancialsPage';
 import StudentFinancialsPage from './StudentFinancialsPage';
+import InstituteFinancialsPage from './InstituteFinancialsPage';
+import AdminFinancialsPage from './AdminFinancialsPage';
 import SettingsPage from './SettingsPage';
 import AdminStudentsPage from './AdminStudentsPage';
 import AdminTeachersPage from './AdminTeachersPage';
@@ -34,6 +39,11 @@ import UserPlatformFinancePage from './UserPlatformFinancePage';
 import AdminSystemConfigPage from './AdminSystemConfigPage';
 import AboutUsContent from '../../components/organisms/AboutUsContent';
 import DisputesPage from './DisputesPage';
+import ReportsPage from './ReportsPage';
+import WithdrawalsPage from './WithdrawalsPage';
+import InstituteWithdrawalsPage from './InstituteWithdrawalsPage';
+import FeesReportPage from './FeesReportPage';
+import InstituteFeesReportPage from './InstituteFeesReportPage';
 
 const DashboardHome = ({ activePage, setActivePage }) => {
   const { user } = useAuth();
@@ -47,11 +57,28 @@ const DashboardHome = ({ activePage, setActivePage }) => {
     if (user?.role === ROLES.STUDENT) {
       return <StudentClassesPage />;
     }
+    if (user?.role === ROLES.ADMIN || user?.role === ROLES.SUPERADMIN) {
+      return <AdminClassesPage />;
+    }
     return <ClassesPage />;
   }
 
   if (activePage === 'timetable') {
     return <TimetablePage />;
+  }
+
+  if (activePage === 'withdrawals') {
+    if (user?.role === ROLES.INSTITUTE) {
+      return <InstituteWithdrawalsPage />;
+    }
+    return <WithdrawalsPage />;
+  }
+
+  if (activePage === 'fees-report') {
+    if (user?.role === ROLES.INSTITUTE) {
+      return <InstituteFeesReportPage />;
+    }
+    return <FeesReportPage />;
   }
 
   if (activePage === 'hall-management') {
@@ -103,9 +130,19 @@ const DashboardHome = ({ activePage, setActivePage }) => {
     return <AttendancePage />;
   }
 
+  if (activePage === 'reports') {
+    return <ReportsPage />;
+  }
+
   if (activePage === 'financials') {
     if (user?.role === ROLES.STUDENT) {
       return <StudentFinancialsPage setActivePage={setActivePage} />;
+    }
+    if (user?.role === ROLES.INSTITUTE) {
+      return <InstituteFinancialsPage />;
+    }
+    if (user?.role === ROLES.ADMIN || user?.role === ROLES.SUPERADMIN) {
+      return <AdminFinancialsPage />;
     }
     return <FinancialsPage />;
   }
@@ -143,6 +180,14 @@ const DashboardHome = ({ activePage, setActivePage }) => {
   }
 
   // --- DASHBOARD RENDERING ---
+  if (activePage === 'marks-management') {
+    return <TutorMarksPage />;
+  }
+
+  if (activePage === 'my-marks') {
+    return <StudentMarksPage />;
+  }
+
   switch (user?.role) {
     case ROLES.TUTOR:
       return <TutorDashboard setActivePage={setActivePage} />;
@@ -155,7 +200,7 @@ const DashboardHome = ({ activePage, setActivePage }) => {
 
     case ROLES.ADMIN:
     case ROLES.SUPERADMIN:
-      return <AdminDashboard user={user} />;
+      return <AdminDashboard user={user} setActivePage={setActivePage} />;
 
     default:
       // Fallback

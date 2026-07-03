@@ -1,24 +1,27 @@
 import React, { useState } from 'react';
-import { FileText, Download, CreditCard, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { FileText, Download, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { cleanClassName } from '../../utils/helpers';
 import RowActions from '../molecules/RowActions';
-import { downloadClassPaymentPdf } from '../../services/api/studentService';
+import { downloadTutorPaymentPdf } from '../../services/api/paymentService';
 
 /**
- * Renders the student payment history table.
+ * Renders the tutor's payment history table.
+ * Mirrors the structure of StudentFinancialsTable but shows
+ * Student Info + Class Info in the primary column.
+ *
  * Props:
- *   payments  — array of StudentPaymentHistoryDto
- *   onPay(payment) — called when student clicks "Pay Now" on a Due row
+ *   payments — array of ClassPaymentHistoryDto from /api/tutor/payments/history
  */
-const StudentFinancialsTable = ({ payments = [], onPay }) => {
+const TutorFinancialsTable = ({ payments = [] }) => {
     const [downloadingId, setDownloadingId] = useState(null);
 
     const handleDownload = async (payment) => {
         if (downloadingId) return;
         setDownloadingId(payment.paymentId);
         try {
-            const ref = `${cleanClassName(payment.className) || payment.subject}_${payment.monthYear}`.replace(/\s+/g, '_');
-            await downloadClassPaymentPdf(payment.paymentId, ref);
+            const classLabel = cleanClassName(payment.className) || payment.subject || 'Class';
+            const ref = `${classLabel}_${payment.monthYear}`.replace(/\s+/g, '_');
+            await downloadTutorPaymentPdf(payment.paymentId, ref);
         } finally {
             setDownloadingId(null);
         }
@@ -33,17 +36,17 @@ const StudentFinancialsTable = ({ payments = [], onPay }) => {
                 </span>
             );
         }
-        if (s === 'due') {
-            return (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-100 dark:border-amber-800">
-                    <Clock size={11} /> Due
-                </span>
-            );
-        }
         if (s === 'pending') {
             return (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
                     <AlertCircle size={11} /> Pending
+                </span>
+            );
+        }
+        if (s === 'failed') {
+            return (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 border border-red-100 dark:border-red-800">
+                    <Clock size={11} /> Failed
                 </span>
             );
         }
@@ -68,8 +71,9 @@ const StudentFinancialsTable = ({ payments = [], onPay }) => {
                 <table className="w-full text-sm text-left whitespace-nowrap">
                     <thead className="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-800/50 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 shadow-sm">
                         <tr>
+                            {/* Primary: Student + Class info */}
                             <th scope="col" className="pl-3 pr-1 py-3 md:pl-6 md:pr-2 md:py-4 font-medium">
-                                Class &amp; Tutor Info
+                                Student &amp; Class Info
                             </th>
                             <th scope="col" className="pl-1 pr-4 py-3 md:pl-2 md:pr-6 md:py-4 font-medium text-left">
                                 Status
@@ -95,9 +99,9 @@ const StudentFinancialsTable = ({ payments = [], onPay }) => {
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {payments.map((payment, idx) => {
-                            const isDue = (payment.status || '').toLowerCase() === 'due';
                             const isPaid = (payment.status || '').toLowerCase() === 'paid';
-                            const hasPaidAt = payment.paidAt && !isDue;
+                            const hasPaidAt = payment.paidAt && isPaid;
+
                             let dateObj = null;
                             if (hasPaidAt) {
                                 let dateStr = payment.paidAt;
@@ -113,7 +117,7 @@ const StudentFinancialsTable = ({ payments = [], onPay }) => {
                                 ? dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
                                 : '';
 
-                            // Build RowActions
+                            // Build RowActions: only "Download PDF" for paid records with a real paymentId
                             const actions = [];
                             if (isPaid && payment.paymentId && payment.paymentId !== '00000000-0000-0000-0000-000000000000') {
                                 actions.push({
@@ -123,29 +127,36 @@ const StudentFinancialsTable = ({ payments = [], onPay }) => {
                                     onClick: () => handleDownload(payment),
                                 });
                             }
-                            if (isDue && onPay) {
-                                actions.push({
-                                    label: 'Pay Now',
-                                    icon: CreditCard,
-                                    onClick: () => onPay(payment),
-                                });
-                            }
 
                             return (
                                 <tr
                                     key={`${payment.paymentId}-${idx}`}
-                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${isDue ? 'bg-amber-50/30 dark:bg-amber-900/10' : ''}`}
+                                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                                 >
-                                    {/* Class & Tutor Info */}
+                                    {/* Student + Class Info */}
                                     <td className="pl-3 pr-1 py-3 md:pl-6 md:pr-2 md:py-4">
                                         <div className="flex flex-col">
-                                            <span className="font-semibold text-sm md:text-base text-gray-900 dark:text-white truncate max-w-[160px] md:max-w-none block">
-                                                {cleanClassName(payment.className)}
+                                            {/* Student name — primary line */}
+                                            <span className="font-semibold text-sm md:text-base text-gray-900 dark:text-white truncate max-w-[180px] md:max-w-none block">
+                                                {payment.studentName || '—'}
                                             </span>
-                                            <div className="flex items-center text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-1 gap-1 md:gap-2">
-                                                <span className="truncate max-w-[80px] md:max-w-none">{payment.subject || 'N/A'}</span>
-                                                <span className="truncate max-w-[80px] md:max-w-none">By {payment.tutorName || 'N/A'}</span>
+                                            {/* Reg + mobile — secondary line */}
+                                            <div className="flex items-center text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-0.5 gap-1 md:gap-2">
+                                                <span className="truncate max-w-[80px] md:max-w-none">{payment.registrationNumber || 'N/A'}</span>
+                                                <span>•</span>
+                                                <span className="truncate max-w-[90px] md:max-w-none">{payment.mobileNumber || 'N/A'}</span>
                                             </div>
+                                            {/* Class name — tertiary line */}
+                                            {(payment.className || payment.subject) && (
+                                                <div className="flex items-center text-[10px] md:text-xs text-indigo-500 dark:text-indigo-400 mt-0.5 gap-1">
+                                                    <span className="truncate max-w-[160px] md:max-w-none">
+                                                        {cleanClassName(payment.className)}
+                                                        {payment.subject && payment.subject !== payment.className
+                                                            ? ` · ${payment.subject}`
+                                                            : ''}
+                                                    </span>
+                                                </div>
+                                            )}
                                         </div>
                                     </td>
 
@@ -161,7 +172,7 @@ const StudentFinancialsTable = ({ payments = [], onPay }) => {
                                         </div>
                                     </td>
 
-                                    {/* Class Fee */}
+                                    {/* Class Fee (BaseFee) */}
                                     <td className="px-4 py-3 md:py-4 text-right">
                                         <span className="text-gray-700 dark:text-gray-300 font-medium">
                                             Rs {Number(payment.classFee || 0).toLocaleString()}
@@ -170,13 +181,9 @@ const StudentFinancialsTable = ({ payments = [], onPay }) => {
 
                                     {/* Paid Amount */}
                                     <td className="px-4 py-3 md:py-4 text-right">
-                                        {isDue ? (
-                                            <span className="text-amber-600 dark:text-amber-400 font-bold">–</span>
-                                        ) : (
-                                            <span className="font-bold text-gray-900 dark:text-white">
-                                                Rs {Number(payment.amountPaid || 0).toLocaleString()}
-                                            </span>
-                                        )}
+                                        <span className="font-bold text-gray-900 dark:text-white">
+                                            Rs {Number(payment.amountPaid || 0).toLocaleString()}
+                                        </span>
                                     </td>
 
                                     {/* Paid Date */}
@@ -217,4 +224,4 @@ const StudentFinancialsTable = ({ payments = [], onPay }) => {
     );
 };
 
-export default StudentFinancialsTable;
+export default TutorFinancialsTable;

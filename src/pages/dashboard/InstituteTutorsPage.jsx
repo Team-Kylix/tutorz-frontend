@@ -7,8 +7,33 @@ import RowActions from '../../components/molecules/RowActions';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import InstituteSearchAssignModal from '../../components/organisms/InstituteSearchAssignModal';
+import AccountViewModal from '../../components/organisms/AccountViewModal';
 import { getAssignedTutors } from '../../services/api/instituteService';
 import { useAuth } from '../../hooks/useAuth';
+import { BASE_URL } from '../../services/api/apiClient';
+
+const TutorAvatar = ({ imageUrlSmall, imageUrlLarge, initials }) => {
+    const [imgError, setImgError] = React.useState(false);
+    const rawUrl = imageUrlSmall || imageUrlLarge;
+    const resolvedUrl = rawUrl
+        ? (rawUrl.startsWith('http') ? rawUrl : `${BASE_URL}${rawUrl}`)
+        : null;
+
+    return (
+        <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center font-bold text-xs text-purple-600 dark:text-purple-400 ring-2 ring-white dark:ring-gray-800">
+            {resolvedUrl && !imgError ? (
+                <img
+                    src={resolvedUrl}
+                    alt="Tutor"
+                    className="w-full h-full object-cover"
+                    onError={() => setImgError(true)}
+                />
+            ) : (
+                initials || <Users size={14} />
+            )}
+        </div>
+    );
+};
 
 const InstituteTutorsPage = () => {
     const { user } = useAuth();
@@ -18,6 +43,10 @@ const InstituteTutorsPage = () => {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [error, setError] = useState('');
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+
+    // Profile Modal State
+    const [selectedAccount, setSelectedAccount] = useState(null);
+    const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
 
     // Pagination and Search State
     const [searchTerm, setSearchTerm] = useState('');
@@ -34,7 +63,7 @@ const InstituteTutorsPage = () => {
         return () => clearTimeout(handler);
     }, [searchTerm]);
 
-    const fetchTutors = useCallback(async (isLoadMore = false, currentPage = 1, currentSearch = '') => {
+    const fetchTutors = useCallback(async (isLoadMore = false, currentPage = 1, currentSearch = '', bypassCache = false) => {
         if (!isLoadMore) {
             setIsLoading(true);
         } else {
@@ -43,7 +72,7 @@ const InstituteTutorsPage = () => {
         setError('');
 
         try {
-            const res = await getAssignedTutors(currentSearch, currentPage, PAGE_SIZE);
+            const res = await getAssignedTutors(currentSearch, currentPage, PAGE_SIZE, bypassCache);
             const newTutors = res.data?.items || [];
 
             if (isLoadMore) {
@@ -71,7 +100,7 @@ const InstituteTutorsPage = () => {
     const handleAssigned = () => {
         setSearchTerm('');
         setPage(1);
-        fetchTutors(false, 1, '');
+        fetchTutors(false, 1, '', true);
     };
 
     const handleScroll = (e) => {
@@ -81,6 +110,17 @@ const InstituteTutorsPage = () => {
             setPage(nextPage);
             fetchTutors(true, nextPage, debouncedSearchTerm);
         }
+    };
+
+    const handleViewProfile = (tutor) => {
+        setSelectedAccount({
+            ...tutor,
+            role: 'Tutor',
+            name: `${tutor.firstName || ''} ${tutor.lastName || ''}`.trim() || 'Unknown',
+            profileImageUrlLarge: tutor.profileImageUrlLarge,
+            profileImageUrlSmall: tutor.profileImageUrlSmall
+        });
+        setIsAccountModalOpen(true);
     };
 
     return (
@@ -95,7 +135,7 @@ const InstituteTutorsPage = () => {
                 </div>
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={fetchTutors}
+                        onClick={() => fetchTutors(false, 1, debouncedSearchTerm, true)}
                         disabled={isLoading}
                         className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
                         title="Refresh"
@@ -176,9 +216,11 @@ const InstituteTutorsPage = () => {
                                         <tr key={tutor.tutorId} className="hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors group">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                                                        {initials || <Users size={14} />}
-                                                    </div>
+                                                    <TutorAvatar
+                                                        imageUrlSmall={tutor.profileImageUrlSmall}
+                                                        imageUrlLarge={tutor.profileImageUrlLarge}
+                                                        initials={initials}
+                                                    />
                                                     <div>
                                                         <p className="font-semibold text-gray-900 dark:text-white">{fullName}</p>
                                                         {tutor.email && (
@@ -202,7 +244,7 @@ const InstituteTutorsPage = () => {
                                             </td>
                                             <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
                                                 <RowActions actions={[
-                                                    { label: 'View Profile', icon: Eye, onClick: () => {} },
+                                                    { label: 'View Profile', icon: Eye, onClick: () => handleViewProfile(tutor) },
                                                 ]} />
                                             </td>
                                         </tr>
@@ -234,6 +276,12 @@ const InstituteTutorsPage = () => {
                 type="Tutor"
                 onAssigned={handleAssigned}
                 user={user}
+            />
+
+            <AccountViewModal 
+                isOpen={isAccountModalOpen} 
+                onClose={() => setIsAccountModalOpen(false)} 
+                account={selectedAccount} 
             />
         </div>
     );

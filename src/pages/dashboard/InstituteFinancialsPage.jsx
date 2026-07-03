@@ -1,20 +1,19 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, RefreshCw } from 'lucide-react';
 import Select from '../../components/atoms/Select';
 import Input from '../../components/atoms/Input';
-import TutorFinancialsTable from '../../components/organisms/TutorFinancialsTable';
-import { getClasses, getJoinedInstitutes } from '../../services/api/tutorService';
-import { getTutorPaymentHistory } from '../../services/api/paymentService';
+import FinancialsTable from '../../components/organisms/FinancialsTable';
+import { getAssignedTutors, getAllInstituteClassesUnpaged } from '../../services/api/instituteService';
+import { getClassPaymentHistory } from '../../services/api/paymentService';
 
-const FinancialsPage = () => {
+const InstituteFinancialsPage = () => {
     // ─── Dropdown Data ────────────────────────────────────────────
-    const [institutes, setInstitutes] = useState([]);
+    const [tutors, setTutors] = useState([]);
     const [allClasses, setAllClasses] = useState([]);
     const [isLoadingDropdowns, setIsLoadingDropdowns] = useState(true);
 
     // ─── Selection State ──────────────────────────────────────────
-    // '' = All Institutes, 'own' = My Own Place, GUID = specific institute
-    const [selectedInstituteId, setSelectedInstituteId] = useState('');
+    const [selectedTutorId, setSelectedTutorId] = useState('');
     const [selectedClassId, setSelectedClassId] = useState('');
 
     // ─── Search State ─────────────────────────────────────────────
@@ -42,20 +41,16 @@ const FinancialsPage = () => {
         const load = async () => {
             setIsLoadingDropdowns(true);
             try {
-                const [instRes, clsRes] = await Promise.all([
-                    getJoinedInstitutes(),
-                    getClasses()
+                const [tutorRes, clsRes] = await Promise.all([
+                    getAssignedTutors('', 1, 1000), // High pageSize to get all tutors
+                    getAllInstituteClassesUnpaged()
                 ]);
 
-                const instData = instRes?.data ?? instRes;
-                setInstitutes(
-                    Array.isArray(instData) ? instData : (instData?.data ?? [])
-                );
+                const tutData = tutorRes?.data?.items ?? tutorRes?.data ?? tutorRes;
+                setTutors(Array.isArray(tutData) ? tutData : []);
 
-                const clsData = clsRes?.data ?? clsRes;
-                setAllClasses(
-                    Array.isArray(clsData) ? clsData : (clsData?.data ?? clsData?.items ?? [])
-                );
+                const clsData = clsRes?.data?.items ?? clsRes?.data ?? clsRes;
+                setAllClasses(Array.isArray(clsData) ? clsData : []);
             } catch (err) {
                 console.error('Failed to fetch dropdown data:', err);
             } finally {
@@ -65,31 +60,31 @@ const FinancialsPage = () => {
         load();
     }, []);
 
-    // ─── Derived: classes filtered by selected institute ──────────
+    // ─── Derived: classes filtered by selected tutor ──────────────
     const availableClasses = useMemo(() => {
-        if (!selectedInstituteId) return allClasses;
-        if (selectedInstituteId === 'own') return allClasses.filter(c => !c.instituteId);
-        return allClasses.filter(c => c.instituteId === selectedInstituteId);
-    }, [selectedInstituteId, allClasses]);
+        if (!selectedTutorId) return allClasses;
+        return allClasses.filter(c => c.tutorId === selectedTutorId);
+    }, [selectedTutorId, allClasses]);
 
-    // Reset class when institute changes
+    // Reset class when tutor changes
     useEffect(() => {
         setSelectedClassId('');
-    }, [selectedInstituteId]);
+    }, [selectedTutorId]);
 
     // ─── Fetch payment history ────────────────────────────────────
-    const fetchPaymentHistory = useCallback(async (currentPage = 1) => {
+    const fetchPaymentHistory = useCallback(async (currentPage = 1, bypassCache = false) => {
         if (currentPage === 1) setIsLoadingFinancials(true);
         else setIsLoadingMore(true);
         setError(null);
 
         try {
-            let response = await getTutorPaymentHistory(
-                selectedInstituteId || null,
+            let response = await getClassPaymentHistory(
+                selectedTutorId || null,
                 selectedClassId || null,
                 debouncedSearchQuery,
                 currentPage,
-                10
+                10,
+                bypassCache
             );
 
             if (response?.data && response?.success !== false) response = response.data;
@@ -114,13 +109,13 @@ const FinancialsPage = () => {
             setIsLoadingFinancials(false);
             setIsLoadingMore(false);
         }
-    }, [selectedInstituteId, selectedClassId, debouncedSearchQuery]);
+    }, [selectedTutorId, selectedClassId, debouncedSearchQuery]);
 
     useEffect(() => {
         setPage(1);
         setHasMore(true);
         fetchPaymentHistory(1);
-    }, [selectedInstituteId, selectedClassId, debouncedSearchQuery, fetchPaymentHistory]);
+    }, [selectedTutorId, selectedClassId, debouncedSearchQuery, fetchPaymentHistory]);
 
     useEffect(() => {
         if (page > 1) fetchPaymentHistory(page);
@@ -142,39 +137,49 @@ const FinancialsPage = () => {
 
     // ─── Render ───────────────────────────────────────────────────
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-2">
-
+        <div className="p-6 max-w-7xl mx-auto space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Page Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Financials &amp; Invoices</h1>
-                <p className="text-gray-500 dark:text-gray-400 mt-1">
-                    View student payment history across all your classes.
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Financials &amp; Invoices</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">
+                        View student payment history across all classes in your institute.
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => fetchPaymentHistory(1, true)}
+                        disabled={isLoadingFinancials}
+                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                        title="Refresh"
+                    >
+                        <RefreshCw size={17} className={isLoadingFinancials ? 'animate-spin' : ''} />
+                    </button>
+                </div>
             </div>
 
             {/* Filter Controls */}
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col md:flex-row gap-4 items-end">
-
-                {/* Select Institute */}
+                {/* Select Tutor */}
                 <div className="w-full md:w-1/3 flex flex-col items-start gap-1">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Select Institute
+                        Select Tutor
                     </label>
                     <Select
-                        value={selectedInstituteId}
+                        value={selectedTutorId}
                         onChange={e => {
-                            setSelectedInstituteId(e.target.value);
+                            setSelectedTutorId(e.target.value);
                             setSearchQuery('');
                         }}
                         disabled={isLoadingDropdowns}
                     >
-                        <option value="">-- All Institutes --</option>
-                        <option value="own">My Own Place</option>
-                        {institutes.map(inst => {
-                            const iId = inst.instituteId ?? inst.id;
+                        <option value="">-- All Tutors --</option>
+                        {tutors.map(tut => {
+                            const tId = tut.tutorId ?? tut.id;
+                            const name = tut.firstName || tut.lastName ? `${tut.firstName || ''} ${tut.lastName || ''}`.trim() : `Tutor ${String(tId).substring(0, 4)}`;
                             return (
-                                <option key={iId} value={iId}>
-                                    {inst.name ?? inst.instituteName ?? `Institute ${String(iId).substring(0, 4)}`}
+                                <option key={tId} value={tId}>
+                                    {name}
                                 </option>
                             );
                         })}
@@ -239,7 +244,7 @@ const FinancialsPage = () => {
                     </div>
                 ) : (
                     <>
-                        <TutorFinancialsTable payments={payments} />
+                        <FinancialsTable payments={payments} />
                         {isLoadingMore && (
                             <div className="flex justify-center items-center py-6">
                                 <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
@@ -249,9 +254,8 @@ const FinancialsPage = () => {
                     </>
                 )}
             </div>
-
         </div>
     );
 };
 
-export default FinancialsPage;
+export default InstituteFinancialsPage;

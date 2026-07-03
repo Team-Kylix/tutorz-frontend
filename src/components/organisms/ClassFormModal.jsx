@@ -16,11 +16,12 @@ const ClassFormModal = ({
   isSubmitting,
   isInstituteMode = false,
   instituteProfile = null,
-  existingClasses = [],   // ← all classes already in this institute
-  backendError = '',      // ← error message from backend (e.g. hall conflict)
-  viewOnly = false,       // ← read-only timetable view — no edit/delete
-  onLeave,                // ← function to leave class
-  isLeaving = false,      // ← loading state for leave action
+  existingClasses = [],        // ← all classes already in this institute
+  backendError = '',           // ← error message from backend (e.g. hall conflict)
+  onClearBackendError = null,  // ← called when user changes fields that may resolve conflict
+  viewOnly = false,            // ← read-only timetable view — no edit/delete
+  onLeave,                     // ← function to leave class
+  isLeaving = false,           // ← loading state for leave action
 }) => {
 
   const [formData, setFormData] = useState({
@@ -197,6 +198,11 @@ const ClassFormModal = ({
         instituteCommissionRate: Number(initialData.instituteCommissionRate ?? 0)
       };
 
+      if (!isInstituteMode && !initialData.instituteId) {
+        newFormData.instituteId = 'OWN_PLACE';
+        newFormData.instituteName = 'My Own Place';
+      }
+
       if (isInstituteMode && instituteProfile) {
         newFormData.instituteId = initialData.instituteId || instituteProfile.instituteId || instituteProfile.id;
         newFormData.instituteName = initialData.instituteName || instituteProfile.instituteName || instituteProfile.name;
@@ -255,6 +261,9 @@ const ClassFormModal = ({
     }
   }, [formData.subject, formData.grade, formData.dayOfWeek, formData.date, formData.classType]);
 
+  // Fields whose change should dismiss stale backend conflict errors
+  const CONFLICT_FIELDS = new Set(['hallId', 'startTime', 'endTime', 'dayOfWeek', 'date']);
+
   // Handlers
   const handleChange = (e) => {
     const { name, value, type, checked, options, selectedIndex } = e.target;
@@ -286,8 +295,13 @@ const ClassFormModal = ({
       return { ...prev, ...updates };
     });
 
-    if (name === 'startTime' || name === 'endTime') {
-      setTimeError(''); // Clear error when user changes time
+    // Clear both local and backend errors when the user modifies any field
+    // that could resolve a time/hall conflict
+    if (CONFLICT_FIELDS.has(name)) {
+      setTimeError(''); // Clear local conflict/time error
+      if (backendError && onClearBackendError) {
+        onClearBackendError(); // Clear stale backend error
+      }
     }
 
     if (name === 'subject') {
