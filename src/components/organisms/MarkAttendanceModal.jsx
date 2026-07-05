@@ -14,6 +14,7 @@ import {
     getInstituteClasses,
     searchTutors,
 } from '../../services/api/instituteService';
+import ConfirmationModal from '../molecules/ConfirmationModal';
 import Input from '../atoms/Input';
 import Select from '../atoms/Select';
 import { enqueueAction, SYNC_ACTION_TYPES, selectPendingCount, selectUnseenConflicts, markConflictAsSeen, clearSeenConflicts, selectTombstones } from '../../store/syncSlice';
@@ -23,7 +24,7 @@ import { enqueueAction, SYNC_ACTION_TYPES, selectPendingCount, selectUnseenConfl
  * Multi-purpose modal for marking attendance, recording fee payments,
  * and assigning students to classes — all from a single fast flow.
  */
-const MarkAttendanceModal = ({ isOpen, onClose }) => {
+const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
     const dispatch = useDispatch();
     const pendingCount = useSelector(selectPendingCount);
     const conflicts = useSelector(selectUnseenConflicts);
@@ -49,6 +50,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [studentClasses, setStudentClasses] = useState([]);
     const [isFetchingClasses, setIsFetchingClasses] = useState(false);
+    const [loadingText, setLoadingText] = useState("Cross-referencing active classes...");
     const [selectedClassId, setSelectedClassId] = useState(null);
     const [assignmentMode, setAssignmentMode] = useState(null); // 'today' | 'search' | null
     const [allInstituteClasses, setAllInstituteClasses] = useState([]);
@@ -65,6 +67,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
     const [isSuccess, setIsSuccess] = useState(false); // New state for button success
     const [successToast, setSuccessToast] = useState(null);
     const [errorMsg, setErrorMsg] = useState('');
+    const [showMarkConfirm, setShowMarkConfirm] = useState(false); // Confirmation gate
 
     // Payment Modal State
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
@@ -74,9 +77,13 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
     useEffect(() => {
         if (isOpen) {
             fetchTodayClasses();
-            resetFlow();
+            if (initialStudent) {
+                handleSelectStudent(initialStudent);
+            } else {
+                resetFlow();
+            }
         }
-    }, [isOpen]);
+    }, [isOpen, initialStudent]);
 
     // Auto-focus search input when returning to Step 1
     useEffect(() => {
@@ -165,6 +172,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setIsPaymentOpen(false);
         setPaymentClass(null);
         setIsScanning(false);
+        setShowMarkConfirm(false);
         setTutorSearchQuery('');
         setSelectedTutor(null);
         setTutorResults([]);
@@ -209,6 +217,10 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
 
     // --- Step 1 -> 2: Select Student ---
     const handleSelectStudent = async (student) => {
+        // If the ID is not a GUID (e.g. from an optimistic offline registration), resolve it first.
+        const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(student.roleSpecificId);
+        
+        let resolvedStudent = student;
         setSelectedStudent(student);
         setStep(2);
         setIsFetchingClasses(true);
@@ -219,8 +231,48 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
         setTutorSearchQuery('');
         setSelectedGlobalClassId('');
 
+        setLoadingText("Cross-referencing active classes...");
+
+        if (!isGuid) {
+            setLoadingText("Waiting for registration sync to complete...");
+            let found = null;
+            let attempts = 0;
+            const maxAttempts = 15; // Wait up to ~22 seconds
+            
+            // Extract a clean search term - prefer first name only to avoid double-space issues
+            const nameParts = student.name.trim().split(/\s+/).filter(Boolean);
+            const searchTerm = nameParts[0] || student.name.trim(); // Use first word only
+            
+            while (!found && attempts < maxAttempts) {
+                try {
+                    await new Promise(r => setTimeout(r, 1500));
+                    const res = await searchStudents(searchTerm);
+                    const candidates = res.data || [];
+                    
+                    // Match by phone number first (most reliable), fallback to full name
+                    found = candidates.find(s => 
+                        (student.phoneNumber && s.phoneNumber && s.phoneNumber.replace(/\s+/g, '') === student.phoneNumber.replace(/\s+/g, '')) ||
+                        (s.name.trim().toLowerCase() === student.name.trim().toLowerCase())
+                    );
+                } catch (e) {
+                    // Ignore network errors while polling
+                }
+                attempts++;
+            }
+
+            if (found) {
+                resolvedStudent = found;
+                setSelectedStudent(resolvedStudent);
+                setLoadingText("Cross-referencing active classes...");
+            } else {
+                setErrorMsg("Registration is taking longer than expected. Please try again later.");
+                setIsFetchingClasses(false);
+                return;
+            }
+        }
+
         try {
-            const res = await getStudentClassesForAttendance(student.roleSpecificId);
+            const res = await getStudentClassesForAttendance(resolvedStudent.roleSpecificId);
             setStudentClasses(res.data || []);
         } catch (err) {
             setStudentClasses([]);
@@ -260,6 +312,11 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
             if (assignmentMode === 'today' || assignmentMode === 'search') {
                 // ─── OPTIMISTIC UI: Assign to Class ────────────────────────
                 // Add to queue immediately for instant response
+                // Find the class object from the available class lists (today's or search)
+                const assignedClassObj = 
+                    todayClasses.find(c => (c.id || c.classId) === selectedClassId) ||
+                    allInstituteClasses.find(c => (c.id || c.classId) === selectedClassId);
+
                 dispatch(enqueueAction({
                     actionType: SYNC_ACTION_TYPES.ASSIGN_TO_CLASS,
                     payload: {
@@ -270,22 +327,20 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                     dedupeKey: `ASSIGN_${selectedStudent.roleSpecificId}_${selectedClassId}`,
                 }));
 
+                // ─── OPTIMISTIC UI: Inject the newly assigned class into the
+                // Active Enrolled Classes list immediately — no server round-trip needed.
+                if (assignedClassObj) {
+                    setStudentClasses(prev => [...prev, assignedClassObj]);
+                }
+
                 triggerSuccessToast(`Assigned to Class!`);
                 setIsSuccess(true);
                 setIsSubmitting(false);
 
-                setTimeout(async () => {
+                setTimeout(() => {
                     setIsSuccess(false);
                     setAssignmentMode(null);
-                    setIsFetchingClasses(true);
-                    try {
-                        const res = await getStudentClassesForAttendance(selectedStudent.roleSpecificId);
-                        setStudentClasses(res.data || []);
-                    } catch (err) {
-                        console.error("Failed to refresh classes", err);
-                    } finally {
-                        setIsFetchingClasses(false);
-                    }
+                    setSelectedClassId(null);
                 }, 800);
             } else {
                 // ─── OPTIMISTIC UI: Attendance Marking ──────────────────────
@@ -325,12 +380,28 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
     };
 
     // --- Filtering Logic ---
-    // Classes the student is enrolled in AND happening today
-    const activeEnrolledClasses = studentClasses.filter(sc =>
-        todayClasses.some(tc => (tc.id || tc.classId) === (sc.id || sc.classId))
-    );
+    // Build a Set of today's class IDs for quick lookup
+    const todayClassIdSet = new Set(todayClasses.map(tc => tc.id || tc.classId));
 
-    // Other classes today (for Assign flow)
+    // All classes the student is enrolled in, sorted:
+    // 1. Today's classes first (sorted by startTime)
+    // 2. Then other enrolled classes (sorted by startTime)
+    const toMinutes = (t) => {
+        if (!t) return 9999;
+        const [h, m] = t.split(':').map(Number);
+        return (h || 0) * 60 + (m || 0);
+    };
+
+    const activeEnrolledClasses = [...studentClasses].sort((a, b) => {
+        const aIsToday = todayClassIdSet.has(a.id || a.classId);
+        const bIsToday = todayClassIdSet.has(b.id || b.classId);
+        // Today's classes float to top
+        if (aIsToday !== bIsToday) return aIsToday ? -1 : 1;
+        // Within same group, sort by startTime
+        return toMinutes(a.startTime) - toMinutes(b.startTime);
+    });
+
+    // Other classes today (for Assign flow) - classes happening today the student isn't in
     const otherClassesToday = todayClasses.filter(tc =>
         !studentClasses.some(sc => (sc.id || sc.classId) === (tc.id || tc.classId))
     );
@@ -497,7 +568,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                 {isFetchingClasses ? (
                     <div className="flex flex-col items-center justify-center py-12 text-gray-400 dark:text-gray-500 gap-3">
                         <Loader2 size={28} className="animate-spin text-blue-500" />
-                        <span className="text-sm font-medium">Cross-referencing active classes...</span>
+                        <span className="text-sm font-medium">{loadingText}</span>
                     </div>
                 ) : (
                     <div className="space-y-3">
@@ -636,9 +707,10 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                                 onSelect={() => {
                                                     setSelectedClassId(classIdentifier);
                                                     setErrorMsg(''); // Clear error on new selection
+                                                    setShowMarkConfirm(false); // Dismiss confirmation on class change
                                                 }}
-                                                statusText={isTodayMode ? 'Available' : 'Happening Now'}
-                                                statusType={isTodayMode ? 'normal' : 'active'}
+                                                statusText={isTodayMode ? 'Available' : todayClassIdSet.has(cls.id || cls.classId) ? 'Happening Now' : 'Enrolled'}
+                                                statusType={isTodayMode ? 'normal' : todayClassIdSet.has(cls.id || cls.classId) ? 'active' : 'normal'}
                                             />
                                             {!isTodayMode && selectedClassId === classIdentifier && errorMsg?.includes("already marked") && (
                                                 <span className="text-[14px] font-normal dark:text-red-300">
@@ -654,7 +726,7 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                             <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
                                 <AlertCircle size={32} className="mx-auto text-gray-400 mb-2" />
                                 <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                                    No active enrolled classes found.
+                                    {studentClasses.length > 0 ? 'No classes scheduled for today.' : 'No active enrolled classes found.'}
                                 </p>
                                 <div className="flex flex-col gap-2 mt-4 px-10">
                                     <Button
@@ -706,7 +778,15 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                                 variant="primary"
                                 fullWidth
                                 disabled={!selectedClassId || isSubmitting || isSuccess}
-                                onClick={handleMarkAttendance}
+                                onClick={() => {
+                                    if (assignmentMode) {
+                                        // Assignment flow — no confirmation needed
+                                        handleMarkAttendance();
+                                    } else {
+                                        // Mark Present — show confirmation first
+                                        setShowMarkConfirm(true);
+                                    }
+                                }}
                                 className={`py-3.5 shadow-md shadow-blue-500/20 text-base transition-colors ${isSuccess ? 'bg-green-500 hover:bg-green-600 focus:ring-green-500/50 shadow-green-500/20' : ''
                                     }`}
                             >
@@ -778,6 +858,50 @@ const MarkAttendanceModal = ({ isOpen, onClose }) => {
                 student={selectedStudent}
                 cls={paymentClass}
             />
+
+            {/* Mark Present Confirmation */}
+            <ConfirmationModal
+                isOpen={showMarkConfirm}
+                onClose={() => setShowMarkConfirm(false)}
+                onCancel={() => setShowMarkConfirm(false)}
+                onConfirm={() => {
+                    setShowMarkConfirm(false);
+                    handleMarkAttendance();
+                }}
+                title="Confirm Attendance"
+                variant="primary"
+                confirmLabel="Mark Present"
+                cancelLabel="Cancel"
+                isSubmitting={isSubmitting}
+            >
+                <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                    <p>Are you sure you want to mark this student as present? <strong>This action cannot be undone.</strong></p>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-1.5 mt-3 border border-gray-200 dark:border-gray-600">
+                        <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Student</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">{selectedStudent?.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Class</span>
+                            <span className="font-semibold text-gray-900 dark:text-white text-right max-w-[60%]">
+                                {(() => {
+                                    const cls = activeEnrolledClasses.find(c => (c.id || c.classId) === selectedClassId);
+                                    return cls ? `${cls.subject}${cls.grade ? ` - ${cls.grade}` : ''}` : '—';
+                                })()}
+                            </span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Time</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                                {(() => {
+                                    const cls = activeEnrolledClasses.find(c => (c.id || c.classId) === selectedClassId);
+                                    return cls?.startTime ? `${cls.startTime}${cls.endTime ? ` - ${cls.endTime}` : ''}` : '—';
+                                })()}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </ConfirmationModal>
         </>
     );
 };

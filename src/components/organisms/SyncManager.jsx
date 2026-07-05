@@ -7,6 +7,7 @@ import {
   setSyncing,
   selectDueItems,
   SYNC_ACTION_TYPES,
+  resolveTemporaryId,
 } from '../../store/syncSlice';
 import {
   markAttendance,
@@ -16,6 +17,7 @@ import {
   updateHall,
   deleteHall,
   toggleHallStatus,
+  searchStudents,
 } from '../../services/api/instituteService';
 import { updateTutorProfile, createClass, updateClass, deleteClass } from '../../services/api/tutorService';
 import { updateStudentProfile } from '../../services/api/studentService';
@@ -118,9 +120,47 @@ const SyncManager = () => {
 
     for (const item of dueItems) {
       try {
-        await executeAction(item);
+        const result = await executeAction(item);
         dispatch(dequeueAction({ id: item.id }));
         console.info(`[SyncManager] ✅ Synced: "${item.label}"`);
+
+        // If this was a user registration, resolve its temporary ID in the rest of the queue
+        if (item.actionType === SYNC_ACTION_TYPES.REGISTER_USER) {
+          const regData = item.payload?.registrationData;
+          if (regData) {
+            const tempId = regData.phoneNumber || regData.identifier;
+            let resolvedId = null;
+
+            // 1. Try to extract from API result
+            if (result) {
+              resolvedId = result.roleSpecificId || result.studentId || result.currentStudentId || 
+                           result.data?.roleSpecificId || result.data?.studentId || result.data?.currentStudentId ||
+                           result.userId || result.data?.userId;
+            }
+
+            // 2. Fallback: Query backend search to find the registered student
+            if (!resolvedId || resolvedId.length < 15) {
+              try {
+                const searchRes = await searchStudents(regData.firstName);
+                const candidates = searchRes.data || [];
+                const matched = candidates.find(s => 
+                  (regData.phoneNumber && s.phoneNumber && s.phoneNumber.replace(/\s+/g, '') === regData.phoneNumber.replace(/\s+/g, '')) ||
+                  (s.name.trim().toLowerCase().includes(regData.firstName.trim().toLowerCase()))
+                );
+                if (matched) {
+                  resolvedId = matched.roleSpecificId;
+                }
+              } catch (searchErr) {
+                console.warn("[SyncManager] Failed to search and resolve student GUID:", searchErr);
+              }
+            }
+
+            if (resolvedId && tempId) {
+              dispatch(resolveTemporaryId({ tempId, resolvedId }));
+              console.info(`[SyncManager] Resolved temporary ID "${tempId}" to GUID "${resolvedId}"`);
+            }
+          }
+        }
 
       } catch (err) {
         const errorMessage = err?.response?.data?.message || err?.message || 'Network error';

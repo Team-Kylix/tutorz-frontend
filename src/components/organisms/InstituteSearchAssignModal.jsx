@@ -20,7 +20,7 @@ const GRADE_GROUPS = [
     { label: "Other", options: ['Course', 'Seminar', 'Workshop'] }
 ];
 
-const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, user, customAssignFn, extraRegisterPayload }) => {
+const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, user, customAssignFn, extraRegisterPayload, onAssignToClass }) => {
     const dispatch = useDispatch();
     
     // Flow states
@@ -266,6 +266,9 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 if (result.role === selectedRole && selectedRole !== 'Admin') {
                     setQuery(mobileStr || emailStr);
                     setStep('search');
+                } else if (selectedRole === 'Student' && result.role === 'Tutor') {
+                    // Sibling flow for existing Tutor account
+                    setIsExistingUserModalOpen(true);
                 } else {
                     setIsExistingUserModalOpen(true);
                 }
@@ -302,8 +305,10 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
 
     const handleVerifyOtp = async (otpCode) => {
         try {
+            console.log("[handleVerifyOtp] Verifying OTP", { otpCode, registrationMode, selectedRole });
             if (registrationMode === 'sibling') {
                 const identifierToUse = checkData.email || checkData.mobile;
+                console.log("[handleVerifyOtp] Sibling verification for identifier:", identifierToUse);
                 await verifyOtp(identifierToUse, otpCode);
                 setIsOtpModalOpen(false);
 
@@ -312,12 +317,13 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 setFormData({ mobile: '', firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
                 setErrors({});
                 setStep('register-student');
+                console.log("[handleVerifyOtp] Successfully verified OTP and set step to register-student");
             } else {
                 setIsOtpModalOpen(false);
                 await performFinalRegistration(otpCode);
             }
         } catch (error) {
-            console.error("OTP Error", error);
+            console.error("[handleVerifyOtp] OTP Error", error);
             throw error;
         }
     };
@@ -335,7 +341,9 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                     ...(extraRegisterPayload || {})
                 } 
             };
-            let dedupeKey = `register_${payload.phoneNumber || payload.identifier}`;
+            const identifierPart = payload.phoneNumber || payload.identifier || '';
+            const namePart = `${payload.firstName || ''}_${payload.lastName || ''}`.trim().toLowerCase().replace(/\s+/g, '_');
+            let dedupeKey = `register_${namePart}_${identifierPart}`;
 
             if (selectedRole === 'Admin') {
                 actionType = SYNC_ACTION_TYPES.CREATE_ADMIN;
@@ -698,7 +706,23 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 whitespace-pre-line">{successMessage.message}</p>
             <div className="flex gap-3 justify-center">
                 {type !== 'Admin' && <Button variant="secondary" onClick={handleResetToChoice}>Add Another</Button>}
-                <Button variant="primary" onClick={onClose}>Done</Button>
+                {selectedRole === 'Student' && onAssignToClass && (
+                    <Button 
+                        variant="primary" 
+                        onClick={() => {
+                            const tempStudent = {
+                                roleSpecificId: formData.mobile.trim() || checkData.email || checkData.mobile,
+                                name: [formData.firstName, formData.lastName].filter(Boolean).join(' ').trim(),
+                                phoneNumber: formData.mobile.trim() || checkData.mobile,
+                                registrationNumber: 'Pending Sync'
+                            };
+                            onAssignToClass(tempStudent);
+                        }}
+                    >
+                        Assign to Class
+                    </Button>
+                )}
+                <Button variant={selectedRole === 'Student' && onAssignToClass ? "secondary" : "primary"} onClick={onClose}>Done</Button>
             </div>
         </div>
     );
@@ -726,11 +750,20 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             <ConfirmationModal
                 isOpen={isExistingUserModalOpen}
                 onClose={() => setIsExistingUserModalOpen(false)}
-                title="User Already Exists"
-                message={`This user is already registered as ${existingUser?.name} [${existingUser?.role}].`}
-                confirmLabel="View Profile"
+                title={selectedRole === 'Student' && existingUser?.role === 'Tutor' ? "Register Sibling Student" : "User Already Exists"}
+                message={selectedRole === 'Student' && existingUser?.role === 'Tutor' 
+                    ? `This mobile number is registered to Tutor "${existingUser?.name}". Would you like to register a sibling student under this profile?`
+                    : `This user is already registered as ${existingUser?.name} [${existingUser?.role}].`
+                }
+                confirmLabel={selectedRole === 'Student' && existingUser?.role === 'Tutor' ? "Register Sibling" : "View Profile"}
                 cancelLabel="Close"
-                onConfirm={() => alert("Navigate to Profile")}
+                onConfirm={selectedRole === 'Student' && existingUser?.role === 'Tutor'
+                    ? () => {
+                        setIsExistingUserModalOpen(false);
+                        handleItsParent();
+                    }
+                    : () => alert("Navigate to Profile")
+                }
                 variant="primary"
             />
             {isOtpModalOpen && (
