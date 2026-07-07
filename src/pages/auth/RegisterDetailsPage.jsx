@@ -178,29 +178,7 @@ const RegisterDetailsPage = () => {
         const cleanDateOfBirth = formData.dateOfBirth === '' ? null : formData.dateOfBirth;
 
         try {
-            if (isLinkedAccount) {
-                const siblingPayload = {
-                    identifier: linkedPhoneNumber,
-                    verificationToken: "VERIFIED",
-                    firstName: formData.firstName,
-                    lastName: formData.lastName,
-                    schoolName: formData.school,
-                    grade: formData.grade,
-                    parentName: formData.parentName,
-                    dateOfBirth: cleanDateOfBirth || new Date().toISOString(),
-                    cityId: parseInt(formData.cityId)
-                };
-
-                const result = await registerSibling(siblingPayload);
-
-                if (result.success) {
-                    setIsSuccess(true);
-                    setTimeout(() => navigate('/login'), 2000);
-                } else {
-                    setGlobalError(result.error?.message || "Sibling registration failed.");
-                }
-            }
-            else if (isSocial) {
+            if (isSocial) {
                 const payload = {
                     provider: stepOneData.provider,
                     idToken: socialProfile.idToken,
@@ -223,6 +201,35 @@ const RegisterDetailsPage = () => {
                 setIsSuccess(true);
                 setTimeout(() => navigate('/login'), 2000);
             }
+            else if (isLinkedAccount) {
+                try {
+                    setIsSubmitting(true);
+                    const cleanDateOfBirth = formData.dateOfBirth === '' ? null : formData.dateOfBirth;
+                    const siblingPayload = {
+                        identifier: linkedPhoneNumber,
+                        verificationToken: "VERIFIED_IN_PREV_STEP",
+                        firstName: formData.firstName,
+                        lastName: formData.lastName,
+                        schoolName: formData.school,
+                        grade: formData.grade,
+                        parentName: formData.parentName,
+                        dateOfBirth: cleanDateOfBirth || new Date().toISOString(),
+                        cityId: parseInt(formData.cityId)
+                    };
+                    
+                    const result = await registerSibling(siblingPayload);
+                    if (result && result.success !== false) {
+                        setIsSuccess(true);
+                        setTimeout(() => navigate('/login'), 2000);
+                    } else {
+                        setGlobalError(result?.error?.message || "Sibling registration failed.");
+                    }
+                } catch (error) {
+                    setGlobalError(error.message || "Sibling registration failed.");
+                } finally {
+                    setIsSubmitting(false);
+                }
+            }
             else {
                 try {
                     setIsSubmitting(true);
@@ -243,27 +250,51 @@ const RegisterDetailsPage = () => {
 
     const handleVerifyOtp = async (otpCode) => {
         try {
-            const fullRegistrationData = {
-                ...stepOneData,
-                ...formData,
-                cityId: parseInt(formData.cityId),
-                schoolName: formData.school,
-                bankAccountNumber: formData.bankAccount,
-                dateOfBirth: formData.dateOfBirth === '' ? null : formData.dateOfBirth,
-                ExperienceYears: 0,
-                instituteName: formData.instituteName,
-                address: formData.address,
-                otpCode: otpCode
-            };
-
-            const result = await manualRegister(fullRegistrationData);
-
-            if (result.success) {
-                setShowOtpModal(false);
-                setIsSuccess(true);
-                setTimeout(() => navigate('/login'), 2000);
+            if (isLinkedAccount) {
+                const cleanDateOfBirth = formData.dateOfBirth === '' ? null : formData.dateOfBirth;
+                const siblingPayload = {
+                    identifier: linkedPhoneNumber,
+                    verificationToken: otpCode,
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    schoolName: formData.school,
+                    grade: formData.grade,
+                    parentName: formData.parentName,
+                    dateOfBirth: cleanDateOfBirth || new Date().toISOString(),
+                    cityId: parseInt(formData.cityId)
+                };
+                const result = await registerSibling(siblingPayload);
+                
+                if (result.success) {
+                    setShowOtpModal(false);
+                    setIsSuccess(true);
+                    setTimeout(() => navigate('/login'), 2000);
+                } else {
+                    throw new Error(result.error?.message || "Sibling registration failed.");
+                }
             } else {
-                throw new Error(result.error?.message || "Registration failed.");
+                const fullRegistrationData = {
+                    ...stepOneData,
+                    ...formData,
+                    cityId: parseInt(formData.cityId),
+                    schoolName: formData.school,
+                    bankAccountNumber: formData.bankAccount,
+                    dateOfBirth: formData.dateOfBirth === '' ? null : formData.dateOfBirth,
+                    ExperienceYears: 0,
+                    instituteName: formData.instituteName,
+                    address: formData.address,
+                    otpCode: otpCode
+                };
+
+                const result = await manualRegister(fullRegistrationData);
+
+                if (result.success) {
+                    setShowOtpModal(false);
+                    setIsSuccess(true);
+                    setTimeout(() => navigate('/login'), 2000);
+                } else {
+                    throw new Error(result.error?.message || "Registration failed.");
+                }
             }
         } catch (error) {
             console.error("Verification Error", error);

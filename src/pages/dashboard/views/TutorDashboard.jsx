@@ -1,19 +1,28 @@
 import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Zap } from 'lucide-react';
 
 // Services & Hooks
 import useApi from '../../../hooks/useApi';
+import { useAuth } from '../../../hooks/useAuth';
 import * as tutorService from '../../../services/api/tutorService';
 
+import Button from '../../../components/atoms/Button';
 import StatsGrid from '../../../components/organisms/StatsGrid';
 import UnifiedSchedule from '../../../components/organisms/UnifiedSchedule';
 import QuickActions from '../../../components/organisms/QuickActions';
 import ClassFormModal from '../../../components/organisms/ClassFormModal';
 import ConfirmationModal from '../../../components/molecules/ConfirmationModal';
+import InstituteSearchAssignModal from '../../../components/organisms/InstituteSearchAssignModal';
+import MarkAttendanceModal from '../../../components/organisms/MarkAttendanceModal';
 
 const TutorDashboard = ({ setActivePage }) => {
+  const { user } = useAuth();
+
   // -- State for Dashboard Quick Actions --
   const [isClassModalOpen, setClassModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+  const [preselectedStudent, setPreselectedStudent] = useState(null);
 
   // Confirmation States
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -67,15 +76,22 @@ const TutorDashboard = ({ setActivePage }) => {
           <p className="text-gray-500 dark:text-gray-400">Overview of your institute activities</p>
         </div>
 
-        <div className="w-full md:w-auto flex items-center gap-3">
-
-          <button
-            onClick={() => setClassModalOpen(true)}
-            className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 dark:hover:bg-blue-500 transition-colors shadow-sm"
+        <div className="w-full md:w-auto flex items-center gap-3 justify-center md:justify-end">
+          <Button
+            variant="primary"
+            onClick={() => setIsAttendanceModalOpen(true)}
+            className="flex-1 md:flex-none md:min-w-[170px]"
+            title="Attendance · Fees · Enroll"
           >
-            <Plus size={18} />
-            <span>Create</span>
-          </button>
+            <Zap size={18} className="mr-2" /> Student Hub
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex-1 md:flex-none md:min-w-[170px]"
+          >
+            <Plus size={18} className="mr-2" /> Add New
+          </Button>
         </div>
       </div>
 
@@ -126,6 +142,29 @@ const TutorDashboard = ({ setActivePage }) => {
         confirmLabel="OK"
         cancelLabel="Close"
         variant="success"
+      />
+
+      {/* Add User Flow Modal */}
+      <InstituteSearchAssignModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        type="Student"
+        user={user}
+        onAssignToClass={(student) => {
+          setIsAddModalOpen(false);
+          setPreselectedStudent(student);
+          setIsAttendanceModalOpen(true);
+        }}
+      />
+
+      {/* Mark Attendance Modal */}
+      <MarkAttendanceModal
+        isOpen={isAttendanceModalOpen}
+        onClose={() => {
+          setIsAttendanceModalOpen(false);
+          setPreselectedStudent(null);
+        }}
+        initialStudent={preselectedStudent}
       />
     </div>
   );

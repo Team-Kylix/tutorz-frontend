@@ -31,6 +31,7 @@ const InstituteDashboard = ({ user, setActivePage }) => {
     // --- Modal States ---
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+    const [preselectedStudent, setPreselectedStudent] = useState(null);
 
     // --- Redux Fast Cache ---
     const dispatch = useDispatch();
@@ -274,12 +275,21 @@ const InstituteDashboard = ({ user, setActivePage }) => {
                 type={null}
                 onAssigned={() => { handleRefresh(); }}
                 user={user}
+                onAssignToClass={(student) => {
+                    setIsAddModalOpen(false);
+                    setPreselectedStudent(student);
+                    setIsAttendanceModalOpen(true);
+                }}
             />
 
             {/* Mark Attendance Modal */}
             <MarkAttendanceModal
                 isOpen={isAttendanceModalOpen}
-                onClose={() => setIsAttendanceModalOpen(false)}
+                onClose={() => {
+                    setIsAttendanceModalOpen(false);
+                    setPreselectedStudent(null);
+                }}
+                initialStudent={preselectedStudent}
             />
         </div>
     );
