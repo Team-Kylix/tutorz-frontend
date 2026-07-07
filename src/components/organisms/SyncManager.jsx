@@ -7,6 +7,7 @@ import {
   setSyncing,
   selectDueItems,
   SYNC_ACTION_TYPES,
+  resolveTemporaryId,
 } from '../../store/syncSlice';
 import {
   markAttendance,
@@ -16,8 +17,9 @@ import {
   updateHall,
   deleteHall,
   toggleHallStatus,
+  searchStudents,
 } from '../../services/api/instituteService';
-import { updateTutorProfile, createClass, updateClass, deleteClass } from '../../services/api/tutorService';
+import { updateTutorProfile, createClass, updateClass, deleteClass, addStudentToClass, markTutorAttendance } from '../../services/api/tutorService';
 import { updateStudentProfile } from '../../services/api/studentService';
 import { register, registerSibling } from '../../services/auth/authService';
 import { createAdmin } from '../../services/api/adminService';
@@ -50,13 +52,24 @@ const isAlreadyDoneError = (errorMessage = '') => {
  * Maps each SYNC_ACTION_TYPE to the correct API call.
  * To add a new offline-capable feature, add an entry here.
  */
-const executeAction = async (item) => {
+const executeAction = async (item, user) => {
   const { actionType, payload } = item;
   switch (actionType) {
     case SYNC_ACTION_TYPES.MARK_ATTENDANCE:
-      return markAttendance(payload.studentId, payload.classId);
+      if (user?.role === 'Tutor') {
+        return markTutorAttendance(payload.studentId, payload.classId);
+      } else {
+        return markAttendance(payload.studentId, payload.classId);
+      }
     case SYNC_ACTION_TYPES.ASSIGN_TO_CLASS:
-      return assignStudentToClass(payload.studentId, payload.classId);
+      if (user?.role === 'Tutor') {
+        return addStudentToClass({
+          classId: payload.classId,
+          studentId: payload.studentId
+        });
+      } else {
+        return assignStudentToClass(payload.studentId, payload.classId);
+      }
     case SYNC_ACTION_TYPES.UPDATE_PROFILE:
       switch (payload.role) {
         case 'Tutor':     return updateTutorProfile(payload.formData);
@@ -105,6 +118,7 @@ const executeAction = async (item) => {
 const SyncManager = () => {
   const dispatch = useDispatch();
   const dueItems = useSelector(selectDueItems);
+  const { isAuthenticated, token, user } = useSelector((state) => state.auth);
   const isSyncingRef = useRef(false);
   const POLL_INTERVAL_MS = 30 * 1000;
 
@@ -118,9 +132,47 @@ const SyncManager = () => {
 
     for (const item of dueItems) {
       try {
-        await executeAction(item);
+        const result = await executeAction(item, user);
         dispatch(dequeueAction({ id: item.id }));
         console.info(`[SyncManager] ✅ Synced: "${item.label}"`);
+
+        // If this was a user registration, resolve its temporary ID in the rest of the queue
+        if (item.actionType === SYNC_ACTION_TYPES.REGISTER_USER) {
+          const regData = item.payload?.registrationData;
+          if (regData) {
+            const tempId = regData.phoneNumber || regData.identifier;
+            let resolvedId = null;
+
+            // 1. Try to extract from API result
+            if (result) {
+              resolvedId = result.roleSpecificId || result.studentId || result.currentStudentId || 
+                           result.data?.roleSpecificId || result.data?.studentId || result.data?.currentStudentId ||
+                           result.userId || result.data?.userId;
+            }
+
+            // 2. Fallback: Query backend search to find the registered student
+            if (!resolvedId || resolvedId.length < 15) {
+              try {
+                const searchRes = await searchStudents(regData.firstName);
+                const candidates = searchRes.data || [];
+                const matched = candidates.find(s => 
+                  (regData.phoneNumber && s.phoneNumber && s.phoneNumber.replace(/\s+/g, '') === regData.phoneNumber.replace(/\s+/g, '')) ||
+                  (s.name.trim().toLowerCase().includes(regData.firstName.trim().toLowerCase()))
+                );
+                if (matched) {
+                  resolvedId = matched.roleSpecificId;
+                }
+              } catch (searchErr) {
+                console.warn("[SyncManager] Failed to search and resolve student GUID:", searchErr);
+              }
+            }
+
+            if (resolvedId && tempId) {
+              dispatch(resolveTemporaryId({ tempId, resolvedId }));
+              console.info(`[SyncManager] Resolved temporary ID "${tempId}" to GUID "${resolvedId}"`);
+            }
+          }
+        }
 
       } catch (err) {
         const errorMessage = err?.response?.data?.message || err?.message || 'Network error';
@@ -156,7 +208,7 @@ const SyncManager = () => {
     return () => clearInterval(interval);
   }, [dueItems]);
 
-  const { isAuthenticated, token, user } = useSelector((state) => state.auth);
+
 
   // --- SignalR & Notifications Lifecycle ---
   useEffect(() => {

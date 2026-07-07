@@ -136,6 +136,11 @@ export const searchEnrolledStudents = async (query) => {
   return response.data;
 };
 
+export const getStudentClassesForTutor = async (studentId) => {
+  const response = await apiClient.get(`/tutor/students/${studentId}/classes`);
+  return response.data;
+};
+
 /**
  * Searches for an institute exactly by RegNo or Mobile
  * @param {string} query - Search term
@@ -245,5 +250,29 @@ export const downloadTutorMonthlyReportPdf = async (instituteId, classId, month,
  */
 export const deleteMarkSheet = async (markSheetId) => {
   const response = await apiClient.delete(`/tutor/marks/${markSheetId}`);
+  return response.data;
+};
+
+export const markTutorAttendance = async (studentId, classId) => {
+  const response = await apiClient.post('/tutor/attendance/mark', { studentId, classId });
+  return response.data;
+};
+
+export const recordTutorPayment = async (paymentData) => {
+  const response = await apiClient.post('/tutor/payments/record', paymentData);
+  return response.data;
+};
+
+export const getStudentPaymentStatusForTutor = async (classId, studentId) => {
+  const response = await apiClient.get('/tutor/payments/status', {
+    params: { classId, studentId }
+  });
+  return response.data;
+};
+
+export const searchStudentsGlobalForTutor = async (query) => {
+  const response = await apiClient.get('/tutor/students/search-global', {
+    params: { query }
+  });
   return response.data;
 };

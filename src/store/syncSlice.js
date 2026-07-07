@@ -207,6 +207,26 @@ const syncSlice = createSlice({
       }
     },
 
+    /**
+     * Replaces temporary offline IDs in queued actions with final server GUIDs.
+     * Keeps offline dependencies consistent as registrations complete.
+     */
+    resolveTemporaryId: (state, action) => {
+      const { tempId, resolvedId } = action.payload;
+      if (!tempId || !resolvedId) return;
+
+      state.queue.forEach((item) => {
+        if (item.payload) {
+          if (item.payload.studentId === tempId) {
+            item.payload.studentId = resolvedId;
+          }
+        }
+        if (item.dedupeKey) {
+          item.dedupeKey = item.dedupeKey.replace(tempId, resolvedId);
+        }
+      });
+    },
+
     /** Lock/unlock the sync processing loop to prevent race conditions. */
     setSyncing: (state, action) => {
       state.isSyncing = action.payload;
@@ -236,6 +256,7 @@ export const {
   dequeueAction,
   recordSyncFailure,
   startBurstMode,
+  resolveTemporaryId,
   setSyncing,
   markConflictAsSeen,
   clearSeenConflicts,

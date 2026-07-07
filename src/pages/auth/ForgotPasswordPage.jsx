@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import AuthLayout from '../../components/templates/AuthLayout';
 import FormField from '../../components/molecules/FormField';
 import OtpVerificationModal from '../../components/organisms/OtpVerificationModal';
-import { forgotPassword, checkUserStatus } from '../../services/auth/authService';
+import { forgotPassword, checkUserStatus, verifyResetOtp } from '../../services/auth/authService';
 import { validatePhoneNumber } from '../../utils/validators';
 
 const ForgotPasswordPage = () => {
@@ -79,12 +79,9 @@ const ForgotPasswordPage = () => {
     };
 
     const handleVerifyOtp = async (otpCode) => {
-        // NOTE: For password reset, the backend stores the OTP in the
-        // PasswordResetToken column (via forgot-password). The reset-password
-        // endpoint then looks up the user by that token value.
-        // We CANNOT call verify-otp here because that uses a DIFFERENT column (OtpCode).
-        // Instead, we carry the entered OTP to ResetPasswordPage and submit it
-        // together with the new password directly to reset-password.
+        // Verify the OTP via backend before navigating to the reset password page
+        await verifyResetOtp(identifier.trim(), otpCode);
+        
         setShowOtpModal(false);
         navigate('/reset-password', {
             state: {

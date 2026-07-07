@@ -7,6 +7,8 @@ import Button from '../atoms/Button';
 import MonthStrip from '../molecules/MonthStrip';
 import ConfirmationModal from '../molecules/ConfirmationModal';
 import { getPaymentStatus, recordPayment } from '../../services/api/paymentService';
+import { getStudentPaymentStatusForTutor, recordTutorPayment } from '../../services/api/tutorService';
+import { useAuth } from '../../hooks/useAuth';
 
 /**
  * PaymentModal
@@ -16,8 +18,10 @@ import { getPaymentStatus, recordPayment } from '../../services/api/paymentServi
  *   onClose      {func}
  *   student      {object}  — { roleSpecificId, name, registrationNumber }
  *   cls          {object}  — { classId | id, subject, grade, tutorName, fee }
+ *   onPaymentSuccess {func} - Callback when payment is successfully made and success modal closed
  */
-const PaymentModal = ({ isOpen, onClose, student, cls }) => {
+const PaymentModal = ({ isOpen, onClose, student, cls, onPaymentSuccess }) => {
+    const { user } = useAuth();
     // --- Month strip state ---
     const [months, setMonths] = useState([]);
     const [isLoadingMonths, setIsLoadingMonths] = useState(false);
@@ -63,7 +67,9 @@ const PaymentModal = ({ isOpen, onClose, student, cls }) => {
     const fetchMonths = async () => {
         setIsLoadingMonths(true);
         try {
-            const res = await getPaymentStatus(classId, studentId);
+            const res = user?.role === 'Tutor'
+                ? await getStudentPaymentStatusForTutor(classId, studentId)
+                : await getPaymentStatus(classId, studentId);
             if (res?.success && Array.isArray(res.data)) {
                 setMonths(res.data);
             } else {
@@ -105,15 +111,14 @@ const PaymentModal = ({ isOpen, onClose, student, cls }) => {
                 amountPaid: amount,
                 note: note || null
             };
-            const res = await recordPayment(payload);
+            const res = user?.role === 'Tutor'
+                ? await recordTutorPayment(payload)
+                : await recordPayment(payload);
             if (res?.success) {
                 setIsSuccess(true);
                 setShowSuccess(true);
                 // Refresh month statuses so the chip turns green
                 await fetchMonths();
-                setTimeout(() => {
-                    setIsSuccess(false);
-                }, 2000);
             } else {
                 setErrorMsg(res?.message || 'Payment failed. Try again.');
             }
@@ -307,8 +312,14 @@ const PaymentModal = ({ isOpen, onClose, student, cls }) => {
             {/* Success Modal */}
             <ConfirmationModal
                 isOpen={showSuccess}
-                onClose={() => setShowSuccess(false)}
-                onConfirm={() => setShowSuccess(false)}
+                onClose={() => {
+                    setShowSuccess(false);
+                    if (onPaymentSuccess) onPaymentSuccess();
+                }}
+                onConfirm={() => {
+                    setShowSuccess(false);
+                    if (onPaymentSuccess) onPaymentSuccess();
+                }}
                 title="Payment Successful"
                 message={`Payment of Rs ${parseFloat(customFee).toLocaleString()} for ${monthLabel} has been successfully recorded.`}
                 confirmLabel="Done"

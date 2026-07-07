@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import FormField from '../molecules/FormField';
 import Button from '../atoms/Button';
 import { Timer } from 'lucide-react';
@@ -57,8 +58,8 @@ const OtpVerificationModal = ({ isOpen, onClose, onVerify, identifier }) => {
     };
 
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+    return createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-sm transition-colors border border-transparent dark:border-gray-700">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center mb-2">Verify Identity</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-4">
@@ -96,7 +97,8 @@ const OtpVerificationModal = ({ isOpen, onClose, onVerify, identifier }) => {
                     </button>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
