@@ -238,3 +238,12 @@ export const changePassword = async (currentPassword, newPassword) => {
         throw new Error(err.response?.data?.message || 'Failed to change password.');
     }
 };
+
+export const verifyResetOtp = async (identifier, otp) => {
+    try {
+        const response = await apiClient.post('/auth/verify-reset-otp', { identifier, otp });
+        return response.data;
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Invalid OTP code.');
+    }
+};

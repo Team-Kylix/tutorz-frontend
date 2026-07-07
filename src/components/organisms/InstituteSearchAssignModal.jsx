@@ -12,6 +12,7 @@ import OtpVerificationModal from './OtpVerificationModal';
 
 import { checkUserStatus, sendOtp, verifyOtp } from '../../services/auth/authService';
 import { searchStudents, searchTutors, assignStudent, sendTutorRequest, getInstituteProfile } from '../../services/api/instituteService';
+import { getJoinedInstitutes, searchStudentsGlobalForTutor } from '../../services/api/tutorService';
 import { validatePhoneNumber, validateEmail } from '../../utils/validators';
 
 const GRADE_GROUPS = [
@@ -30,6 +31,10 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
 
     // Institute Profile
     const [instituteProfile, setInstituteProfile] = useState(null);
+
+    // Tutor Affiliate Location States
+    const [tutorInstitutes, setTutorInstitutes] = useState([]);
+    const [selectedTutorInstituteId, setSelectedTutorInstituteId] = useState('');
 
     // Search Mode State
     const [query, setQuery] = useState('');
@@ -104,16 +109,41 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             setIsSiblingRegistration(false);
             setSiblingVerificationToken(null);
             setIsRegistering(false);
+            setSelectedTutorInstituteId('');
 
             // Fetch profile if needed (only for Institutes)
             if (user?.role === 'Institute' && !instituteProfile) {
                 getInstituteProfile().then(res => {
-                    if (res?.success) setInstituteProfile(res.data);
-                }).catch(err => console.error("Failed to fetch institute profile", err));
+                    setInstituteProfile(res.data);
+                }).catch(() => {});
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, type, user]);
+    }, [isOpen, type, user, instituteProfile]);
+
+    // Fetch tutor institutes on open
+    useEffect(() => {
+        if (isOpen && user?.role === 'Tutor') {
+            const fetchTutorInstitutes = async () => {
+                try {
+                    const res = await getJoinedInstitutes();
+                    let fetched = [];
+                    if (Array.isArray(res)) {
+                        fetched = res;
+                    } else if (Array.isArray(res?.data)) {
+                        fetched = res.data;
+                    } else if (Array.isArray(res?.data?.items)) {
+                        fetched = res.data.items;
+                    } else if (Array.isArray(res?.items)) {
+                        fetched = res.items;
+                    }
+                    setTutorInstitutes(fetched);
+                } catch (err) {
+                    console.error("Failed to fetch tutor institutes", err);
+                }
+            };
+            fetchTutorInstitutes();
+        }
+    }, [isOpen, user]);
 
     // --- Search Logic ---
     useEffect(() => {
@@ -127,10 +157,14 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
         debounceTimer.current = setTimeout(async () => {
             setIsSearching(true);
             try {
-                // Admins don't have a lookup yet in this modal
-                const searchFn = selectedRole === 'Student' ? searchStudents : searchTutors;
-                const res = await searchFn(query.trim());
-                setResults(res.data || []);
+                let res;
+                if (user?.role === 'Tutor') {
+                    res = await searchStudentsGlobalForTutor(query.trim());
+                } else {
+                    const searchFn = selectedRole === 'Student' ? searchStudents : searchTutors;
+                    res = await searchFn(query.trim());
+                }
+                setResults(res.data || res || []);
             } catch {
                 setResults([]);
             } finally {
@@ -292,12 +326,17 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
     const handleItsParent = async () => {
         setIsChecking(true);
         try {
-            const identifierToUse = checkData.email || checkData.mobile;
             setRegistrationMode('sibling');
-            await sendOtp(identifierToUse);
-            setIsOtpModalOpen(true);
+            
+            // Bypass OTP for logged in users registering a sibling
+            setIsSiblingRegistration(true);
+            setSiblingVerificationToken("BYPASS_OTP");
+            setFormData({ mobile: '', firstName: '', lastName: '', grade: '', bio: '', bankAccountNumber: '', bankName: '', experienceYears: 0 });
+            setErrors({});
+            setStep('register-student');
+            setIsExistingUserModalOpen(false);
         } catch (error) {
-            setGlobalError(error.message || "Failed to send verification code.");
+            setGlobalError(error.message || "Failed to initialize sibling registration.");
         } finally {
             setIsChecking(false);
         }
@@ -419,7 +458,23 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
     const performFinalRegistration = async (otpCode) => {
         const mobileStr = formData.mobile.trim();
         const generatedPassword = mobileStr && mobileStr.length >= 6 ? mobileStr.slice(-6) : "123456";
-        const instId = instituteProfile?.instituteId || user?.instituteId;
+        
+        let instId = null;
+        let selectedCityId = null;
+
+        if (user?.role === 'Tutor') {
+            if (selectedTutorInstituteId && selectedTutorInstituteId !== 'own') {
+                instId = selectedTutorInstituteId;
+                const foundInst = tutorInstitutes.find(i => (i.id || i.instituteId) === selectedTutorInstituteId);
+                selectedCityId = foundInst?.cityId || null;
+            } else {
+                instId = null;
+                selectedCityId = user?.cityId || null;
+            }
+        } else {
+            instId = type === 'Admin' ? null : (instituteProfile?.instituteId || instituteProfile?.id || null);
+            selectedCityId = instituteProfile?.cityId || null;
+        }
 
         if (selectedRole === 'Admin') {
             await executeRegister({
@@ -446,7 +501,9 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                     schoolName: "Not Provided",
                     parentName: "Not Provided",
                     dateOfBirth: new Date().toISOString(),
-                    instituteId: instId
+                    instituteId: instId,
+                    cityId: selectedCityId,
+                    tutorId: user?.role === 'Tutor' ? (user.userId || user.id) : null
                 });
                 setSuccessMessage({ 
                     title: "Sibling Successfully Registered!", 
@@ -463,9 +520,10 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                     schoolName: "Not Provided",
                     parentName: "Not Provided",
                     dateOfBirth: new Date().toISOString(),
-                    cityId: instituteProfile?.cityId,
+                    cityId: selectedCityId,
                     instituteId: instId,
-                    otpCode: otpCode
+                    otpCode: otpCode,
+                    tutorId: user?.role === 'Tutor' ? (user.userId || user.id) : null
                 });
                 setSuccessMessage({ 
                     title: "Registration Successful!", 
@@ -526,6 +584,26 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
         return (
             <>
                 {renderHeader(`Search & Assign ${selectedRole}`)}
+                {user?.role === 'Tutor' && (
+                    <div className="bg-blue-50 dark:bg-blue-900/10 p-3 rounded-lg border border-blue-100 dark:border-blue-800/40 mb-3 animate-fade-in">
+                        <label className="block text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-1.5">
+                            Location for Assignment <span className="text-red-500">*</span>
+                        </label>
+                        <Select 
+                            value={selectedTutorInstituteId} 
+                            onChange={(e) => setSelectedTutorInstituteId(e.target.value)}
+                            required
+                        >
+                            <option value="" disabled>Select Location</option>
+                            <option value="own">My Own Place</option>
+                            {tutorInstitutes.map(inst => (
+                                <option key={inst.id || inst.instituteId} value={inst.id || inst.instituteId}>
+                                    {inst.name || inst.instituteName}
+                                </option>
+                            ))}
+                        </Select>
+                    </div>
+                )}
                 <div className="space-y-4">
                     <div className="relative">
                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -563,7 +641,27 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                                             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.registrationNumber}{item.phoneNumber && ` · ${item.phoneNumber}`}</p>
                                             {itemFeedback && <p className={`text-xs mt-0.5 font-medium ${itemFeedback.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>{itemFeedback.message}</p>}
                                         </div>
-                                        {item.isAlreadyAssigned ? (
+                                        {user?.role === 'Tutor' ? (
+                                            <Button 
+                                                size="small" 
+                                                variant="primary" 
+                                                disabled={user?.role === 'Tutor' && !selectedTutorInstituteId}
+                                                onClick={() => {
+                                                    if (onAssignToClass) {
+                                                        const studentWithLoc = { 
+                                                            ...item, 
+                                                            selectedInstituteId: selectedTutorInstituteId,
+                                                            closeOnAction: true
+                                                        };
+                                                        onAssignToClass(studentWithLoc);
+                                                        onClose();
+                                                    }
+                                                }}
+                                                className="shrink-0"
+                                            >
+                                                <UserPlus size={14} className="mr-1" /> Assign to Class
+                                            </Button>
+                                        ) : item.isAlreadyAssigned ? (
                                             <span className="flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400 shrink-0">
                                                 <CheckCircle2 size={15} />
                                                 {selectedRole === 'Student' ? 'Assigned' : 'Requested / Assigned'}
@@ -632,6 +730,26 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             <>
                 {renderHeader(`New ${selectedRole} Registration`)}
                 <form onSubmit={handleRegisterSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+                    {user?.role === 'Tutor' && isStudent && (
+                        <div className="bg-blue-50 dark:bg-blue-900/10 p-3 rounded-lg border border-blue-100 dark:border-blue-800/40">
+                            <label className="block text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-1.5">
+                                Link to Institute / Location <span className="text-red-500">*</span>
+                            </label>
+                            <Select 
+                                value={selectedTutorInstituteId} 
+                                onChange={(e) => setSelectedTutorInstituteId(e.target.value)} 
+                                required
+                            >
+                                <option value="" disabled>Select Location</option>
+                                <option value="own">My Own Place</option>
+                                {tutorInstitutes.map(inst => (
+                                    <option key={inst.id || inst.instituteId} value={inst.id || inst.instituteId}>
+                                        {inst.name || inst.instituteName}
+                                    </option>
+                                ))}
+                            </Select>
+                        </div>
+                    )}
                     {(checkData.email || isTutor || isAdmin) && (
                         <div className={`bg-${color}-50 dark:bg-${color}-900/20 p-3 rounded-lg border border-${color}-100 dark:border-${color}-800 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4`}>
                             {checkData.email && (
@@ -709,12 +827,16 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 {selectedRole === 'Student' && onAssignToClass && (
                     <Button 
                         variant="primary" 
+                        disabled={user?.role === 'Tutor' && !selectedTutorInstituteId}
                         onClick={() => {
                             const tempStudent = {
                                 roleSpecificId: formData.mobile.trim() || checkData.email || checkData.mobile,
+                                isSiblingRegistration: isSiblingRegistration,
                                 name: [formData.firstName, formData.lastName].filter(Boolean).join(' ').trim(),
                                 phoneNumber: formData.mobile.trim() || checkData.mobile,
-                                registrationNumber: 'Pending Sync'
+                                registrationNumber: 'Pending Sync',
+                                selectedInstituteId: user?.role === 'Tutor' ? selectedTutorInstituteId : null,
+                                closeOnAction: true
                             };
                             onAssignToClass(tempStudent);
                         }}

@@ -14,6 +14,9 @@ import {
     getInstituteClasses,
     searchTutors,
 } from '../../services/api/instituteService';
+import { getClasses as getTutorClasses, searchEnrolledStudents, getStudentClassesForTutor, searchStudentsGlobalForTutor } from '../../services/api/tutorService';
+import { useAuth } from '../../hooks/useAuth';
+import { checkUserStatus } from '../../services/auth/authService';
 import ConfirmationModal from '../molecules/ConfirmationModal';
 import Input from '../atoms/Input';
 import Select from '../atoms/Select';
@@ -26,6 +29,7 @@ import { enqueueAction, SYNC_ACTION_TYPES, selectPendingCount, selectUnseenConfl
  */
 const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
     const dispatch = useDispatch();
+    const { user } = useAuth();
     const pendingCount = useSelector(selectPendingCount);
     const conflicts = useSelector(selectUnseenConflicts);
     const tombstones = useSelector(selectTombstones);
@@ -76,6 +80,12 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
     // --- On Mount: Fetch Today's Classes ---
     useEffect(() => {
         if (isOpen) {
+            if (user?.role === 'Tutor') {
+                setSelectedTutor({
+                    roleSpecificId: user.roleSpecificId,
+                    name: user.name || [user.firstName, user.lastName].filter(Boolean).join(' '),
+                });
+            }
             fetchTodayClasses();
             if (initialStudent) {
                 handleSelectStudent(initialStudent);
@@ -83,7 +93,7 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
                 resetFlow();
             }
         }
-    }, [isOpen, initialStudent]);
+    }, [isOpen, initialStudent, user]);
 
     // Auto-focus search input when returning to Step 1
     useEffect(() => {
@@ -98,8 +108,17 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
     const fetchTodayClasses = async () => {
         setIsFetchingTodayClasses(true);
         try {
-            const res = await getInstituteClassesToday();
-            setTodayClasses(res.data || []);
+            if (user?.role === 'Tutor') {
+                const res = await getTutorClasses();
+                const fetched = res || [];
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const todayName = days[new Date().getDay()];
+                const filtered = fetched.filter(c => c.dayOfWeek === todayName);
+                setTodayClasses(filtered);
+            } else {
+                const res = await getInstituteClassesToday();
+                setTodayClasses(res.data || []);
+            }
         } catch (err) {
             console.error("Failed to fetch today's classes", err);
             setTodayClasses([]);
@@ -144,8 +163,15 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
 
             setIsFetchingAllClasses(true);
             try {
-                const res = await getInstituteClasses('', 1, 100, selectedTutor.roleSpecificId);
-                setAllInstituteClasses(res.data?.items || []);
+                let classesData = [];
+                if (user?.role === 'Tutor') {
+                    const res = await getTutorClasses();
+                    classesData = res || [];
+                } else {
+                    const res = await getInstituteClasses('', 1, 100, selectedTutor.roleSpecificId);
+                    classesData = res.data?.items || [];
+                }
+                setAllInstituteClasses(classesData);
             } catch (err) {
                 console.error("Failed to fetch tutor classes", err);
                 setAllInstituteClasses([]);
@@ -155,7 +181,7 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
         };
 
         fetchTutorClasses();
-    }, [selectedTutor]);
+    }, [selectedTutor, user]);
 
     const resetFlow = () => {
         setStep(1);
@@ -174,9 +200,16 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
         setIsScanning(false);
         setShowMarkConfirm(false);
         setTutorSearchQuery('');
-        setSelectedTutor(null);
         setTutorResults([]);
         setSelectedGlobalClassId('');
+        if (user?.role === 'Tutor') {
+            setSelectedTutor({
+                roleSpecificId: user.roleSpecificId,
+                name: user.name || [user.firstName, user.lastName].filter(Boolean).join(' '),
+            });
+        } else {
+            setSelectedTutor(null);
+        }
     };
 
     // --- Search Logic ---
@@ -197,8 +230,14 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
         debounceTimer.current = setTimeout(async () => {
             setIsSearching(true);
             try {
-                const res = await searchStudents(query.trim());
-                const data = res.data || [];
+                let data = [];
+                if (user?.role === 'Tutor') {
+                    const res = await searchEnrolledStudents(query.trim());
+                    data = res.data || res || [];
+                } else {
+                    const res = await searchStudents(query.trim());
+                    data = res.data || [];
+                }
                 setResults(data);
                 
                 // Auto-select if exact STU code match
@@ -246,14 +285,39 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
             while (!found && attempts < maxAttempts) {
                 try {
                     await new Promise(r => setTimeout(r, 1500));
-                    const res = await searchStudents(searchTerm);
-                    const candidates = res.data || [];
                     
-                    // Match by phone number first (most reliable), fallback to full name
-                    found = candidates.find(s => 
-                        (student.phoneNumber && s.phoneNumber && s.phoneNumber.replace(/\s+/g, '') === student.phoneNumber.replace(/\s+/g, '')) ||
-                        (s.name.trim().toLowerCase() === student.name.trim().toLowerCase())
-                    );
+                    if (student.isSiblingRegistration) {
+                        let globalRes;
+                        if (user?.role === 'Tutor') {
+                            globalRes = await searchStudentsGlobalForTutor(student.roleSpecificId);
+                        } else {
+                            globalRes = await searchStudents(student.roleSpecificId);
+                        }
+                        
+                        const siblingData = globalRes?.data || globalRes || [];
+                        const matchedSibling = siblingData.find(s => {
+                            const sName = (s.name || `${s.firstName || ''} ${s.lastName || ''}`).trim().toLowerCase();
+                            const targetName = (student.name || '').trim().toLowerCase();
+                            return sName === targetName;
+                        });
+                        
+                        if (matchedSibling) {
+                            found = matchedSibling;
+                        }
+                    } else {
+                        const checkRes = await checkUserStatus({
+                            phoneNumber: student.phoneNumber || null,
+                            email: student.email || null
+                        });
+                        if (checkRes?.exists && checkRes.role === 'Student') {
+                            found = {
+                                roleSpecificId: checkRes.roleSpecificId || checkRes.userId,
+                                name: checkRes.name,
+                                phoneNumber: checkRes.phoneNumber,
+                                email: checkRes.email
+                            };
+                        }
+                    }
                 } catch (e) {
                     // Ignore network errors while polling
                 }
@@ -261,6 +325,7 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
             }
 
             if (found) {
+                
                 resolvedStudent = found;
                 setSelectedStudent(resolvedStudent);
                 setLoadingText("Cross-referencing active classes...");
@@ -272,8 +337,14 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
         }
 
         try {
-            const res = await getStudentClassesForAttendance(resolvedStudent.roleSpecificId);
-            setStudentClasses(res.data || []);
+            let res;
+            if (user?.role === 'Tutor') {
+                res = await getStudentClassesForTutor(resolvedStudent.roleSpecificId);
+                setStudentClasses(res.data || res || []);
+            } else {
+                res = await getStudentClassesForAttendance(resolvedStudent.roleSpecificId);
+                setStudentClasses(res.data || []);
+            }
         } catch (err) {
             setStudentClasses([]);
         } finally {
@@ -287,15 +358,26 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
             setAssignmentMode(null);
             setSelectedClassId(null);
         } else {
-            setStep(1);
-            setSelectedStudent(null);
-            setStudentClasses([]);
-            setSelectedClassId(null);
+            if (initialStudent) {
+                onClose();
+            } else {
+                setStep(1);
+                setSelectedStudent(null);
+                setStudentClasses([]);
+                setSelectedClassId(null);
+            }
         }
         setErrorMsg('');
         setIsSuccess(false);
         setTutorSearchQuery('');
-        setSelectedTutor(null);
+        if (user?.role === 'Tutor') {
+            setSelectedTutor({
+                roleSpecificId: user.roleSpecificId,
+                name: user.name || [user.firstName, user.lastName].filter(Boolean).join(' '),
+            });
+        } else {
+            setSelectedTutor(null);
+        }
         setTutorResults([]);
         setSelectedGlobalClassId('');
     };
@@ -364,8 +446,10 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
                 // 3. Show success toast and reset the form IMMEDIATELY
                 triggerSuccessToast(`Present: ${selectedStudent.name}`);
                 setIsSuccess(true);
+                setIsSubmitting(false);
                 setTimeout(() => {
-                    resetFlow();
+                    setIsSuccess(false);
+                    setSelectedClassId(null);
                 }, 800);
             }
         } catch (err) {
@@ -379,9 +463,33 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
         setTimeout(() => setSuccessToast(null), 3000);
     };
 
-    // --- Filtering Logic ---
+    // --- Location & Role-based Filtering Logic ---
+    const filterClassesByLocation = (classesList) => {
+        if (!selectedStudent?.selectedInstituteId) return classesList;
+        return classesList.filter(c => {
+            if (selectedStudent.selectedInstituteId === 'own') {
+                return !c.instituteId;
+            } else {
+                return c.instituteId === selectedStudent.selectedInstituteId;
+            }
+        });
+    };
+
+    const filteredTodayClasses = filterClassesByLocation(todayClasses);
+    const filteredAllInstituteClasses = filterClassesByLocation(allInstituteClasses);
+
+    // Filter studentClasses (active enrolled classes) to only show this tutor's classes if logged-in user is a Tutor
+    const filteredStudentClasses = user?.role === 'Tutor' 
+        ? studentClasses.filter(c => {
+            const cid = c.classId || c.id;
+            return filteredAllInstituteClasses.some(tc => (tc.classId || tc.id) === cid) ||
+                   c.tutorId === user.roleSpecificId || 
+                   c.tutorSpecificId === user.roleSpecificId;
+          })
+        : studentClasses;
+
     // Build a Set of today's class IDs for quick lookup
-    const todayClassIdSet = new Set(todayClasses.map(tc => tc.id || tc.classId));
+    const todayClassIdSet = new Set(filteredTodayClasses.map(tc => tc.id || tc.classId));
 
     // All classes the student is enrolled in, sorted:
     // 1. Today's classes first (sorted by startTime)
@@ -392,7 +500,7 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
         return (h || 0) * 60 + (m || 0);
     };
 
-    const activeEnrolledClasses = [...studentClasses].sort((a, b) => {
+    const activeEnrolledClasses = [...filteredStudentClasses].sort((a, b) => {
         const aIsToday = todayClassIdSet.has(a.id || a.classId);
         const bIsToday = todayClassIdSet.has(b.id || b.classId);
         // Today's classes float to top
@@ -402,8 +510,8 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
     });
 
     // Other classes today (for Assign flow) - classes happening today the student isn't in
-    const otherClassesToday = todayClasses.filter(tc =>
-        !studentClasses.some(sc => (sc.id || sc.classId) === (tc.id || tc.classId))
+    const otherClassesToday = filteredTodayClasses.filter(tc =>
+        !filteredStudentClasses.some(sc => (sc.id || sc.classId) === (tc.id || tc.classId))
     );
 
     /**
@@ -412,6 +520,16 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
      */
     const isClassAlreadyMarked = (classIdentifier) => {
         if (!selectedStudent) return false;
+        
+        // 1. Check if backend already reported it as marked
+        const classObj = filteredStudentClasses.find(c => (c.id || c.classId) === classIdentifier) || 
+                         filteredTodayClasses.find(c => (c.id || c.classId) === classIdentifier);
+                         
+        if (classObj && classObj.isAttendanceMarkedToday) {
+            return true;
+        }
+
+        // 2. Fallback to optimistic UI check for current session
         const dedupeKey = `ATTEND_${selectedStudent.roleSpecificId}_${classIdentifier}`;
         return tombstones.includes(dedupeKey);
     };
@@ -527,9 +645,9 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
         const classesToList = isTodayMode ? otherClassesToday : activeEnrolledClasses;
 
         // Filter out classes the student is already enrolled in
-        const availableTutorClasses = allInstituteClasses.filter(tc => {
+        const availableTutorClasses = filteredAllInstituteClasses.filter(tc => {
             const tcId = tc.classId || tc.ClassId || tc.id || tc.Id;
-            return !studentClasses.some(sc => {
+            return !filteredStudentClasses.some(sc => {
                 const scId = sc.id || sc.classId || sc.ClassId;
                 return scId === tcId;
             });
@@ -614,25 +732,27 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
                         {isSearchMode && (
                             <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
                                 <div className="space-y-3">
-                                    <div className="relative">
-                                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                        <Input
-                                            placeholder="Tutor Name, Reg No or Mobile..."
-                                            value={tutorSearchQuery}
-                                            onChange={(e) => {
-                                                setTutorSearchQuery(e.target.value);
-                                                if (selectedTutor) {
-                                                    setSelectedTutor(null);
-                                                    setSelectedGlobalClassId('');
-                                                    setSelectedClassId(null);
-                                                }
-                                            }}
-                                            className="pl-9"
-                                        />
-                                        {isSearchingTutors && (
-                                            <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 animate-spin" />
-                                        )}
-                                    </div>
+                                    {user?.role !== 'Tutor' && (
+                                        <div className="relative">
+                                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                            <Input
+                                                placeholder="Tutor Name, Reg No or Mobile..."
+                                                value={tutorSearchQuery}
+                                                onChange={(e) => {
+                                                    setTutorSearchQuery(e.target.value);
+                                                    if (selectedTutor) {
+                                                        setSelectedTutor(null);
+                                                        setSelectedGlobalClassId('');
+                                                        setSelectedClassId(null);
+                                                    }
+                                                }}
+                                                className="pl-9"
+                                            />
+                                            {isSearchingTutors && (
+                                                <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 animate-spin" />
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Tutor Search Results Popover */}
                                     {!selectedTutor && tutorResults.length > 0 && (
@@ -660,7 +780,9 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
                                         </div>
                                     ) : selectedTutor && availableTutorClasses.length > 0 ? (
                                         <div className="space-y-2">
-                                            <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 mb-1">Results for {selectedTutor.name}</p>
+                                            <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 mb-1">
+                                                {user?.role === 'Tutor' ? 'My Classes' : `Results for ${selectedTutor.name}`}
+                                            </p>
                                             <div className="grid grid-cols-1 gap-3 max-h-[40vh] overflow-y-auto custom-scrollbar pr-1 pb-2">
                                                 {availableTutorClasses.map((c, idx) => {
                                                     const cid = c.classId || c.ClassId || c.id || c.Id || `tutor-class-${idx}`;
@@ -857,6 +979,9 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
                 onClose={() => setIsPaymentOpen(false)}
                 student={selectedStudent}
                 cls={paymentClass}
+                onPaymentSuccess={() => {
+                    // Do nothing here; allow the user to continue interacting with the student hub
+                }}
             />
 
             {/* Mark Present Confirmation */}
