@@ -59,7 +59,7 @@ const ClassesPage = () => {
       setIsLoading(false);
       return;
     }
-    const { data } = await fetchClasses(tutorService.getClasses);
+    const { data } = await fetchClasses(tutorService.getClasses, force);
     if (data) dispatch(setClassesData(data));
     setIsLoading(false);
   }, [isFetched, fetchClasses, dispatch]);
@@ -249,16 +249,16 @@ const ClassesPage = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Classes</h1>
           <p className="text-gray-500 dark:text-gray-400">Manage your subjects and schedules</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full sm:w-auto items-center gap-2">
           <button
             onClick={() => { setIsLoading(true); loadClasses(true); }}
             disabled={isLoading}
-            className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+            className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors shrink-0"
             title="Refresh"
           >
             <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
           </button>
-          <Button variant="primary" onClick={handleCreateClick}>
+          <Button variant="primary" onClick={handleCreateClick} className="flex-1 sm:flex-none justify-center">
             <Plus size={18} className="mr-2" /> Create Class
           </Button>
         </div>
@@ -283,17 +283,17 @@ const ClassesPage = () => {
 
         {/* Table View */}
         <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
-            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
+            <table className="w-full text-left text-xs md:text-sm text-gray-600 dark:text-gray-300 relative">
                 <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                     <tr>
-                        <th className="px-6 py-4 font-semibold">Class Name</th>
-                        <th className="px-6 py-4 font-semibold">Subject / Grade</th>
-                        <th className="px-6 py-4 font-semibold">Time</th>
-                        <th className="px-6 py-4 font-semibold">Date / Day</th>
-                        <th className="px-6 py-4 font-semibold">Location</th>
-                        <th className="px-6 py-4 font-semibold">Fees (Rs)</th>
-                        <th className="px-6 py-4 font-semibold text-center">Students</th>
-                        <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
+                        <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Class Name</th>
+                        <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Subject / Grade</th>
+                        <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Time</th>
+                        <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Date / Day</th>
+                        <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Location</th>
+                        <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Fees (Rs)</th>
+                        <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap text-center">Students</th>
+                        <th className="px-1 py-3 md:py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -307,7 +307,7 @@ const ClassesPage = () => {
                                         !cls.isActive ? 'opacity-60 bg-gray-50/50 dark:bg-gray-800/50' : ''
                                     }`}
                                 >
-                                    <td className="px-6 py-4">
+                                    <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                         <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                                             <span>{cls.className || '-'}</span>
                                             {!cls.isActive && (
@@ -316,49 +316,49 @@ const ClassesPage = () => {
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        <div className="flex items-center gap-2 text-[11px] md:text-xs text-gray-500 dark:text-gray-400 mt-1">
                                             <span className="text-blue-600 dark:text-blue-400 opacity-75">{cls.classType || 'Class'}</span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                         <div className="flex flex-col gap-1">
-                                            <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-md font-medium w-max">
+                                            <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] md:text-xs rounded-md font-medium w-max">
                                                 {cls.subject || '-'}
                                             </span>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{cls.grade || '-'}</span>
+                                            <span className="text-[11px] md:text-xs text-gray-500 dark:text-gray-400 px-1">{cls.grade || '-'}</span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                                    <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                         <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
                                             <Clock size={14} />
                                             <span>{cls.startTime} - {cls.endTime}</span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                                    <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                         <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
                                             <Calendar size={14} />
                                             <span className="capitalize">{cls.dayOfWeek || (cls.date ? new Date(cls.date).toLocaleDateString() : '-')}</span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                         <div className="flex items-center gap-1.5">
                                             <Building2 size={14} className="text-gray-400" />
                                             <span className="font-medium">{cls.instituteName || 'Online/Private'}</span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                                    <td className="px-4 py-3 md:px-6 md:py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
                                         <div className="flex items-center gap-1">
                                             <span className="text-sm font-semibold text-green-500 mr-1">Rs</span>
                                             <span>{cls.fee?.toLocaleString() || '0'}</span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <div className="inline-flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full text-sm font-bold min-w-[3rem] gap-1.5">
+                                    <td className="px-4 py-3 md:px-6 md:py-4 text-center whitespace-nowrap">
+                                        <div className="inline-flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full text-xs md:text-sm font-bold min-w-[3rem] gap-1.5">
                                             <Users size={14} />
                                             <span>{cls.studentCount || 0}</span>
                                         </div>
                                     </td>
-                                    <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                    <td className="px-1 py-3 md:py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
                                         {!isTemp ? (
                                             <RowActions actions={[
                                                 { label: 'Edit Class', icon: Edit2, onClick: () => handleEditClick(cls) },

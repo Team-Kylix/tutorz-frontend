@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Users, DollarSign, BookOpen, CreditCard } from 'lucide-react';
 import StatCard from '../molecules/StatCard';
 import useApi from '../../hooks/useApi';
@@ -43,10 +43,84 @@ const StatsGrid = () => {
     calculateRealStats();
   }, []);
 
+  const scrollContainerRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
+  const [isInteracting, setIsInteracting] = useState(false);
+
+  // Initialize scroll position to the middle set (SET 1) to allow both left and right infinite scroll
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container && container.scrollWidth > container.clientWidth && stats.length > 0) {
+      setTimeout(() => {
+        const items = container.children;
+        // Only initialize if we haven't already and there are enough items
+        if (items.length >= stats.length * 3 && container.scrollLeft === 0) {
+          const setWidth = items[stats.length].offsetLeft - items[0].offsetLeft;
+          container.scrollTo({ left: setWidth, behavior: 'auto' });
+        }
+      }, 100);
+    }
+  }, [stats]);
+
+  // Handle infinite scroll loop seamlessly during manual and auto scrolling
+  const handleScroll = (e) => {
+    const container = e.target;
+    if (container.scrollWidth <= container.clientWidth || stats.length === 0) return;
+
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    
+    // Debounce the jump to happen after snap animation completes
+    scrollTimeoutRef.current = setTimeout(() => {
+      const items = container.children;
+      if (items.length < stats.length * 3) return;
+      
+      const setWidth = items[stats.length].offsetLeft - items[0].offsetLeft;
+      
+      // If landed in SET 2 (scrolled past the end of SET 1)
+      if (container.scrollLeft >= 2 * setWidth - 10) {
+        container.scrollTo({ left: container.scrollLeft - setWidth, behavior: 'auto' });
+      }
+      // If landed in SET 0 (scrolled before the start of SET 1)
+      else if (container.scrollLeft < setWidth - 10) {
+        container.scrollTo({ left: container.scrollLeft + setWidth, behavior: 'auto' });
+      }
+    }, 150);
+  };
+
+  useEffect(() => {
+    // If user is currently touching or hovering the carousel, pause auto-play
+    if (isInteracting) return;
+
+    const interval = setInterval(() => {
+      const container = scrollContainerRef.current;
+      if (container && container.scrollWidth > container.clientWidth && stats.length > 0) {
+        // Scroll right by exactly one card width. CSS snap-mandatory will handle the exact positioning.
+        container.scrollBy({ left: container.clientWidth, behavior: 'smooth' });
+      }
+    }, 2000); // 2 seconds interval
+
+    return () => clearInterval(interval);
+  }, [isInteracting, stats.length]);
+
+  const infiniteStats = [...stats, ...stats, ...stats];
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      {stats.map((stat, index) => (
-        <StatCard key={index} {...stat} />
+    <div 
+      ref={scrollContainerRef}
+      onScroll={handleScroll}
+      className="flex overflow-x-auto snap-x snap-mandatory gap-4 mb-6 md:grid md:grid-cols-2 lg:grid-cols-4 md:overflow-visible md:snap-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      onTouchStart={() => setIsInteracting(true)}
+      onTouchEnd={() => setIsInteracting(false)}
+      onMouseEnter={() => setIsInteracting(true)}
+      onMouseLeave={() => setIsInteracting(false)}
+    >
+      {infiniteStats.map((stat, index) => (
+        <div 
+          key={`${stat.label}-${index}`} 
+          className={`w-full shrink-0 snap-center md:w-auto md:shrink-[unset] md:snap-none ${index >= stats.length ? 'md:hidden' : ''}`}
+        >
+          <StatCard {...stat} />
+        </div>
       ))}
     </div>
   );

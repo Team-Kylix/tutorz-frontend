@@ -30,20 +30,6 @@ const QuickActions = ({ onActionClick }) => (
         onClick={() => onActionClick('complains')}
       />
     </div>
-
-    <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Active Coupons</span>
-        <button className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Manage</button>
-      </div>
-
-      <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/50 rounded-lg p-3 flex justify-between items-center transition-colors">
-        <span className="font-mono font-bold text-orange-700 dark:text-orange-400">NEWYEAR25</span>
-        <span className="text-xs bg-white dark:bg-gray-800 px-2 py-1 rounded border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400">
-          10% OFF
-        </span>
-      </div>
-    </div>
   </div>
 );
 

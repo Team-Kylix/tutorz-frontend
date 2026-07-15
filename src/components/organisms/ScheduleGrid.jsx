@@ -138,19 +138,25 @@ const ScheduleGrid = ({ selectedDate, onBack }) => {
     //   • Other  → scroll to the start of the earliest class that day
     useEffect(() => {
         if (isLoading) return;
-        requestAnimationFrame(() => requestAnimationFrame(() => {
+        
+        const timer = setTimeout(() => {
             if (!scrollContainerRef.current) return;
             if (isSameDay(viewDate, new Date())) {
                 // Viewing today — always jump to now
                 scrollToNow();
             } else if (classes.length > 0) {
-                // Another day — jump to 30 min before the first class
+                // Another day — jump to 1 hour before the first class (to account for the sticky header)
                 const earliestHour = Math.min(...classes.map(c => c.startHour));
-                const top = Math.max(0, (earliestHour - 0.5) * HOUR_HEIGHT + 48);
-                scrollContainerRef.current.scrollTo({ top, behavior: 'smooth' });
+                const top = Math.max(0, (earliestHour - 1) * HOUR_HEIGHT);
+                scrollContainerRef.current.scrollTop = top;
+            } else {
+                // If no classes, scroll to top
+                scrollContainerRef.current.scrollTop = 0;
             }
-        }));
-    }, [isLoading, viewDate]); // eslint-disable-line react-hooks/exhaustive-deps
+        }, 150); // Small delay to ensure DOM and styles are fully applied on mobile
+        
+        return () => clearTimeout(timer);
+    }, [isLoading, viewDate, classes]); // Included classes in dependencies
 
     // Keep the current-time line updated every 30 s for smooth visual movement
     useEffect(() => {
