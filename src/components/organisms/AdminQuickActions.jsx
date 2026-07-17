@@ -1,8 +1,8 @@
 import React from 'react';
-import { Settings, ShieldAlert, Coins, Wallet } from 'lucide-react';
+import { Settings, ShieldAlert, Coins, Wallet, UserPlus } from 'lucide-react';
 import QuickActionCard from '../molecules/QuickActionCard';
 
-const AdminQuickActions = ({ setActivePage }) => {
+const AdminQuickActions = ({ setActivePage, user, onOpenAdminModal }) => {
   const actions = [
     {
       icon: ShieldAlert,
@@ -29,6 +29,15 @@ const AdminQuickActions = ({ setActivePage }) => {
       onClick: () => setActivePage('financials')
     }
   ];
+
+  if (user?.role === 'SuperAdmin') {
+    actions.push({
+      icon: UserPlus,
+      label: 'Create Admin',
+      colorClass: 'text-purple-500 dark:text-purple-400',
+      onClick: onOpenAdminModal
+    });
+  }
 
   return (
     <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm transition-colors duration-200">
