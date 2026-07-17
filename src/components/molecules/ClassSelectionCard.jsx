@@ -38,11 +38,15 @@ const ClassSelectionCard = ({ cls, isSelected, onSelect, actionNode, className =
         >
             <div className="flex justify-between items-start mb-2">
                 <div className="flex-1 min-w-0 pr-2">
-                    <div className="flex items-center gap-2 mb-1">
-                        <p className="font-bold text-sm text-gray-900 dark:text-white truncate">
+                    <div className="flex flex-col sm:flex-row sm:items-center items-start gap-1.5 sm:gap-2 mb-1">
+                        <p className="font-bold text-sm text-gray-900 dark:text-white leading-tight">
                             {cls.subject} {cls.grade ? `- ${cls.grade}` : ''}
                         </p>
-                        {StatusBadge}
+                        {StatusBadge && (
+                            <div className="shrink-0 mt-0.5 sm:mt-0">
+                                {StatusBadge}
+                            </div>
+                        )}
                     </div>
 
                     {/* Time & Tutor Details */}

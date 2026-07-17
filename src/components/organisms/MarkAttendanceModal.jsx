@@ -412,7 +412,11 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
                 // ─── OPTIMISTIC UI: Inject the newly assigned class into the
                 // Active Enrolled Classes list immediately — no server round-trip needed.
                 if (assignedClassObj) {
-                    setStudentClasses(prev => [...prev, assignedClassObj]);
+                    setStudentClasses(prev => {
+                        const targetId = assignedClassObj.id || assignedClassObj.classId;
+                        if (prev.some(c => (c.id || c.classId) === targetId)) return prev;
+                        return [...prev, assignedClassObj];
+                    });
                 }
 
                 triggerSuccessToast(`Assigned to Class!`);
@@ -699,6 +703,7 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
                                 <button
                                     onClick={() => {
                                         setAssignmentMode('search');
+                                        setSelectedClassId(null);
                                         setErrorMsg('');
                                         setTutorSearchQuery('');
                                     }}
@@ -710,6 +715,7 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
                                 <button
                                     onClick={() => {
                                         setAssignmentMode('today');
+                                        setSelectedClassId(null);
                                         setErrorMsg('');
                                     }}
                                     className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors"
@@ -856,6 +862,7 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
                                         size="small"
                                         onClick={() => {
                                             setAssignmentMode('today');
+                                            setSelectedClassId(null);
                                             setErrorMsg('');
                                         }}
                                     >
@@ -866,6 +873,7 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
                                         size="small"
                                         onClick={() => {
                                             setAssignmentMode('search');
+                                            setSelectedClassId(null);
                                             setErrorMsg('');
                                             setTutorSearchQuery('');
                                         }}
