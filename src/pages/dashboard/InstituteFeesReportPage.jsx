@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Loader2, Download, FileBarChart2 } from 'lucide-react';
+import { Loader2, Download, FileBarChart2, RefreshCw } from 'lucide-react';
 import RowActions from '../../components/molecules/RowActions';
 import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 import {
@@ -130,17 +130,30 @@ const InstituteFeesReportPage = () => {
 
     // ─── Render ───────────────────────────────────────────────────
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-2">
+        <div className="space-y-6">
 
             {/* Page Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <FileBarChart2 className="h-6 w-6 text-indigo-500" />
-                    Fees Report
-                </h1>
-                <p className="text-gray-500 dark:text-gray-400 mt-1">
-                    View class-wise earnings, online commissions, and net earnings per tutor.
-                </p>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <FileBarChart2 className="h-6 w-6 text-indigo-500" />
+                        Fees Report
+                    </h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">
+                        View class-wise earnings, online commissions, and net earnings per tutor.
+                    </p>
+                </div>
+                <div className="flex w-full sm:w-auto items-center gap-2">
+                    <button
+                        onClick={() => fetchOverview(selectedTutor?.tutorId || null)}
+                        disabled={isLoadingData}
+                        className="w-full sm:w-auto flex justify-center items-center p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                        title="Refresh"
+                    >
+                        <RefreshCw size={17} className={isLoadingData ? 'animate-spin' : ''} />
+                        <span className="ml-2 sm:hidden">Refresh Data</span>
+                    </button>
+                </div>
             </div>
 
             {/* Filter Controls */}
@@ -294,8 +307,8 @@ const InstituteFeesReportTable = ({ rows, downloadingId, onDownload }) => {
     return (
         <div className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto relative">
-                <table className="w-full text-sm text-left whitespace-nowrap">
-                    <thead className="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-800/50 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                <table className="w-full text-xs md:text-sm text-left whitespace-nowrap">
+                    <thead className="text-[10px] md:text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-800/50 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                         <tr>
                             <th scope="col" className="px-4 py-3 md:py-4 font-medium">Period</th>
                             <th scope="col" className="px-4 py-3 md:py-4 font-medium">Tutor</th>

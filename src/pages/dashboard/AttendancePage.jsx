@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, RefreshCw } from 'lucide-react';
 import Select from '../../components/atoms/Select';
 import Input from '../../components/atoms/Input';
 import AttendanceTable from '../../components/organisms/AttendanceTable';
@@ -315,12 +315,25 @@ const AttendancePage = () => {
 
     // Render
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-2">
+        <div className="space-y-6">
 
             {/* Page Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Attendance History</h1>
-                <p className="text-gray-500 dark:text-gray-400 mt-1">View and manage class attendance records.</p>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Attendance History</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">View and manage class attendance records.</p>
+                </div>
+                <div className="flex w-full sm:w-auto items-center gap-2">
+                    <button
+                        onClick={() => fetchAttendanceHistory(1)}
+                        disabled={isLoadingAttendance}
+                        className="w-full sm:w-auto flex justify-center items-center p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                        title="Refresh"
+                    >
+                        <RefreshCw size={17} className={isLoadingAttendance ? 'animate-spin' : ''} />
+                        <span className="ml-2 sm:hidden">Refresh Data</span>
+                    </button>
+                </div>
             </div>
 
             {/* Filter Controls Area */}

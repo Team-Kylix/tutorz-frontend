@@ -68,8 +68,8 @@ const TutorFinancialsTable = ({ payments = [] }) => {
     return (
         <div className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto relative">
-                <table className="w-full text-sm text-left whitespace-nowrap">
-                    <thead className="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-800/50 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+                <table className="w-full text-xs md:text-sm text-left whitespace-nowrap">
+                    <thead className="text-[10px] md:text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-800/50 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 shadow-sm">
                         <tr>
                             {/* Primary: Student + Class info */}
                             <th scope="col" className="pl-3 pr-1 py-3 md:pl-6 md:pr-2 md:py-4 font-medium">
