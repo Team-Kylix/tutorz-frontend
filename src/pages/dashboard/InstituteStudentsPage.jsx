@@ -139,16 +139,16 @@ const InstituteStudentsPage = () => {
                         Manage your institute's enrolled students
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex w-full sm:w-auto items-center gap-2">
                     <button
                         onClick={() => fetchStudents(false, 1, debouncedSearchTerm, true)}
                         disabled={isLoading}
-                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors shrink-0"
                         title="Refresh"
                     >
                         <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
                     </button>
-                    <Button variant="primary" onClick={() => setIsAssignModalOpen(true)}>
+                    <Button variant="primary" onClick={() => setIsAssignModalOpen(true)} className="flex-1 sm:flex-none justify-center">
                         <UserPlus size={18} className="mr-2" />
                         Add Student
                     </Button>
@@ -203,14 +203,14 @@ const InstituteStudentsPage = () => {
                         className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar"
                         onScroll={handleScroll}
                     >
-                        <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
+                        <table className="w-full text-left text-xs md:text-sm text-gray-600 dark:text-gray-300 relative">
                             <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                                 <tr>
-                                    <th className="px-6 py-4 font-semibold">Student Name</th>
-                                    <th className="px-6 py-4 font-semibold">Registration No</th>
-                                    <th className="px-6 py-4 font-semibold">Mobile Number</th>
-                                    <th className="px-6 py-4 font-semibold">Grade</th>
-                                    <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Student Name</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Registration No</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Mobile Number</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Grade</th>
+                                    <th className="px-1 py-3 md:py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -220,7 +220,7 @@ const InstituteStudentsPage = () => {
 
                                     return (
                                         <tr key={student.studentId} className="hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors group">
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-3">
                                                     <StudentAvatar
                                                         imageUrlSmall={student.profileImageUrlSmall}
@@ -230,25 +230,25 @@ const InstituteStudentsPage = () => {
                                                     <div>
                                                         <p className="font-semibold text-gray-900 dark:text-white">{fullName}</p>
                                                         {student.email && (
-                                                            <p className="text-xs text-gray-500">{student.email}</p>
+                                                            <p className="text-[10px] md:text-xs text-gray-500">{student.email}</p>
                                                         )}
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 font-mono text-xs">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 font-mono text-[10px] md:text-xs whitespace-nowrap">
                                                 <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300">
                                                     {student.registrationNumber || '-'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                                 {student.phoneNumber || '-'}
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
+                                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] md:text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
                                                     {student.grade || '-'}
                                                 </span>
                                             </td>
-                                            <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
+                                            <td className="px-1 py-3 md:py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
                                                 <RowActions actions={[
                                                     { label: 'View Profile', icon: Eye, onClick: () => handleViewProfile(student) },
                                                 ]} />

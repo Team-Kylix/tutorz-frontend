@@ -11,13 +11,14 @@ const INITIAL_STATS = [
   { label: "Pending Withdrawals", value: "LKR 0", icon: CreditCard, color: "bg-orange-100 text-orange-600", change: "" },
 ];
 
-const StatsGrid = () => {
+const StatsGrid = ({ stats: propStats, children }) => {
 
-  const [stats, setStats] = useState(INITIAL_STATS);
+  const [stats, setStats] = useState(propStats || INITIAL_STATS);
   const { request: fetchClasses } = useApi();
 
   useEffect(() => {
     const calculateRealStats = async () => {
+      if (children) return; // Do not fetch tutor stats if used as a generic carousel
       // Fetch Real Data
       const { data: response, error } = await fetchClasses(tutorService.getDashboardStats);
 
@@ -47,34 +48,37 @@ const StatsGrid = () => {
   const scrollTimeoutRef = useRef(null);
   const [isInteracting, setIsInteracting] = useState(false);
 
+  const contentArray = children ? React.Children.toArray(children) : stats;
+  const itemCount = contentArray.length;
+
   // Initialize scroll position to the middle set (SET 1) to allow both left and right infinite scroll
   useEffect(() => {
     const container = scrollContainerRef.current;
-    if (container && container.scrollWidth > container.clientWidth && stats.length > 0) {
+    if (container && container.scrollWidth > container.clientWidth && itemCount > 0) {
       setTimeout(() => {
         const items = container.children;
         // Only initialize if we haven't already and there are enough items
-        if (items.length >= stats.length * 3 && container.scrollLeft === 0) {
-          const setWidth = items[stats.length].offsetLeft - items[0].offsetLeft;
+        if (items.length >= itemCount * 3 && container.scrollLeft === 0) {
+          const setWidth = items[itemCount].offsetLeft - items[0].offsetLeft;
           container.scrollTo({ left: setWidth, behavior: 'auto' });
         }
       }, 100);
     }
-  }, [stats]);
+  }, [itemCount]);
 
   // Handle infinite scroll loop seamlessly during manual and auto scrolling
   const handleScroll = (e) => {
     const container = e.target;
-    if (container.scrollWidth <= container.clientWidth || stats.length === 0) return;
+    if (container.scrollWidth <= container.clientWidth || itemCount === 0) return;
 
     if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     
     // Debounce the jump to happen after snap animation completes
     scrollTimeoutRef.current = setTimeout(() => {
       const items = container.children;
-      if (items.length < stats.length * 3) return;
+      if (items.length < itemCount * 3) return;
       
-      const setWidth = items[stats.length].offsetLeft - items[0].offsetLeft;
+      const setWidth = items[itemCount].offsetLeft - items[0].offsetLeft;
       
       // If landed in SET 2 (scrolled past the end of SET 1)
       if (container.scrollLeft >= 2 * setWidth - 10) {
@@ -93,16 +97,16 @@ const StatsGrid = () => {
 
     const interval = setInterval(() => {
       const container = scrollContainerRef.current;
-      if (container && container.scrollWidth > container.clientWidth && stats.length > 0) {
+      if (container && container.scrollWidth > container.clientWidth && itemCount > 0) {
         // Scroll right by exactly one card width. CSS snap-mandatory will handle the exact positioning.
         container.scrollBy({ left: container.clientWidth, behavior: 'smooth' });
       }
     }, 2000); // 2 seconds interval
 
     return () => clearInterval(interval);
-  }, [isInteracting, stats.length]);
+  }, [isInteracting, itemCount]);
 
-  const infiniteStats = [...stats, ...stats, ...stats];
+  const infiniteContent = [...contentArray, ...contentArray, ...contentArray];
 
   return (
     <div 
@@ -114,12 +118,12 @@ const StatsGrid = () => {
       onMouseEnter={() => setIsInteracting(true)}
       onMouseLeave={() => setIsInteracting(false)}
     >
-      {infiniteStats.map((stat, index) => (
+      {infiniteContent.map((item, index) => (
         <div 
-          key={`${stat.label}-${index}`} 
-          className={`w-full shrink-0 snap-center md:w-auto md:shrink-[unset] md:snap-none ${index >= stats.length ? 'md:hidden' : ''}`}
+          key={index} 
+          className={`w-full shrink-0 snap-center md:w-auto md:shrink-[unset] md:snap-none flex flex-col ${index >= itemCount ? 'md:hidden' : ''}`}
         >
-          <StatCard {...stat} />
+          {children ? item : <StatCard {...item} />}
         </div>
       ))}
     </div>
