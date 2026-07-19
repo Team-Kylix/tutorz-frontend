@@ -38,6 +38,18 @@ export const deleteClass = async (id) => {
   return response.data;
 };
 
+export const removeAllStudentsFromClass = async (id, batchSize = 50) => {
+  const response = await apiClient.post(`/tutor/classes/${id}/remove-students?batchSize=${batchSize}`);
+  clearTutorDashboardCache();
+  return response.data;
+};
+
+export const reassignAllStudents = async (id, newClassId, batchSize = 50) => {
+  const response = await apiClient.post(`/tutor/classes/${id}/reassign`, { newClassId, batchSize });
+  clearTutorDashboardCache();
+  return response.data;
+};
+
 export const getTutorProfile = async () => {
   const response = await apiClient.get('/tutor/profile');
   return response.data;

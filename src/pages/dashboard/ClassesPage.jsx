@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, UserPlus, Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar } from 'lucide-react';
+import { Plus, Edit2, UserPlus, Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar, UserMinus } from 'lucide-react';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import RowActions from '../../components/molecules/RowActions';
 import ClassFormModal from '../../components/organisms/ClassFormModal';
 import AddStudentModal from '../../components/organisms/AddStudentModal';
 import InstituteSearchAssignModal from '../../components/organisms/InstituteSearchAssignModal';
+import ClassReassignModal from '../../components/organisms/ClassReassignModal';
 import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 import useApi from '../../hooks/useApi';
 import * as tutorService from '../../services/api/tutorService';
@@ -36,7 +37,14 @@ const ClassesPage = () => {
   // Delete States
   const [classToDelete, setClassToDelete] = useState(null);
   const [isDeleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
+  // Reassign & Remove States
+  const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
+  const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
+  const [selectedClassForAction, setSelectedClassForAction] = useState(null);
+  const [batchProgress, setBatchProgress] = useState(null); // { isProcessing, percentage }
+  
   // NEW: Status Change States
   const [statusCandidate, setStatusCandidate] = useState(null);
   const [isStatusConfirmOpen, setStatusConfirmOpen] = useState(false);
@@ -96,6 +104,16 @@ const ClassesPage = () => {
 
   const handleDeleteClick = (classId) => {
     setClassModalOpen(false);
+    
+    const cls = classes.find(c => c.classId === classId);
+    if (cls && (cls.studentCount || 0) > 0) {
+      setDeleteError(`If you need to delete ${cls.className}, you should reassign all the students in this class to another class or you should remove all the students from that class.`);
+      setClassToDelete(classId);
+      setDeleteConfirmOpen(true);
+      return;
+    }
+    
+    setDeleteError("");
     setClassToDelete(classId);
     setDeleteConfirmOpen(true);
   };
@@ -205,6 +223,13 @@ const ClassesPage = () => {
 
   const handleConfirmDelete = async () => {
     if (!classToDelete) return;
+    
+    if (deleteError) {
+      // Just close the modal if they click Ok on the error
+      setDeleteConfirmOpen(false);
+      return;
+    }
+    
     const clsName = classes.find(c => c.classId === classToDelete)?.className || 'Class';
 
     dispatch(removeTutorClass(classToDelete));
@@ -219,6 +244,93 @@ const ClassesPage = () => {
     setClassToDelete(null);
     setSuccessMessage("Class deleted offline (Syncing...)!");
     setIsSuccessOpen(true);
+  };
+
+  const handleRemoveAllStudentsClick = (cls) => {
+    setSelectedClassForAction(cls);
+    setIsRemoveConfirmOpen(true);
+  };
+
+  const handleConfirmRemoveAll = async () => {
+    if (!selectedClassForAction) return;
+    setIsRemoveConfirmOpen(false);
+    setBatchProgress({ isProcessing: true, percentage: 0 });
+
+    try {
+      let isComplete = false;
+      let processed = 0;
+      let total = 0;
+
+      while (!isComplete) {
+        const response = await tutorService.removeAllStudentsFromClass(selectedClassForAction.classId, 100);
+        
+        if (response && response.isComplete !== undefined) {
+          isComplete = response.isComplete;
+          processed += response.processedCount;
+          total = response.totalCount;
+
+          if (total > 0) {
+            setBatchProgress({ isProcessing: true, percentage: (processed / total) * 100 });
+          } else {
+            isComplete = true;
+          }
+        } else {
+          throw new Error(response?.message || "Failed to remove students.");
+        }
+      }
+
+      setBatchProgress(null);
+      setSuccessMessage("All students removed successfully. You can now delete this class.");
+      setIsSuccessOpen(true);
+      loadClasses(true); // reload to get updated student count
+    } catch (err) {
+      setBatchProgress(null);
+      setSuccessMessage(err.message || "Failed to remove students.");
+      setIsSuccessOpen(true);
+    }
+  };
+
+  const handleReassignClick = (cls) => {
+    setSelectedClassForAction(cls);
+    setIsReassignModalOpen(true);
+  };
+
+  const handleReassignSuccess = async (newClassId) => {
+    setIsReassignModalOpen(false);
+    setBatchProgress({ isProcessing: true, percentage: 0 });
+    
+    try {
+      let isComplete = false;
+      let processed = 0;
+      let total = 0;
+
+      while (!isComplete) {
+        const response = await tutorService.reassignAllStudents(selectedClassForAction.classId, newClassId, 100);
+        
+        if (response && response.isComplete !== undefined) {
+          isComplete = response.isComplete;
+          processed += response.processedCount;
+          total = response.totalCount;
+
+          if (total > 0) {
+            setBatchProgress({ isProcessing: true, percentage: (processed / total) * 100 });
+          } else {
+            isComplete = true;
+          }
+        } else {
+          throw new Error(response?.message || "Failed to reassign students.");
+        }
+      }
+
+      setBatchProgress(null);
+      setSuccessMessage(`All students successfully reassigned! You can now delete the older class (${selectedClassForAction.className}).`);
+      setIsSuccessOpen(true);
+      loadClasses(true); // reload
+    } catch (err) {
+      setBatchProgress(null);
+      setSuccessMessage(err.message || "Failed to reassign students.");
+      setIsSuccessOpen(true);
+    }
   };
 
   const handleStudentSubmit = async (regNo) => {
@@ -363,6 +475,8 @@ const ClassesPage = () => {
                                             <RowActions actions={[
                                                 { label: 'Edit Class', icon: Edit2, onClick: () => handleEditClick(cls) },
                                                 { label: 'Add Student', icon: UserPlus, onClick: () => handleAddStudentClick(cls) },
+                                                { label: 'Reassign Students to Another Class', icon: Users, onClick: () => handleReassignClick(cls) },
+                                                { label: 'Remove All Students From This Class', icon: UserMinus, onClick: () => handleRemoveAllStudentsClick(cls) },
                                             ]} />
                                         ) : (
                                             <span className="text-xs text-gray-400 px-4 whitespace-nowrap">Syncing...</span>
@@ -449,11 +563,44 @@ const ClassesPage = () => {
         isOpen={isDeleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Delete Class?"
-        message="Are you sure you want to delete this class? This action cannot be undone."
-        confirmLabel="Delete"
+        title={deleteError ? "Cannot Delete Class" : "Delete Class"}
+        message={deleteError || "Are you sure you want to delete this class? This action cannot be undone."}
+        confirmLabel={deleteError ? "Okay" : "Delete"}
+        cancelLabel={deleteError ? null : "Cancel"}
+        variant={deleteError ? "primary" : "danger"}
+      />
+      
+      {/* Batch Progress Modal */}
+      <ConfirmationModal
+        isOpen={batchProgress !== null}
+        onClose={() => {}} // prevent closing
+        onConfirm={() => {}} 
+        title="Processing Students"
+        message="Please wait while we process students in batches. This may take a few moments."
+        confirmLabel="Processing..."
+        cancelLabel=""
+        variant="primary"
+        isSubmitting={true}
+        progress={batchProgress?.percentage || 0}
+      />
+
+      <ConfirmationModal
+        isOpen={isRemoveConfirmOpen}
+        onClose={() => setIsRemoveConfirmOpen(false)}
+        onConfirm={handleConfirmRemoveAll}
+        title="Remove All Students?"
+        message={`Are you sure you want to remove all students from ${selectedClassForAction?.className}? This action cannot be undone.`}
+        confirmLabel="Remove All"
         cancelLabel="Cancel"
         variant="danger"
+      />
+
+      <ClassReassignModal
+        isOpen={isReassignModalOpen}
+        onClose={() => setIsReassignModalOpen(false)}
+        selectedClass={selectedClassForAction}
+        userRole="Tutor"
+        onSuccess={handleReassignSuccess}
       />
 
       {/* NEW: Status Confirmation Modal */}

@@ -106,6 +106,26 @@ export const toggleInstituteClassStatus = async (id) => {
   }
 };
 
+export const removeAllStudentsFromInstituteClass = async (id, batchSize = 50) => {
+  try {
+    const response = await apiClient.post(`/institute/classes/${id}/remove-students?batchSize=${batchSize}`);
+    timetableCache = {};
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to remove all students from class' };
+  }
+};
+
+export const reassignAllStudentsInInstituteClass = async (id, newClassId, batchSize = 50) => {
+  try {
+    const response = await apiClient.post(`/institute/classes/${id}/reassign`, { newClassId, batchSize });
+    timetableCache = {};
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to reassign students to another class' };
+  }
+};
+
 // --- Hall Management ---
 
 let hallsCache = null;

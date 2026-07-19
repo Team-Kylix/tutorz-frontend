@@ -14,6 +14,7 @@ const ConfirmationModal = ({
   cancelLabel = "Cancel",
   variant = "primary", // 'primary', 'danger', 'success'
   isSubmitting = false,
+  progress = null, // null if no progress, otherwise a number 0-100
   children
 }) => {
   if (!isOpen) return null;
@@ -60,18 +61,37 @@ const ConfirmationModal = ({
             {styles.icon}
           </div>
 
-          {/* Text Content */}
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h3>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+            {title}
+          </h3>
           
+          <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">
+            {message}
+          </p>
+
+          {progress !== null && (
+            <div className="w-full mb-6">
+              <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                <span>Progress</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                <div 
+                  className={`h-2.5 rounded-full transition-all duration-300 ${
+                    variant === 'danger' ? 'bg-red-500' : 
+                    variant === 'success' ? 'bg-green-500' : 'bg-blue-500'
+                  }`}
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
+
           {children ? (
             <div className="w-full text-left mt-4 mb-6">
               {children}
             </div>
-          ) : (
-            <p className="text-gray-500 dark:text-gray-400 mt-2 mb-6 text-sm">
-              {message}
-            </p>
-          )}
+          ) : null}
 
           {/* Actions */}
           <div className="flex gap-3 w-full">
