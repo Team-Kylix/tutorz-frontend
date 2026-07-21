@@ -90,6 +90,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, activePage, setActivePage }) => {
   const tutorMenu = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'classes', label: 'My Classes', icon: BookOpen },
+    { id: 'tutor-students', label: 'Students', icon: GraduationCap },
     { id: 'timetable', label: 'Timetable', icon: Clock },
     { id: 'student-requests', label: 'Student Requests', icon: Users },
     { id: 'tutor-requests', label: 'Institute Requests', icon: Building },

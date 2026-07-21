@@ -288,3 +288,7 @@ export const searchStudentsGlobalForTutor = async (query) => {
   });
   return response.data;
 };
+export const getTutorStudents = async (params) => {
+  const response = await apiClient.get('/tutor/students', { params });
+  return response.data;
+};

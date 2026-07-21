@@ -20,6 +20,7 @@ import TimetablePage from './TimetablePage';
 // Import only the unified profile page
 import UserProfile from './UserProfile';
 import InstituteStudentsPage from './InstituteStudentsPage';
+import TutorStudentsPage from './TutorStudentsPage';
 import InstituteTutorsPage from './InstituteTutorsPage';
 import InstituteRequestsPage from './InstituteRequestsPage';
 import TutorRequestsPage from './TutorRequestsPage';
@@ -87,6 +88,10 @@ const DashboardHome = ({ activePage, setActivePage }) => {
 
   if (activePage === 'institute-students') {
     return <InstituteStudentsPage />;
+  }
+
+  if (activePage === 'tutor-students') {
+    return <TutorStudentsPage />;
   }
 
   if (activePage === 'institute-tutors') {
