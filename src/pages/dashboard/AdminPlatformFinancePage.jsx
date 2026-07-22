@@ -48,10 +48,17 @@ const AdminPlatformFinancePage = () => {
             const response = await getAllBills(currentSearch, currentPage, PAGE_SIZE);
             if (response.success) {
                 const newBills = response.data.items || [];
+                const sortByStatus = (items) => {
+                    return [...items].sort((a, b) => {
+                        const aIsPaid = a.status === 'Paid' ? 1 : 0;
+                        const bIsPaid = b.status === 'Paid' ? 1 : 0;
+                        return aIsPaid - bIsPaid;
+                    });
+                };
                 if (isLoadMore) {
-                    setBills(prev => [...prev, ...newBills]);
+                    setBills(prev => sortByStatus([...prev, ...newBills]));
                 } else {
-                    setBills(newBills);
+                    setBills(sortByStatus(newBills));
                 }
                 setTotalCount(response.data.totalCount || 0);
                 setHasMore(currentPage * PAGE_SIZE < response.data.totalCount);
@@ -118,13 +125,24 @@ const AdminPlatformFinancePage = () => {
     };
 
     return (
-        <div className="p-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                         <DollarSign className="text-blue-500" /> Platform Finance
                     </h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Monitor system-wide billing, API usage, and platform revenue</p>
+                </div>
+                <div className="flex w-full sm:w-auto items-center gap-2">
+                    <button
+                        onClick={() => fetchBills(false, 1, debouncedSearchTerm)}
+                        disabled={isLoading}
+                        className="w-full sm:w-auto flex justify-center items-center p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                        title="Refresh"
+                    >
+                        <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
+                        <span className="ml-2 sm:hidden">Refresh Data</span>
+                    </button>
                 </div>
             </div>
 
@@ -160,15 +178,15 @@ const AdminPlatformFinancePage = () => {
                     className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar"
                     onScroll={handleScroll}
                 >
-                    <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
-                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
+                    <table className="w-full text-left text-xs md:text-sm text-gray-600 dark:text-gray-300 relative whitespace-nowrap">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm text-[10px] md:text-xs uppercase">
                             <tr>
-                                <th className="px-6 py-4 font-semibold">User / Email</th>
-                                <th className="px-6 py-4 font-semibold">Reference</th>
-                                <th className="px-6 py-4 font-semibold">Month</th>
-                                <th className="px-6 py-4 font-semibold text-right">Payable</th>
-                                <th className="px-6 py-4 font-semibold">Status</th>
-                                <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold">User / Email</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold">Reference</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold">Month</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold text-right">Payable</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold">Status</th>
+                                <th className="px-1 py-3 md:py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -197,24 +215,24 @@ const AdminPlatformFinancePage = () => {
                             ) : (
                                 bills.map((bill) => (
                                     <tr key={bill.billId} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 py-3 md:px-6 md:py-4">
                                             <div className="font-medium text-gray-900 dark:text-white">
                                                 {bill.userName?.trim() ? bill.userName : bill.email}
                                             </div>
-                                            <div className="text-xs text-gray-500">{bill.email}</div>
-                                            <div className="text-xs text-blue-600 dark:text-blue-400 font-semibold mt-1">{bill.userRole}</div>
-                                            {bill.registrationNumber && <div className="text-xs text-gray-400">Reg: {bill.registrationNumber}</div>}
-                                            {bill.mobileNumber && <div className="text-xs text-gray-400">Mob: {bill.mobileNumber}</div>}
+                                            <div className="text-[10px] md:text-xs text-gray-500">{bill.email}</div>
+                                            <div className="text-[10px] md:text-xs text-blue-600 dark:text-blue-400 font-semibold mt-1">{bill.userRole}</div>
+                                            {bill.registrationNumber && <div className="text-[10px] md:text-xs text-gray-400">Reg: {bill.registrationNumber}</div>}
+                                            {bill.mobileNumber && <div className="text-[10px] md:text-xs text-gray-400">Mob: {bill.mobileNumber}</div>}
                                         </td>
-                                        <td className="px-6 py-4 font-mono text-xs">{bill.billReference}</td>
-                                        <td className="px-6 py-4 text-gray-600 dark:text-gray-400">{bill.monthYear}</td>
-                                        <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">
+                                        <td className="px-4 py-3 md:px-6 md:py-4 font-mono text-[10px] md:text-xs">{bill.billReference}</td>
+                                        <td className="px-4 py-3 md:px-6 md:py-4 text-gray-600 dark:text-gray-400">{bill.monthYear}</td>
+                                        <td className="px-4 py-3 md:px-6 md:py-4 text-right font-bold text-gray-900 dark:text-white text-base md:text-lg">
                                             Rs {bill.payableAmount.toLocaleString('en-LK', { minimumFractionDigits: 2 })}
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 py-3 md:px-6 md:py-4">
                                             {getStatusBadge(bill.status)}
                                         </td>
-                                        <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
+                                        <td className="px-1 py-3 md:py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
                                             <RowActions actions={[
                                                 { label: 'Download PDF', icon: Download, onClick: () => downloadBillPdf(bill.billId, bill.billReference) },
                                                 ...(bill.status !== 'Paid' ? [{ label: 'Mark as Paid', icon: CheckCircle, onClick: () => handleOpenConfirm(bill), success: true }] : []),

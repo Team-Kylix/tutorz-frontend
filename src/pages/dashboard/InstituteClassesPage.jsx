@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar, User, Edit, Zap } from 'lucide-react';
+import { Plus, Edit2, Search, RefreshCw, BookOpen, Clock, Users, Building2, UserPlus, FileDown, Eye, Zap, Trash2, Calendar, UserMinus, User, Edit } from 'lucide-react';
 import Button from '../../components/atoms/Button';
 import RowActions from '../../components/molecules/RowActions';
 import Input from '../../components/atoms/Input';
 import ClassFormModal from '../../components/organisms/ClassFormModal';
 import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 import MarkAttendanceModal from '../../components/organisms/MarkAttendanceModal';
+import ClassReassignModal from '../../components/organisms/ClassReassignModal';
 import useApi from '../../hooks/useApi';
 import * as instituteService from '../../services/api/instituteService';
 import { useDispatch, useSelector } from 'react-redux';
@@ -37,6 +38,13 @@ const InstituteClassesPage = () => {
     // Delete States
     const [classToDelete, setClassToDelete] = useState(null);
     const [isDeleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [deleteError, setDeleteError] = useState("");
+
+    // Reassign & Remove States
+    const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
+    const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
+    const [selectedClassForAction, setSelectedClassForAction] = useState(null);
+    const [batchProgress, setBatchProgress] = useState(null); // { isProcessing, percentage }
 
     // Status Change States
     const [statusCandidate, setStatusCandidate] = useState(null);
@@ -131,12 +139,26 @@ const InstituteClassesPage = () => {
 
     const handleDeleteClick = (classId) => {
         setClassModalOpen(false);
+        const cls = classes.find(c => c.classId === classId);
+        if (cls && (cls.studentCount || 0) > 0) {
+            setDeleteError(`If you need to delete ${cls.className}, you should reassign all the students in this class to another class or you should remove all the students from that class.`);
+            setClassToDelete(classId);
+            setDeleteConfirmOpen(true);
+            return;
+        }
+        setDeleteError("");
         setClassToDelete(classId);
         setDeleteConfirmOpen(true);
     };
 
     const handleConfirmDelete = async () => {
         if (!classToDelete) return;
+        
+        if (deleteError) {
+            setDeleteConfirmOpen(false);
+            return;
+        }
+
         const result = await removeClass(instituteService.deleteInstituteClass, classToDelete);
 
         if (result && result.data && result.data.success) {
@@ -148,6 +170,95 @@ const InstituteClassesPage = () => {
         } else {
             setDeleteConfirmOpen(false);
             alert(result?.error || 'Failed to delete class. Please try again.');
+        }
+    };
+
+    const handleRemoveAllStudentsClick = (cls) => {
+        setSelectedClassForAction(cls);
+        setIsRemoveConfirmOpen(true);
+    };
+
+    const handleConfirmRemoveAll = async () => {
+        if (!selectedClassForAction) return;
+        setIsRemoveConfirmOpen(false);
+        setBatchProgress({ isProcessing: true, percentage: 0 });
+
+        try {
+            let isComplete = false;
+            let processed = 0;
+            let total = 0;
+
+            while (!isComplete) {
+                const rawResponse = await instituteService.removeAllStudentsFromInstituteClass(selectedClassForAction.classId, 100);
+                const response = rawResponse?.data || rawResponse;
+
+                if (response && response.isComplete !== undefined) {
+                    isComplete = response.isComplete;
+                    processed += response.processedCount;
+                    total = response.totalCount;
+
+                    if (total > 0) {
+                        setBatchProgress({ isProcessing: true, percentage: (processed / total) * 100 });
+                    } else {
+                        isComplete = true;
+                    }
+                } else {
+                    throw new Error(response?.message || "Failed to remove students.");
+                }
+            }
+
+            setBatchProgress(null);
+            setSuccessMessage("All students removed successfully. You can now delete this class.");
+            setIsSuccessOpen(true);
+            loadClasses(true); // reload
+        } catch (err) {
+            setBatchProgress(null);
+            setSuccessMessage(err.message || "Failed to remove students.");
+            setIsSuccessOpen(true);
+        }
+    };
+
+    const handleReassignClick = (cls) => {
+        setSelectedClassForAction(cls);
+        setIsReassignModalOpen(true);
+    };
+
+    const handleReassignSuccess = async (newClassId) => {
+        setIsReassignModalOpen(false);
+        setBatchProgress({ isProcessing: true, percentage: 0 });
+
+        try {
+            let isComplete = false;
+            let processed = 0;
+            let total = 0;
+
+            while (!isComplete) {
+                const rawResponse = await instituteService.reassignAllStudentsInInstituteClass(selectedClassForAction.classId, newClassId, 100);
+                const response = rawResponse?.data || rawResponse;
+
+                if (response && response.isComplete !== undefined) {
+                    isComplete = response.isComplete;
+                    processed += response.processedCount;
+                    total = response.totalCount;
+
+                    if (total > 0) {
+                        setBatchProgress({ isProcessing: true, percentage: (processed / total) * 100 });
+                    } else {
+                        isComplete = true;
+                    }
+                } else {
+                    throw new Error(response?.message || "Failed to reassign students.");
+                }
+            }
+
+            setBatchProgress(null);
+            setSuccessMessage(`All students successfully reassigned! You can now delete the older class (${selectedClassForAction.className}).`);
+            setIsSuccessOpen(true);
+            loadClasses(true); // reload
+        } catch (err) {
+            setBatchProgress(null);
+            setSuccessMessage(err.message || "Failed to reassign students.");
+            setIsSuccessOpen(true);
         }
     };
 
@@ -213,11 +324,11 @@ const InstituteClassesPage = () => {
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Institute Classes</h1>
                     <p className="text-gray-500 dark:text-gray-400">View and monitor all classes conducted in your institute</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex w-full sm:w-auto items-center gap-2">
                     <button
                         onClick={() => { setIsLoading(true); loadClasses(true); }}
                         disabled={isLoading}
-                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors shrink-0"
                         title="Refresh"
                     >
                         <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
@@ -226,10 +337,11 @@ const InstituteClassesPage = () => {
                         variant="outline"
                         onClick={() => setIsStudentHubOpen(true)}
                         title="Attendance · Fees · Enroll"
+                        className="flex-1 sm:flex-none justify-center"
                     >
                         <Zap size={18} className="mr-2" /> Student Hub
                     </Button>
-                    <Button variant="primary" onClick={handleCreateClick} disabled={!instituteProfile}>
+                    <Button variant="primary" onClick={handleCreateClick} disabled={!instituteProfile} className="flex-1 sm:flex-none justify-center">
                         <BookOpen size={18} className="mr-2" /> Assign Class
                     </Button>
                 </div>
@@ -257,18 +369,18 @@ const InstituteClassesPage = () => {
                     className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar"
                     onScroll={handleScroll}
                 >
-                    <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
+                    <table className="w-full text-left text-xs md:text-sm text-gray-600 dark:text-gray-300 relative">
                         <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                             <tr>
-                                <th className="px-6 py-4 font-semibold">Class Name</th>
-                                <th className="px-6 py-4 font-semibold">Subject</th>
-                                <th className="px-6 py-4 font-semibold">Time</th>
-                                <th className="px-6 py-4 font-semibold">Date / Day</th>
-                                <th className="px-6 py-4 font-semibold">Hall Number</th>
-                                <th className="px-6 py-4 font-semibold">Fees (Rs)</th>
-                                <th className="px-6 py-4 font-semibold text-center">Commission %</th>
-                                <th className="px-6 py-4 font-semibold text-center">Students</th>
-                                <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Class Name</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Subject</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Time</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Date / Day</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Hall Number</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Fees (Rs)</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold text-center whitespace-nowrap">Commission %</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold text-center whitespace-nowrap">Students</th>
+                                <th className="px-1 py-3 md:py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -279,7 +391,7 @@ const InstituteClassesPage = () => {
                                         className={`hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors group cursor-pointer ${!cls.isActive ? 'opacity-60 bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
                                         onClick={() => handleEditClick(cls)}
                                     >
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                             <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                                                 <span>{cls.className || '-'}</span>
                                                 {!cls.isActive && (
@@ -288,54 +400,58 @@ const InstituteClassesPage = () => {
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                            <div className="flex items-center gap-2 text-[11px] md:text-xs text-gray-500 dark:text-gray-400 mt-1">
                                                 <User size={12} />
                                                 <span className="font-medium">{cls.tutorName || '-'}</span>
                                                 <span className="text-blue-600 dark:text-blue-400 ml-1 opacity-75">• {cls.classType || 'Class'}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-md font-medium">
+                                        <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
+                                            <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] md:text-xs rounded-md font-medium w-max">
                                                 {cls.subject || '-'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
                                                 <Clock size={14} />
                                                 <span>{cls.startTime} - {cls.endTime}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
                                                 <Calendar size={14} />
                                                 <span className="capitalize">{cls.dayOfWeek || (cls.date ? new Date(cls.date).toLocaleDateString() : '-')}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-1.5">
                                                 <Building2 size={14} className="text-gray-400" />
                                                 <span className="font-medium">{cls.hallName || '-'}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                                        <td className="px-4 py-3 md:px-6 md:py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
                                             <div className="flex items-center gap-1">
                                                 <span className="text-sm font-semibold text-green-500 mr-1">Rs</span>
                                                 <span>{cls.fee?.toLocaleString() || '0'}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-center">
+                                        <td className="px-4 py-3 md:px-6 md:py-4 text-center whitespace-nowrap">
                                             <div className="inline-flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 px-2.5 py-1 rounded-full text-xs font-bold min-w-[3rem]">
                                                 {Number(cls.instituteCommissionRate ?? 0).toFixed(0)}%
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-center">
+                                        <td className="px-4 py-3 md:px-6 md:py-4 text-center whitespace-nowrap">
                                             <div className="inline-flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full text-sm font-bold min-w-[3rem]">
                                                 {cls.studentRegisteredCount || 0}
                                             </div>
                                         </td>
-                                        <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                        <td className="px-1 py-3 md:py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
                                             <RowActions actions={[
-                                                { label: 'Edit Class', icon: Edit, onClick: () => handleEditClick(cls) },
+                                                { label: 'Edit Class', icon: Edit2, onClick: () => handleEditClick(cls) },
+                                                { label: cls.isActive ? 'Deactivate' : 'Activate', icon: Eye, onClick: () => handleStatusChangeRequest(cls) },
+                                                { label: 'Delete', icon: Trash2, onClick: () => handleDeleteClick(cls.classId), variant: 'danger' },
+                                                { label: 'Reassign Students', icon: Users, onClick: () => handleReassignClick(cls) },
+                                                { label: 'Remove All Students', icon: UserMinus, onClick: () => handleRemoveAllStudentsClick(cls) },
                                             ]} />
                                         </td>
                                     </tr>
@@ -409,11 +525,44 @@ const InstituteClassesPage = () => {
                 isOpen={isDeleteConfirmOpen}
                 onClose={() => setDeleteConfirmOpen(false)}
                 onConfirm={handleConfirmDelete}
-                title="Delete Class?"
-                message="Are you sure you want to delete this class? This action cannot be undone."
-                confirmLabel={isDeleting ? "Deleting..." : "Delete"}
+                title={deleteError ? "Cannot Delete Class" : "Delete Class?"}
+                message={deleteError || "Are you sure you want to delete this class? This action cannot be undone."}
+                confirmLabel={deleteError ? "Okay" : (isDeleting ? "Deleting..." : "Delete")}
+                cancelLabel={deleteError ? null : "Cancel"}
+                variant={deleteError ? "primary" : "danger"}
+            />
+
+            {/* Batch Progress Modal */}
+            <ConfirmationModal
+                isOpen={batchProgress !== null}
+                onClose={() => {}} // prevent closing
+                onConfirm={() => {}} 
+                title="Processing Students"
+                message="Please wait while we process students in batches. This may take a few moments."
+                confirmLabel="Processing..."
+                cancelLabel=""
+                variant="primary"
+                isSubmitting={true}
+                progress={batchProgress?.percentage || 0}
+            />
+
+            <ConfirmationModal
+                isOpen={isRemoveConfirmOpen}
+                onClose={() => setIsRemoveConfirmOpen(false)}
+                onConfirm={handleConfirmRemoveAll}
+                title="Remove All Students?"
+                message={`Are you sure you want to remove all students from ${selectedClassForAction?.className}? This action cannot be undone.`}
+                confirmLabel="Remove All"
                 cancelLabel="Cancel"
                 variant="danger"
+            />
+
+            <ClassReassignModal
+                isOpen={isReassignModalOpen}
+                onClose={() => setIsReassignModalOpen(false)}
+                selectedClass={selectedClassForAction}
+                userRole="Institute"
+                onSuccess={handleReassignSuccess}
             />
 
             <ConfirmationModal

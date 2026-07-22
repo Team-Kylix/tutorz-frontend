@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, Search, Bell, Download, Moon, Sun, CloudOff, CheckCheck, AlertTriangle, Loader2, X, User } from 'lucide-react'; 
+import { Menu, Search, Bell, Download, Moon, Sun, CloudOff, CheckCheck, AlertTriangle, Loader2, X, User, RefreshCw } from 'lucide-react'; 
 import { useSelector, useDispatch } from 'react-redux';
 import IconButton from '../atoms/IconButton.jsx'; 
 import { useThemeContext } from '../../context/ThemeContext'; 
@@ -309,6 +309,15 @@ const TopNavbar = ({ isCollapsed, toggleSidebar }) => {
       {/* Right Actions */}
       <div className={`flex items-center gap-3 md:gap-4 ${isMobileSearchExpanded ? 'hidden md:flex' : 'flex'}`}>
         
+        {/* Mobile Reload Button */}
+        <button 
+          onClick={() => window.location.reload()}
+          className="md:hidden p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+          title="Reload Dashboard"
+        >
+          <RefreshCw size={20} />
+        </button>
+
         {/* Theme Toggle Button */}
         <button 
           onClick={toggleTheme}

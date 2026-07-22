@@ -38,6 +38,18 @@ export const deleteClass = async (id) => {
   return response.data;
 };
 
+export const removeAllStudentsFromClass = async (id, batchSize = 50) => {
+  const response = await apiClient.post(`/tutor/classes/${id}/remove-students?batchSize=${batchSize}`);
+  clearTutorDashboardCache();
+  return response.data;
+};
+
+export const reassignAllStudents = async (id, newClassId, batchSize = 50) => {
+  const response = await apiClient.post(`/tutor/classes/${id}/reassign`, { newClassId, batchSize });
+  clearTutorDashboardCache();
+  return response.data;
+};
+
 export const getTutorProfile = async () => {
   const response = await apiClient.get('/tutor/profile');
   return response.data;
@@ -274,5 +286,23 @@ export const searchStudentsGlobalForTutor = async (query) => {
   const response = await apiClient.get('/tutor/students/search-global', {
     params: { query }
   });
+  return response.data;
+};
+export const getTutorStudents = async (params) => {
+  const response = await apiClient.get('/tutor/students', { params });
+  return response.data;
+};
+
+
+
+export const dropStudentFromTutorClass = async (studentId, classId) => {
+  const response = await apiClient.post(`/tutor/students/` + studentId + `/drop-class/` + classId);
+  clearTutorDashboardCache();
+  return response.data;
+};
+
+export const reassignStudentToTutorClass = async (studentId, oldClassId, newClassId) => {
+  const response = await apiClient.post(`/tutor/students/` + studentId + `/reassign-class`, { oldClassId, newClassId });
+  clearTutorDashboardCache();
   return response.data;
 };

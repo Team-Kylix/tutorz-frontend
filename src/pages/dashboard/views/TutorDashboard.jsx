@@ -80,17 +80,17 @@ const TutorDashboard = ({ setActivePage }) => {
           <Button
             variant="primary"
             onClick={() => setIsAttendanceModalOpen(true)}
-            className="flex-1 md:flex-none md:min-w-[170px]"
+            className="flex-1 md:flex-none md:min-w-[170px] whitespace-nowrap"
             title="Attendance · Fees · Enroll"
           >
-            <Zap size={18} className="mr-2" /> Student Hub
+            <Zap size={18} className="mr-2 shrink-0" /> Student Hub
           </Button>
           <Button
             variant="primary"
             onClick={() => setIsAddModalOpen(true)}
-            className="flex-1 md:flex-none md:min-w-[170px]"
+            className="flex-1 md:flex-none md:min-w-[170px] whitespace-nowrap"
           >
-            <Plus size={18} className="mr-2" /> Add New
+            <Plus size={18} className="mr-2 shrink-0" /> Add New
           </Button>
         </div>
       </div>

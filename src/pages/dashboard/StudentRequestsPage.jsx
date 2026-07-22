@@ -8,10 +8,11 @@ import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import StudentDetailModal from '../../components/organisms/StudentDetailModal';
 
-// Services & Hooks
 import useApi from '../../hooks/useApi';
 import * as tutorService from '../../services/api/tutorService';
 import { BASE_URL } from '../../services/api/apiClient';
+import { useDispatch, useSelector } from 'react-redux';
+import { setStudentRequestsData, removeStudentRequests } from '../../store/tutorSlice';
 
 /**
  * Small circular avatar for a student row.
@@ -41,16 +42,19 @@ const StudentAvatar = ({ imageUrlSmall, imageUrlLarge, initials }) => {
 };
 
 const StudentRequestsPage = () => {
-    const [requests, setRequests] = useState([]);
+    const dispatch = useDispatch();
+    const { studentRequests: requests, requestsFetched } = useSelector(state => state.tutorData);
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
     const [viewingStudent, setViewingStudent] = useState(null);
 
     // API Hooks
-    const { request: fetchRequests, loading: isLoading } = useApi();
+    const { request: fetchRequests } = useApi();
     const { request: processRequests, loading: isProcessing } = useApi();
     const { request: fetchProfile, loading: isProfileLoading } = useApi();
+    
+    const [isLoading, setIsLoading] = useState(!requestsFetched);
 
     // Debounce Search Term
     useEffect(() => {
@@ -60,18 +64,28 @@ const StudentRequestsPage = () => {
         return () => clearTimeout(handler);
     }, [searchTerm]);
 
-    const loadRequests = useCallback(async () => {
+    const loadRequests = useCallback(async (force = false) => {
+        if (!force && requestsFetched) {
+            setIsLoading(false);
+            return;
+        }
+        setIsLoading(true);
         const { data } = await fetchRequests(tutorService.getStudentRequests);
         if (data && Array.isArray(data)) {
-            setRequests(data);
+            dispatch(setStudentRequestsData(data));
         } else {
-            setRequests([]);
+            dispatch(setStudentRequestsData([]));
         }
-    }, [fetchRequests]);
+        setIsLoading(false);
+    }, [requestsFetched, fetchRequests, dispatch]);
 
     useEffect(() => {
-        loadRequests();
-    }, [loadRequests]);
+        if (!requestsFetched) {
+            loadRequests();
+        } else {
+            setIsLoading(false);
+        }
+    }, [requestsFetched, loadRequests]);
 
     // Filter Logic
     const filteredRequests = requests.filter(req =>
@@ -103,7 +117,7 @@ const StudentRequestsPage = () => {
         const { data: result } = await processRequests(tutorService.processStudentRequests, ids, actionType);
 
         if (result) {
-            setRequests(prev => prev.filter(req => !ids.includes(req.enrollmentId)));
+            dispatch(removeStudentRequests(ids));
             setSelectedIds(prev => prev.filter(id => !ids.includes(id)));
         }
     };
@@ -132,16 +146,6 @@ const StudentRequestsPage = () => {
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                         Manage pending enrollment requests from students
                     </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={loadRequests}
-                        disabled={isLoading}
-                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
-                        title="Refresh"
-                    >
-                        <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
-                    </button>
                 </div>
             </div>
 
@@ -190,12 +194,6 @@ const StudentRequestsPage = () => {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    {requests.length > 0 && (
-                        <span className="ml-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 whitespace-nowrap">
-                            <Clock size={12} />
-                            {requests.length} pending
-                        </span>
-                    )}
                 </div>
 
                 {/* Content Area */}
@@ -216,10 +214,10 @@ const StudentRequestsPage = () => {
                     </div>
                 ) : (
                     <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
-                        <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
+                        <table className="w-full text-left text-xs md:text-sm text-gray-600 dark:text-gray-300 relative">
                             <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                                 <tr>
-                                    <th className="px-6 py-4 w-10 font-semibold">
+                                    <th className="px-4 py-3 md:px-6 md:py-4 w-10 font-semibold whitespace-nowrap">
                                         <input
                                             type="checkbox"
                                             className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-800 cursor-pointer"
@@ -227,12 +225,12 @@ const StudentRequestsPage = () => {
                                             checked={filteredRequests.length > 0 && selectedIds.length === filteredRequests.length}
                                         />
                                     </th>
-                                    <th className="px-6 py-4 font-semibold">Student Name</th>
-                                    <th className="px-6 py-4 font-semibold">Registration No</th>
-                                    <th className="px-6 py-4 font-semibold">Mobile Number</th>
-                                    <th className="px-6 py-4 font-semibold">Grade</th>
-                                    <th className="px-6 py-4 font-semibold">Requesting For</th>
-                                    <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Student Name</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Registration No</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Mobile Number</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Grade</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Requesting For</th>
+                                    <th className="px-1 py-3 md:py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -247,7 +245,7 @@ const StudentRequestsPage = () => {
                                             onClick={(e) => handleRowClick(req, e)}
                                             className={`hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors cursor-pointer group ${selectedIds.includes(req.enrollmentId) ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
                                         >
-                                            <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedIds.includes(req.enrollmentId)}
@@ -255,7 +253,7 @@ const StudentRequestsPage = () => {
                                                     className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-800 cursor-pointer"
                                                 />
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-3">
                                                     <StudentAvatar
                                                         imageUrlSmall={req.profileImageUrlSmall}
@@ -265,29 +263,29 @@ const StudentRequestsPage = () => {
                                                     <div>
                                                         <p className="font-semibold text-gray-900 dark:text-white">{req.name || 'Unknown'}</p>
                                                         {req.email && (
-                                                            <p className="text-xs text-gray-500">{req.email}</p>
+                                                            <p className="text-[10px] md:text-xs text-gray-500">{req.email}</p>
                                                         )}
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 font-mono text-xs">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 font-mono text-[10px] md:text-xs whitespace-nowrap">
                                                 <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300">
                                                     {req.regNo || '-'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                                 {req.mobile || '-'}
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
+                                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] md:text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
                                                     {req.grade || '-'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div className="text-sm font-medium text-blue-600 dark:text-blue-400">{req.targetClass}</div>
-                                                <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">{req.classType}</div>
+                                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
+                                                <div className="text-[11px] md:text-sm font-medium text-blue-600 dark:text-blue-400">{req.targetClass}</div>
+                                                <div className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 capitalize">{req.classType}</div>
                                             </td>
-                                            <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                            <td className="px-1 py-3 md:py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
                                                 <RowActions actions={[
                                                     { label: 'Accept', icon: Check, onClick: (e) => { e.stopPropagation(); handleAction('Accepted', [req.enrollmentId]); }, success: true },
                                                     { label: 'Decline', icon: X, onClick: (e) => { e.stopPropagation(); handleAction('Declined', [req.enrollmentId]); }, danger: true },

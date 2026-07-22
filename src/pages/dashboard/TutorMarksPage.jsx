@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/atoms/Card';
 import Button from '../../components/atoms/Button';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search, Filter, RefreshCw } from 'lucide-react';
 import api from '../../services/api/apiClient';
 import RowActions from '../../components/molecules/RowActions';
 import MarkSheetFormPage from './MarkSheetFormPage'; // Import the form component
@@ -99,10 +99,20 @@ const TutorMarksPage = () => {
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Marks Management</h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-1">Manage and track student marks across all your classes.</p>
                 </div>
-                <Button onClick={handleCreate} className="flex items-center gap-2">
-                    <Plus className="w-4 h-4" />
-                    Create Mark Sheet
-                </Button>
+                <div className="flex w-full sm:w-auto items-center gap-2">
+                    <button
+                        onClick={fetchMarkSheets}
+                        disabled={loading}
+                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors shrink-0"
+                        title="Refresh"
+                    >
+                        <RefreshCw size={17} className={loading ? 'animate-spin' : ''} />
+                    </button>
+                    <Button onClick={handleCreate} className="flex-1 sm:flex-none justify-center items-center gap-2">
+                        <Plus size={18} className="mr-2" />
+                        Create Mark Sheet
+                    </Button>
+                </div>
             </div>
 
             <Card>
@@ -124,50 +134,50 @@ const TutorMarksPage = () => {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-gray-500 dark:text-gray-400">
-                            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-800 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+                    <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
+                        <table className="w-full text-left text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                            <thead className="bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 uppercase text-[10px] md:text-xs">
                                 <tr>
-                                    <th className="px-6 py-4 font-semibold">Ref Number</th>
-                                    <th className="px-6 py-4 font-semibold">Title</th>
-                                    <th className="px-6 py-4 font-semibold">Class / Grade</th>
-                                    <th className="px-6 py-4 font-semibold">Subject</th>
-                                    <th className="px-6 py-4 font-semibold">Date</th>
-                                    <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Ref Number</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Title</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Class / Grade</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Subject</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Date</th>
+                                    <th className="px-1 py-3 md:py-4 font-semibold sticky right-0 z-20 bg-gray-50 dark:bg-gray-800 backdrop-blur-sm"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                                        <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
                                             Loading mark sheets...
                                         </td>
                                     </tr>
                                 ) : filteredSheets.length === 0 ? (
                                     <tr>
-                                        <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                                        <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
                                             No mark sheets found.
                                         </td>
                                     </tr>
                                 ) : (
                                     filteredSheets.map((sheet) => (
                                         <tr key={sheet.markSheetId} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group">
-                                            <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
                                                 {sheet.referenceNumber}
                                             </td>
-                                            <td className="px-6 py-4 text-gray-900 dark:text-white">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 text-gray-900 dark:text-white whitespace-nowrap">
                                                 {sheet.title}
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                                 {sheet.className} ({sheet.grade})
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                                 {sheet.subject}
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                                 {new Date(sheet.createdAt).toLocaleDateString()}
                                             </td>
-                                            <td className="px-6 py-4 text-right">
+                                            <td className="px-1 py-3 md:py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 transition-colors group-hover:bg-gray-50 dark:group-hover:bg-gray-800/50">
                                                 <RowActions
                                                     actions={[
                                                         { label: 'Edit Marks', onClick: () => handleEdit(sheet.markSheetId) },

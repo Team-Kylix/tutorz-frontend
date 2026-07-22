@@ -160,9 +160,9 @@ const LandingPage = () => {
                         <Logo size="small" className="!mb-0" />
                         <div className="hidden md:flex space-x-8 items-center">
                         </div>
-                        <div className="flex items-center space-x-2 sm:space-x-4">
-                            <Link to="/login" className="border-2 border-[#4DA8DA] hover:bg-[#4DA8DA] hover:text-white text-[#4DA8DA] font-bold px-4 sm:px-6 py-2 rounded-full text-sm sm:text-base transition-all">Log In</Link>
-                            <Link to="/register" className="bg-gradient-to-r from-[#80D8C3] to-[#4DA8DA] hover:shadow-lg hover:shadow-[#4DA8DA]/30 text-white px-4 sm:px-6 py-2 rounded-full text-sm sm:text-base font-bold transition-all hover:scale-105">
+                        <div className="flex items-center max-[380px]:space-x-1.5 space-x-2 sm:space-x-4">
+                            <Link to="/login" className="border-2 border-[#4DA8DA] hover:bg-[#4DA8DA] hover:text-white text-[#4DA8DA] font-bold max-[380px]:px-3 max-[380px]:py-1.5 max-[380px]:text-xs px-4 py-2 sm:px-6 sm:py-2 rounded-full text-sm sm:text-base transition-all whitespace-nowrap">Log In</Link>
+                            <Link to="/register" className="bg-gradient-to-r from-[#80D8C3] to-[#4DA8DA] hover:shadow-lg hover:shadow-[#4DA8DA]/30 text-white max-[380px]:px-3 max-[380px]:py-1.5 max-[380px]:text-xs px-4 py-2 sm:px-6 sm:py-2 rounded-full text-sm sm:text-base font-bold transition-all hover:scale-105 whitespace-nowrap">
                                 Sign Up Free
                             </Link>
                         </div>

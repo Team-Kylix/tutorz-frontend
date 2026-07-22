@@ -137,20 +137,20 @@ const InstituteFinancialsPage = () => {
 
     // ─── Render ───────────────────────────────────────────────────
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Page Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Financials &amp; Invoices</h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-1">
                         View student payment history across all classes in your institute.
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex w-full sm:w-auto items-center gap-2">
                     <button
                         onClick={() => fetchPaymentHistory(1, true)}
                         disabled={isLoadingFinancials}
-                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                        className="w-full sm:w-auto flex justify-center items-center p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors shrink-0"
                         title="Refresh"
                     >
                         <RefreshCw size={17} className={isLoadingFinancials ? 'animate-spin' : ''} />

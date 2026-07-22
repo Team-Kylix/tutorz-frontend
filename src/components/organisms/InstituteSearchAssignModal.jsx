@@ -695,6 +695,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 <div className="space-y-4">
                     <FormField
                         id="mobile"
+                        type="tel"
                         label="Mobile Number"
                         placeholder="e.g. 0771234567"
                         value={checkData.mobile}
@@ -769,6 +770,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                     {!isSiblingRegistration && (
                         <FormField 
                             id="mobile" 
+                            type="tel"
                             label="Mobile Number" 
                             placeholder="e.g. 0771234567" 
                             value={formData.mobile} 
