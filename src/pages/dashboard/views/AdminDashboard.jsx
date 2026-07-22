@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import AdminStatsGrid from '../../../components/organisms/AdminStatsGrid';
 import AdminQuickActions from '../../../components/organisms/AdminQuickActions';
 import UnifiedSchedule from '../../../components/organisms/UnifiedSchedule';
+import InstituteSearchAssignModal from '../../../components/organisms/InstituteSearchAssignModal';
 import { getSystemClasses } from '../../../services/api/adminService';
 
 
 const AdminDashboard = ({ user, setActivePage }) => {
   const [classes, setClasses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -62,10 +64,21 @@ const AdminDashboard = ({ user, setActivePage }) => {
 
         {/* Right Column (1/3 width) - Quick Actions & System Info */}
         <div className="space-y-6">
-          <AdminQuickActions setActivePage={setActivePage} />
+          <AdminQuickActions 
+            setActivePage={setActivePage} 
+            user={user} 
+            onOpenAdminModal={() => setIsAdminModalOpen(true)} 
+          />
         </div>
 
       </div>
+
+      <InstituteSearchAssignModal 
+        isOpen={isAdminModalOpen}
+        onClose={() => setIsAdminModalOpen(false)}
+        type="Admin"
+        user={user}
+      />
     </div>
   );
 };

@@ -24,8 +24,8 @@ const ReportsTable = ({ rows = [], onDownload, downloadingRef = null }) => {
     return (
         <div className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto relative">
-                <table className="w-full text-sm text-left whitespace-nowrap">
-                    <thead className="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-800/50 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                <table className="w-full text-xs md:text-sm text-left whitespace-nowrap">
+                    <thead className="text-[10px] md:text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-800/50 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                         <tr>
                             <th scope="col" className="px-4 py-3 md:py-4 font-medium">
                                 Reference

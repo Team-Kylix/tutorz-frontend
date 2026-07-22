@@ -192,7 +192,7 @@ const UpdateCredentialModal = ({ isOpen, onClose, type, currentIdentifier, onSuc
                         <FormField
                             id="otp"
                             label="Enter 6-digit OTP"
-                            type="text"
+                            type="tel"
                             value={otp}
                             onChange={(e) => setOtp(e.target.value)}
                             required

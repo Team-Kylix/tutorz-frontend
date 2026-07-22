@@ -48,16 +48,31 @@ const UserPlatformFinancePage = ({ setActivePage }) => {
     const filteredBills = bills.filter(bill => 
         bill.billReference.toLowerCase().includes(searchQuery.toLowerCase()) ||
         bill.monthYear.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    ).sort((a, b) => {
+        const aIsPaid = a.status === 'Paid' ? 1 : 0;
+        const bIsPaid = b.status === 'Paid' ? 1 : 0;
+        return aIsPaid - bIsPaid;
+    });
 
     return (
-        <div className="p-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                         <Receipt className="text-blue-500" /> Platform Finance
                     </h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400">View and download your monthly platform usage invoices</p>
+                </div>
+                <div className="flex w-full sm:w-auto items-center gap-2">
+                    <button
+                        onClick={fetchBills}
+                        disabled={isLoading}
+                        className="w-full sm:w-auto flex justify-center items-center p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                        title="Refresh"
+                    >
+                        <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
+                        <span className="ml-2 sm:hidden">Refresh Data</span>
+                    </button>
                 </div>
             </div>
 
@@ -74,23 +89,18 @@ const UserPlatformFinancePage = ({ setActivePage }) => {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={fetchBills} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500">
-                            <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
-                        </button>
-                    </div>
                 </div>
 
                 <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
-                    <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
-                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
+                    <table className="w-full text-left text-xs md:text-sm text-gray-600 dark:text-gray-300 relative whitespace-nowrap">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm text-[10px] md:text-xs uppercase">
                             <tr>
-                                <th className="px-6 py-4 font-semibold">Reference</th>
-                                <th className="px-6 py-4 font-semibold">Billing Period</th>
-                                <th className="px-6 py-4 font-semibold text-right">Payable Amount</th>
-                                <th className="px-6 py-4 font-semibold text-right">Paid Amount</th>
-                                <th className="px-6 py-4 font-semibold">Status</th>
-                                <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold">Reference</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold">Billing Period</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold text-right">Payable Amount</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold text-right">Paid Amount</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold">Status</th>
+                                <th className="px-1 py-3 md:py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -107,18 +117,18 @@ const UserPlatformFinancePage = ({ setActivePage }) => {
                             ) : (
                                 filteredBills.map((bill) => (
                                     <tr key={bill.billId} className="hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors group">
-                                        <td className="px-6 py-4 font-mono text-xs text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300">{bill.billReference}</td>
-                                        <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">{bill.monthYear}</td>
-                                        <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white text-lg">
+                                        <td className="px-4 py-3 md:px-6 md:py-4 font-mono text-[10px] md:text-xs text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300">{bill.billReference}</td>
+                                        <td className="px-4 py-3 md:px-6 md:py-4 text-gray-900 dark:text-white font-medium">{bill.monthYear}</td>
+                                        <td className="px-4 py-3 md:px-6 md:py-4 text-right font-bold text-gray-900 dark:text-white text-base md:text-lg">
                                             Rs {bill.payableAmount.toLocaleString('en-LK', { minimumFractionDigits: 2 })}
                                         </td>
-                                        <td className="px-6 py-4 text-right font-bold text-green-600 dark:text-green-400 text-lg">
+                                        <td className="px-4 py-3 md:px-6 md:py-4 text-right font-bold text-green-600 dark:text-green-400 text-base md:text-lg">
                                             {bill.paidAmount ? `Rs ${bill.paidAmount.toLocaleString('en-LK', { minimumFractionDigits: 2 })}` : '-'}
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 py-3 md:px-6 md:py-4">
                                             {getStatusBadge(bill.status)}
                                         </td>
-                                        <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                        <td className="px-1 py-3 md:py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
                                             <RowActions actions={[
                                                 { label: 'Download PDF', icon: Download, onClick: () => downloadBillPdf(bill.billId, bill.billReference) },
                                                 ...(bill.status !== 'Paid' ? [{

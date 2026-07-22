@@ -145,22 +145,22 @@ const TutorRequestsPage = () => {
                         Manage join requests from institutes
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                        onClick={() => setShowSearchModal(true)}
-                        className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white"
-                    >
-                        <Building size={16} />
-                        Send Request
-                    </Button>
+                <div className="flex w-full sm:w-auto items-center gap-2">
                     <button
                         onClick={fetchRequests}
                         disabled={isLoading}
-                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors shrink-0"
                         title="Refresh"
                     >
                         <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
                     </button>
+                    <Button
+                        onClick={() => setShowSearchModal(true)}
+                        className="flex-1 sm:flex-none justify-center items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                        <Building size={16} />
+                        Send Request
+                    </Button>
                 </div>
             </div>
 
@@ -179,12 +179,6 @@ const TutorRequestsPage = () => {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    {totalCount > 0 && (
-                        <span className="ml-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 whitespace-nowrap">
-                            <Clock size={12} />
-                            {totalCount} pending
-                        </span>
-                    )}
                 </div>
 
                 {/* Content Area */}
@@ -214,13 +208,13 @@ const TutorRequestsPage = () => {
                         className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar"
                         onScroll={handleScroll}
                     >
-                        <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
+                        <table className="w-full text-left text-xs md:text-sm text-gray-600 dark:text-gray-300 relative">
                             <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                                 <tr>
-                                    <th className="px-6 py-4 font-semibold">Institute Name</th>
-                                    <th className="px-6 py-4 font-semibold">Registration No</th>
-                                    <th className="px-6 py-4 font-semibold">Mobile Number</th>
-                                    <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Institute Name</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Registration No</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Mobile Number</th>
+                                    <th className="px-1 py-3 md:py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -230,7 +224,7 @@ const TutorRequestsPage = () => {
 
                                     return (
                                         <tr key={request.requestId} className="hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors group">
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-purple-500 group-hover:text-white transition-colors">
                                                         {initials}
@@ -240,15 +234,15 @@ const TutorRequestsPage = () => {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 font-mono text-xs">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 font-mono text-[10px] md:text-xs whitespace-nowrap">
                                                 <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300">
                                                     {request.instituteRegNumber || '-'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-sm">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap text-[11px] md:text-sm">
                                                 {request.institutePhoneNumber || '-'}
                                             </td>
-                                            <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
+                                            <td className="px-1 py-3 md:py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
                                                 <RowActions actions={[
                                                     { label: 'Accept', icon: Check, onClick: () => handleAccept(request.requestId), success: true },
                                                     { label: 'Decline', icon: X, onClick: () => handleDecline(request.requestId), danger: true },

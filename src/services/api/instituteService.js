@@ -106,6 +106,26 @@ export const toggleInstituteClassStatus = async (id) => {
   }
 };
 
+export const removeAllStudentsFromInstituteClass = async (id, batchSize = 50) => {
+  try {
+    const response = await apiClient.post(`/institute/classes/${id}/remove-students?batchSize=${batchSize}`);
+    timetableCache = {};
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to remove all students from class' };
+  }
+};
+
+export const reassignAllStudentsInInstituteClass = async (id, newClassId, batchSize = 50) => {
+  try {
+    const response = await apiClient.post(`/institute/classes/${id}/reassign`, { newClassId, batchSize });
+    timetableCache = {};
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to reassign students to another class' };
+  }
+};
+
 // --- Hall Management ---
 
 let hallsCache = null;
@@ -373,4 +393,21 @@ export const updateCommission = async (data) => {
   } catch (error) {
     throw error.response?.data || { message: 'Failed to update commission percentage' };
   }
+};
+
+export const getStudentClassesForInstitute = async (studentId) => {
+  const response = await apiClient.get(`/institute/students/` + studentId + `/classes`);
+  return response.data;
+};
+
+export const dropStudentFromInstituteClass = async (studentId, classId) => {
+  const response = await apiClient.post(`/institute/students/` + studentId + `/drop-class/` + classId);
+  assignedStudentsCache = {}; // clear students cache
+  return response.data;
+};
+
+export const reassignStudentToInstituteClass = async (studentId, oldClassId, newClassId) => {
+  const response = await apiClient.post(`/institute/students/` + studentId + `/reassign-class`, { oldClassId, newClassId });
+  assignedStudentsCache = {}; // clear students cache
+  return response.data;
 };

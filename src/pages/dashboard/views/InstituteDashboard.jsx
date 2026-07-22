@@ -9,6 +9,7 @@ import {
 // --- Existing Components ---
 import Button from '../../../components/atoms/Button';
 import StatCard from '../../../components/molecules/StatCard';
+import StatsGrid from '../../../components/organisms/StatsGrid';
 import DetailStatusCard from '../../../components/molecules/DetailStatusCard';
 import RevenueStatusCard from '../../../components/molecules/RevenueStatusCard';
 import InstituteSearchAssignModal from '../../../components/organisms/InstituteSearchAssignModal';
@@ -159,11 +160,11 @@ const InstituteDashboard = ({ user, setActivePage }) => {
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Institute Overview</h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Welcome back, {user?.firstName || 'Admin'}</p>
                 </div>
-                <div className="flex gap-3 justify-center sm:justify-end">
+                <div className="w-full md:w-auto flex items-center gap-3 justify-center md:justify-end">
                     <button
                         onClick={handleRefresh}
                         disabled={isRefreshing}
-                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors hidden sm:block"
+                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors hidden md:block shrink-0"
                         title="Refresh"
                     >
                         <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
@@ -171,23 +172,23 @@ const InstituteDashboard = ({ user, setActivePage }) => {
                     <Button
                         variant="primary"
                         onClick={() => setIsAttendanceModalOpen(true)}
-                        className="flex-1 sm:flex-none sm:min-w-[170px] group relative"
+                        className="flex-1 md:flex-none md:min-w-[170px] whitespace-nowrap"
                         title="Attendance · Fees · Enroll"
                     >
-                        <Zap size={18} className="mr-2" /> Student Hub
+                        <Zap size={18} className="mr-2 shrink-0" /> Student Hub
                     </Button>
                     <Button
                         variant="primary"
                         onClick={openAddModal}
-                        className="flex-1 sm:flex-none sm:min-w-[170px]"
+                        className="flex-1 md:flex-none md:min-w-[170px] whitespace-nowrap"
                     >
-                        <Plus size={18} className="mr-2" /> Add New
+                        <Plus size={18} className="mr-2 shrink-0" /> Add New
                     </Button>
                 </div>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatsGrid>
                 <DetailStatusCard 
                     icon={Users} 
                     color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" 
@@ -223,7 +224,7 @@ const InstituteDashboard = ({ user, setActivePage }) => {
                     ]}
                 />
                 <RevenueStatusCard summary={revenueSummary} isLoading={isRevenueLoading || isRichLoading} availableBalance={totalAvailableBalance} />
-            </div>
+            </StatsGrid>
 
             {/* Main Content */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

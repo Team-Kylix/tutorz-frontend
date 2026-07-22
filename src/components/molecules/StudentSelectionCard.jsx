@@ -32,15 +32,15 @@ const StudentSelectionCard = ({ student, onSelect, isSelected }) => {
 
             {/* Info */}
             <div className="flex-1 min-w-0">
-                <p className={`font-semibold text-sm truncate transition-colors ${isSelected ? 'text-blue-900 dark:text-blue-100' : 'text-gray-900 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-300'
+                <p className={`font-semibold text-sm leading-tight transition-colors ${isSelected ? 'text-blue-900 dark:text-blue-100' : 'text-gray-900 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-300'
                     }`}>
                     {student.name}
                 </p>
-                <p className={`text-xs truncate ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'
+                <div className={`text-xs mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'
                     }`}>
-                    {student.registrationNumber || "N/A"}
-                    {student.phoneNumber && ` ${student.phoneNumber}`}
-                </p>
+                    <span>{student.registrationNumber || "N/A"}</span>
+                    {student.phoneNumber && <span>{student.phoneNumber}</span>}
+                </div>
             </div>
 
             {/* Action text */}

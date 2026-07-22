@@ -3,6 +3,8 @@ import { createSlice } from '@reduxjs/toolkit';
 const initialState = {
   classes: [],
   isFetched: false,
+  studentRequests: [],
+  requestsFetched: false,
 };
 
 const tutorSlice = createSlice({
@@ -24,8 +26,19 @@ const tutorSlice = createSlice({
     removeTutorClass: (state, action) => {
       state.classes = state.classes.filter(c => c.classId !== action.payload);
     },
+    setStudentRequestsData: (state, action) => {
+      state.studentRequests = action.payload;
+      state.requestsFetched = true;
+    },
+    removeStudentRequests: (state, action) => {
+      // action.payload is an array of IDs to remove
+      state.studentRequests = state.studentRequests.filter(req => !action.payload.includes(req.enrollmentId));
+    },
     invalidateClasses: (state) => {
       state.isFetched = false;
+    },
+    invalidateRequests: (state) => {
+      state.requestsFetched = false;
     },
     clearTutorData: () => initialState,
   },
@@ -36,7 +49,10 @@ export const {
   addTutorClass, 
   updateTutorClass, 
   removeTutorClass, 
+  setStudentRequestsData,
+  removeStudentRequests,
   invalidateClasses, 
+  invalidateRequests,
   clearTutorData 
 } = tutorSlice.actions;
 

@@ -230,16 +230,16 @@ const HallManagement = () => {
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Hall Management</h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Manage your institute's halls and facilities</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex w-full sm:w-auto items-center gap-2">
                     <button
                         onClick={() => fetchHalls(true)}
                         disabled={isLoading}
-                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors shrink-0"
                         title="Refresh"
                     >
                         <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
                     </button>
-                    <Button variant="primary" onClick={handleCreateClick}>
+                    <Button variant="primary" onClick={handleCreateClick} className="flex-1 sm:flex-none justify-center">
                         <Plus size={18} className="mr-2" /> Add Hall
                     </Button>
                 </div>
@@ -264,14 +264,14 @@ const HallManagement = () => {
 
                 {/* Table View */}
                 <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
-                    <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300 relative">
+                    <table className="w-full text-left text-xs md:text-sm text-gray-600 dark:text-gray-300 relative">
                         <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                             <tr>
-                                <th className="px-6 py-4 font-semibold">Hall Name</th>
-                                <th className="px-6 py-4 font-semibold">Hall Code</th>
-                                <th className="px-6 py-4 font-semibold text-center">Capacity</th>
-                                <th className="px-6 py-4 font-semibold text-center">Status</th>
-                                <th className="px-1 py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Hall Name</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Hall Code</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold text-center whitespace-nowrap">Capacity</th>
+                                <th className="px-4 py-3 md:px-6 md:py-4 font-semibold text-center whitespace-nowrap">Status</th>
+                                <th className="px-1 py-3 md:py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -284,7 +284,7 @@ const HallManagement = () => {
                                             className={`hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors group cursor-pointer ${!hall.isActive ? 'opacity-60 bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
                                             onClick={() => !isTemp && handleEditClick(hall)}
                                         >
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                                 <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                                                     <Building size={16} className="text-gray-400" />
                                                     <span>{hall.name}</span>
@@ -295,26 +295,26 @@ const HallManagement = () => {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 font-mono text-xs text-gray-500 dark:text-gray-400">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 font-mono text-[10px] md:text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                                 {hall.hallCode || '-'}
                                             </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="inline-flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-sm font-medium min-w-[3rem]">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 text-center whitespace-nowrap">
+                                                <div className="inline-flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-xs md:text-sm font-medium min-w-[3rem]">
                                                     {hall.capacity}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-center">
+                                            <td className="px-4 py-3 md:px-6 md:py-4 text-center whitespace-nowrap">
                                                 {hall.isActive ? (
-                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30">
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] md:text-xs font-medium bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30">
                                                         Active
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] md:text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
                                                         Inactive
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-1 py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                            <td className="px-1 py-3 md:py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
                                                 <RowActions actions={[
                                                     { label: 'Edit Hall', icon: Edit2, onClick: () => handleEditClick(hall), disabled: isTemp },
                                                     { label: 'Delete Hall', icon: Trash2, onClick: () => handleDeleteClick(hall), disabled: isTemp, danger: true },
