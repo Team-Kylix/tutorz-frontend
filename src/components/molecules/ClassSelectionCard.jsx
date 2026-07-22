@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Clock, User } from 'lucide-react';
+import { CheckCircle2, Clock, User, MapPin, Building2 } from 'lucide-react';
 
 const ClassSelectionCard = ({ cls, isSelected, onSelect, actionNode, className = '', statusText, statusType = 'normal' }) => {
 
@@ -50,18 +50,36 @@ const ClassSelectionCard = ({ cls, isSelected, onSelect, actionNode, className =
                     </div>
 
                     {/* Time & Tutor Details */}
-                    <div className="flex flex-col gap-1 mt-1.5">
+                    <div className="flex flex-col gap-1.5 mt-2">
+                        {/* Day & Time */}
                         <span className="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-1.5">
-                            <Clock size={12} className="text-gray-400" />
+                            <Clock size={13} className="text-gray-400" />
                             {cls.day} {cls.startTime ? `· ${cls.startTime} - ${cls.endTime}` : ''}
                         </span>
 
-                        {cls.tutorName && (
-                            <span className="flex items-center text-xs text-gray-600 dark:text-gray-300 gap-1.5 font-medium">
-                                <User size={12} className="text-blue-500" />
-                                {cls.tutorName}
-                            </span>
-                        )}
+                        {/* Additional Details row */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                            {cls.tutorName && (
+                                <span className="flex items-center text-xs text-gray-600 dark:text-gray-300 gap-1.5 font-medium">
+                                    <User size={13} className="text-blue-500" />
+                                    {cls.tutorName}
+                                </span>
+                            )}
+                            
+                            {(cls.hallName || cls.hall) && (
+                                <span className="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-1.5">
+                                    <MapPin size={13} className="text-purple-500" />
+                                    {cls.hallName || cls.hall}
+                                </span>
+                            )}
+
+                            {(cls.instituteName || cls.institute) && (
+                                <span className="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-1.5">
+                                    <Building2 size={13} className="text-indigo-500" />
+                                    {cls.instituteName || cls.institute}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
 
