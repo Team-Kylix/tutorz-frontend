@@ -4,7 +4,6 @@ import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import RowActions from '../../components/molecules/RowActions';
 import ClassFormModal from '../../components/organisms/ClassFormModal';
-import AddStudentModal from '../../components/organisms/AddStudentModal';
 import InstituteSearchAssignModal from '../../components/organisms/InstituteSearchAssignModal';
 import ClassReassignModal from '../../components/organisms/ClassReassignModal';
 import ConfirmationModal from '../../components/molecules/ConfirmationModal';
@@ -24,14 +23,12 @@ const ClassesPage = () => {
 
   // State
   const [isClassModalOpen, setClassModalOpen] = useState(false);
-  const [isStudentModalOpen, setStudentModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
   const [selectedClass, setSelectedClass] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
-  const [isRegisterModalOpen, setRegisterModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
   // Delete States
@@ -118,10 +115,7 @@ const ClassesPage = () => {
     setDeleteConfirmOpen(true);
   };
 
-  const handleAddStudentClick = (cls) => {
-    setSelectedClass(cls);
-    setStudentModalOpen(true);
-  };
+
 
   // Triggered when toggle is clicked in Modal
   const handleStatusChangeRequest = (currentFormData) => {
@@ -333,20 +327,7 @@ const ClassesPage = () => {
     }
   };
 
-  const handleStudentSubmit = async (regNo) => {
-    const { data, error } = await saveClass(tutorService.addStudentToClass, {
-      classId: selectedClass?.classId,
-      studentRegistrationNumber: regNo
-    });
-    if (data) {
-      setSuccessMessage("Student added successfully!");
-      setIsSuccessOpen(true);
-      setStudentModalOpen(false);
-      return { success: true };
-    } else if (error) {
-      return { success: false, error: error || "Failed to add student." };
-    }
-  };
+
 
   const filteredClasses = classes.filter(c =>
     c.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -474,7 +455,6 @@ const ClassesPage = () => {
                                         {!isTemp ? (
                                             <RowActions actions={[
                                                 { label: 'Edit Class', icon: Edit2, onClick: () => handleEditClick(cls) },
-                                                { label: 'Add Student', icon: UserPlus, onClick: () => handleAddStudentClick(cls) },
                                                 { label: 'Reassign Students to Another Class', icon: Users, onClick: () => handleReassignClick(cls) },
                                                 { label: 'Remove All Students From This Class', icon: UserMinus, onClick: () => handleRemoveAllStudentsClick(cls) },
                                             ]} />
@@ -523,28 +503,7 @@ const ClassesPage = () => {
         onClearBackendError={() => setClassFormError('')}
       />
 
-      <AddStudentModal
-        isOpen={isStudentModalOpen}
-        onClose={() => setStudentModalOpen(false)}
-        onSubmit={handleStudentSubmit}
-        isSubmitting={isSaving}
-        selectedClass={selectedClass}
-        onOpenRegister={() => {
-            setStudentModalOpen(false);
-            setRegisterModalOpen(true);
-        }}
-      />
 
-      <InstituteSearchAssignModal
-        isOpen={isRegisterModalOpen}
-        onClose={() => setRegisterModalOpen(false)}
-        type="Student"
-        user={user}
-        customAssignFn={async (item) => {
-            await handleStudentSubmit(item.registrationNumber || item.identifier);
-        }}
-        extraRegisterPayload={{ classId: selectedClass?.classId }}
-      />
 
       <ConfirmationModal
         isOpen={isConfirmOpen}
