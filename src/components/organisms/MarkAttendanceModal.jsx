@@ -795,7 +795,10 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
                                                     return (
                                                         <ClassSelectionCard
                                                             key={cid}
-                                                            cls={c}
+                                                            cls={{
+                                                                ...c,
+                                                                tutorName: c.tutorName || (user?.role === 'Tutor' ? `${user?.firstName} ${user?.lastName}` : '')
+                                                            }}
                                                             isSelected={selectedClassId === cid}
                                                             onSelect={() => {
                                                                 setSelectedGlobalClassId(cid);
@@ -830,7 +833,10 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
                                     return (
                                         <div key={classIdentifier} className="space-y-1">
                                             <ClassSelectionCard
-                                                cls={cls}
+                                                cls={{
+                                                    ...cls,
+                                                    tutorName: cls.tutorName || (user?.role === 'Tutor' ? `${user?.firstName} ${user?.lastName}` : '')
+                                                }}
                                                 isSelected={selectedClassId === classIdentifier}
                                                 onSelect={() => {
                                                     setSelectedClassId(classIdentifier);
