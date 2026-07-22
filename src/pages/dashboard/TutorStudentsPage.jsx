@@ -7,6 +7,8 @@ import RowActions from '../../components/molecules/RowActions';
 import Input from '../../components/atoms/Input';
 import Select from '../../components/atoms/Select';
 import AccountViewModal from '../../components/organisms/AccountViewModal';
+import RemoveStudentModal from '../../components/organisms/RemoveStudentModal';
+import ReassignStudentModal from '../../components/organisms/ReassignStudentModal';
 import { getTutorStudents, getClasses, getJoinedInstitutes } from '../../services/api/tutorService';
 import { useAuth } from '../../hooks/useAuth';
 import { BASE_URL } from '../../services/api/apiClient';
@@ -66,6 +68,11 @@ const TutorStudentsPage = () => {
     // View Profile Modal
     const [selectedAccount, setSelectedAccount] = useState(null);
     const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+    
+    // Class Management State
+    const [manageStudent, setManageStudent] = useState(null);
+    const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
+    const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
 
     // Initial Load: Fetch Classes for Dropdowns
     useEffect(() => {
@@ -189,6 +196,16 @@ const TutorStudentsPage = () => {
         setIsAccountModalOpen(true);
     };
 
+    const handleRemoveStudent = (student) => {
+        setManageStudent(student);
+        setIsRemoveModalOpen(true);
+    };
+
+    const handleReassignStudent = (student) => {
+        setManageStudent(student);
+        setIsReassignModalOpen(true);
+    };
+
     const handleRefresh = () => {
         setPage(1);
         fetchStudents(false, 1, debouncedSearchTerm, true);
@@ -302,16 +319,16 @@ const TutorStudentsPage = () => {
                 ) : (
                     <>
                         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                            <div className="overflow-x-auto custom-scrollbar">
-                                <table className="w-full text-left text-xs md:text-sm text-gray-600 dark:text-gray-300">
-                                    <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700">
+                            <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
+                                <table className="w-full text-left text-xs md:text-sm text-gray-600 dark:text-gray-300 relative">
+                                    <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 backdrop-blur-sm">
                                         <tr>
                                             <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Student Name</th>
                                             <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Registration No</th>
                                             <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Mobile Number</th>
                                             <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">Grade</th>
                                             <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap">School</th>
-                                            <th className="px-4 py-3 md:px-6 md:py-4 font-semibold whitespace-nowrap"></th>
+                                            <th className="px-1 py-3 md:py-4 font-semibold sticky right-0 z-30 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm"></th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -352,12 +369,12 @@ const TutorStudentsPage = () => {
                                                     <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                                                         {student.schoolName || '-'}
                                                     </td>
-                                                    <td className="px-4 py-3 md:px-6 md:py-4">
-                                                        <div className="flex justify-end">
-                                                            <RowActions actions={[
-                                                                { label: 'View Profile', icon: Eye, onClick: () => handleViewProfile(student) },
-                                                            ]} />
-                                                        </div>
+                                                    <td className="px-1 py-3 md:py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors">
+                                                        <RowActions actions={[
+                                                            { label: 'View Profile', icon: Eye, onClick: () => handleViewProfile(student) },
+                                                            { label: 'Remove Student', icon: GraduationCap, onClick: () => handleRemoveStudent(student), variant: 'danger' },
+                                                            { label: 'Assign / Reassign Class', icon: GraduationCap, onClick: () => handleReassignStudent(student) }
+                                                        ]} />
                                                     </td>
                                                 </tr>
                                             );
@@ -387,6 +404,22 @@ const TutorStudentsPage = () => {
                 isOpen={isAccountModalOpen} 
                 onClose={() => setIsAccountModalOpen(false)} 
                 account={selectedAccount} 
+            />
+
+            <RemoveStudentModal
+                isOpen={isRemoveModalOpen}
+                onClose={() => setIsRemoveModalOpen(false)}
+                student={manageStudent}
+                type="Tutor"
+                onUpdated={() => fetchStudents(true)}
+            />
+
+            <ReassignStudentModal
+                isOpen={isReassignModalOpen}
+                onClose={() => setIsReassignModalOpen(false)}
+                student={manageStudent}
+                type="Tutor"
+                onUpdated={() => fetchStudents(true)}
             />
         </div>
     );

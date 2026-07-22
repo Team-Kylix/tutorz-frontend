@@ -292,3 +292,17 @@ export const getTutorStudents = async (params) => {
   const response = await apiClient.get('/tutor/students', { params });
   return response.data;
 };
+
+
+
+export const dropStudentFromTutorClass = async (studentId, classId) => {
+  const response = await apiClient.post(`/tutor/students/` + studentId + `/drop-class/` + classId);
+  clearTutorDashboardCache();
+  return response.data;
+};
+
+export const reassignStudentToTutorClass = async (studentId, oldClassId, newClassId) => {
+  const response = await apiClient.post(`/tutor/students/` + studentId + `/reassign-class`, { oldClassId, newClassId });
+  clearTutorDashboardCache();
+  return response.data;
+};

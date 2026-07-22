@@ -394,3 +394,20 @@ export const updateCommission = async (data) => {
     throw error.response?.data || { message: 'Failed to update commission percentage' };
   }
 };
+
+export const getStudentClassesForInstitute = async (studentId) => {
+  const response = await apiClient.get(`/institute/students/` + studentId + `/classes`);
+  return response.data;
+};
+
+export const dropStudentFromInstituteClass = async (studentId, classId) => {
+  const response = await apiClient.post(`/institute/students/` + studentId + `/drop-class/` + classId);
+  assignedStudentsCache = {}; // clear students cache
+  return response.data;
+};
+
+export const reassignStudentToInstituteClass = async (studentId, oldClassId, newClassId) => {
+  const response = await apiClient.post(`/institute/students/` + studentId + `/reassign-class`, { oldClassId, newClassId });
+  assignedStudentsCache = {}; // clear students cache
+  return response.data;
+};
