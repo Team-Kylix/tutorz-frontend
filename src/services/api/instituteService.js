@@ -411,3 +411,9 @@ export const reassignStudentToInstituteClass = async (studentId, oldClassId, new
   assignedStudentsCache = {}; // clear students cache
   return response.data;
 };
+
+export const downloadClassQrCodes = async (classId) => {
+  const response = await apiClient.get(`/institute/classes/${classId}/qr-codes`, { responseType: 'blob' });
+  return response.data;
+};
+

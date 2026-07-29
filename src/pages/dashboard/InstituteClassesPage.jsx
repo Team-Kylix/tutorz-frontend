@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, Search, RefreshCw, BookOpen, Clock, Users, Building2, UserPlus, FileDown, Eye, Zap, Trash2, Calendar, UserMinus, User, Edit } from 'lucide-react';
+import { Plus, Edit2, Search, RefreshCw, BookOpen, Clock, Users, Building2, UserPlus, FileDown, Eye, Zap, Trash2, Calendar, UserMinus, User, Edit, QrCode } from 'lucide-react';
 import Button from '../../components/atoms/Button';
 import RowActions from '../../components/molecules/RowActions';
 import Input from '../../components/atoms/Input';
@@ -316,6 +316,27 @@ const InstituteClassesPage = () => {
         }
     };
 
+    const handleDownloadClassQrCodes = async (cls) => {
+        try {
+            setBatchProgress({ isProcessing: true, percentage: 50 }); // Show some progress indicator
+            const blob = await instituteService.downloadClassQrCodes(cls.classId);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Class_${cls.className}_QRCodes.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            setBatchProgress(null);
+            setSuccessMessage("QR Codes PDF generated successfully!");
+            setIsSuccessOpen(true);
+        } catch (err) {
+            setBatchProgress(null);
+            alert("Failed to generate QR Codes. Please ensure there are students in the class.");
+        }
+    };
+
     return (
         <div className="space-y-6 animate-fade-in">
             {/* Header */}
@@ -448,6 +469,7 @@ const InstituteClassesPage = () => {
                                         <td className="px-1 py-3 md:py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
                                             <RowActions actions={[
                                                 { label: 'Edit Class', icon: Edit2, onClick: () => handleEditClick(cls) },
+                                                { label: 'Generate QR code for class', icon: QrCode, onClick: () => handleDownloadClassQrCodes(cls) },
                                                 { label: cls.isActive ? 'Deactivate' : 'Activate', icon: Eye, onClick: () => handleStatusChangeRequest(cls) },
                                                 { label: 'Delete', icon: Trash2, onClick: () => handleDeleteClick(cls.classId), variant: 'danger' },
                                                 { label: 'Reassign Students', icon: Users, onClick: () => handleReassignClick(cls) },

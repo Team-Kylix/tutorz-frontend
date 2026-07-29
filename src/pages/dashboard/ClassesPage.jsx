@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, UserPlus, Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar, UserMinus } from 'lucide-react';
+import { Plus, Edit2, UserPlus, Search, RefreshCw, BookOpen, Clock, Users, Building2, Calendar, UserMinus, QrCode } from 'lucide-react';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import RowActions from '../../components/molecules/RowActions';
@@ -327,7 +327,26 @@ const ClassesPage = () => {
     }
   };
 
-
+    const handleDownloadClassQrCodes = async (cls) => {
+        try {
+            setBatchProgress({ isProcessing: true, percentage: 50 }); // Show some progress indicator
+            const blob = await tutorService.downloadClassQrCodes(cls.classId);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Class_${cls.className}_QRCodes.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            setBatchProgress(null);
+            setSuccessMessage("QR Codes PDF generated successfully!");
+            setIsSuccessOpen(true);
+        } catch (err) {
+            setBatchProgress(null);
+            alert("Failed to generate QR Codes. Please ensure there are students in the class.");
+        }
+    };
 
   const filteredClasses = classes.filter(c =>
     c.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -455,6 +474,7 @@ const ClassesPage = () => {
                                         {!isTemp ? (
                                             <RowActions actions={[
                                                 { label: 'Edit Class', icon: Edit2, onClick: () => handleEditClick(cls) },
+                                                { label: 'Generate QR code for class', icon: QrCode, onClick: () => handleDownloadClassQrCodes(cls) },
                                                 { label: 'Reassign Students to Another Class', icon: Users, onClick: () => handleReassignClick(cls) },
                                                 { label: 'Remove All Students From This Class', icon: UserMinus, onClick: () => handleRemoveAllStudentsClick(cls) },
                                             ]} />

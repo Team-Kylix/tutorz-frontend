@@ -261,8 +261,15 @@ export const downloadTutorMonthlyReportPdf = async (instituteId, classId, month,
  * @param {string} markSheetId 
  */
 export const deleteMarkSheet = async (markSheetId) => {
-  const response = await apiClient.delete(`/tutor/marks/${markSheetId}`);
-  return response.data;
+    const response = await apiClient.delete(`/tutor/marks/${markSheetId}`);
+    return response.data;
+};
+
+export const downloadClassQrCodes = async (classId) => {
+    const response = await apiClient.get(`/tutor/classes/${classId}/qr-codes`, {
+        responseType: 'blob'
+    });
+    return response.data;
 };
 
 export const markTutorAttendance = async (studentId, classId) => {
