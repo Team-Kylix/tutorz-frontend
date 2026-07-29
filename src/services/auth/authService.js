@@ -247,3 +247,15 @@ export const verifyResetOtp = async (identifier, otp) => {
         throw new Error(err.response?.data?.message || 'Invalid OTP code.');
     }
 };
+
+export const downloadMyQrPdf = async () => {
+    try {
+        const response = await apiClient.get(`/auth/profile/qr-pdf`, {
+            responseType: 'blob'
+        });
+        return response.data;
+    } catch (err) {
+        console.error('Download QR PDF error:', err);
+        throw new Error('Failed to download QR code PDF.');
+    }
+};

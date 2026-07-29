@@ -383,6 +383,7 @@ const UserProfile = () => {
                         <StudentQRCode
                             variant="compact"
                             value={profile.registrationNumber}
+                            userId={user?.userId}
                             studentName={getHeaderName().first}
                         />
                     )
