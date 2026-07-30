@@ -352,7 +352,6 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
         }
     };
 
-    // --- Quick Go Back ---
     const handleBack = () => {
         if (assignmentMode) {
             setAssignmentMode(null);
@@ -365,6 +364,8 @@ const MarkAttendanceModal = ({ isOpen, onClose, initialStudent = null }) => {
                 setSelectedStudent(null);
                 setStudentClasses([]);
                 setSelectedClassId(null);
+                setQuery('');
+                setResults([]);
             }
         }
         setErrorMsg('');
