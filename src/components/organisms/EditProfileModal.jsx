@@ -13,7 +13,7 @@ import LocationSelector from '../molecules/LocationSelector';
 import ConfirmationModal from '../molecules/ConfirmationModal';
 import FinancialsSection from './FinancialsSection';
 import { ROLES, GRADE_GROUPS } from '../../utils/constants';
-import { validatePhoneNumber } from '../../utils/validators';
+import { validatePhoneNumber, validateName } from '../../utils/validators';
 
 const SelectField = ({ id, label, value, onChange, groups, placeholder, required = false, error }) => {
     const isPlaceholder = value === "";
@@ -154,6 +154,25 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
     const handleTriggerSave = (e) => {
         e.preventDefault();
 
+        let newErrors = {};
+
+        // Name Validation
+        if (normalizedRole === 'institute') {
+            const instValid = validateName(formData.instituteName, 'Institute Name');
+            if (!instValid.isValid) newErrors.instituteName = instValid.message;
+        } else {
+            const fNameValid = validateName(formData.firstName, 'First Name');
+            if (!fNameValid.isValid) newErrors.firstName = fNameValid.message;
+            
+            const lNameValid = validateName(formData.lastName, 'Last Name');
+            if (!lNameValid.isValid) newErrors.lastName = lNameValid.message;
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(prev => ({ ...prev, ...newErrors }));
+            return; // Stop if validation fails
+        }
+
         // Validate phone number before showing confirmation dialog.
         // Tutors have a DISABLED phone field (changed via UpdateCredentialModal)
         // so we must NOT validate it here — it may be empty for new tutors.
@@ -247,13 +266,13 @@ const EditProfileModal = ({ isOpen, onClose, initialData, onSave, isSaving, role
                         {normalizedRole === 'institute' ? (
                             // Institute Specific Top Fields
                             <div className="grid grid-cols-1 gap-4">
-                                <FormField id="instituteName" label="Institute Name" value={formData.instituteName} onChange={handleChange} required />
+                                <FormField id="instituteName" label="Institute Name" value={formData.instituteName} onChange={handleChange} required error={errors.instituteName} />
                             </div>
                         ) : (
                             // Admin/Tutor/Student Top Fields
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required />
-                                <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required />
+                                <FormField id="firstName" label="First Name" value={formData.firstName} onChange={handleChange} required error={errors.firstName} />
+                                <FormField id="lastName" label="Last Name" value={formData.lastName} onChange={handleChange} required error={errors.lastName} />
                             </div>
                         )}
 

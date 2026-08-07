@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import AuthLayout from '../../components/templates/AuthLayout.jsx';
 import FormField from '../../components/molecules/FormField.jsx';
 import { ROLES, GRADE_GROUPS } from '../../utils/constants';
-import { validatePhoneNumber } from '../../utils/validators';
+import { validatePhoneNumber, validateName } from '../../utils/validators';
 import useAuth from '../../hooks/useAuth';
 import { socialLogin, checkUserStatus } from '../../services/auth/authService.js';
 import Label from '../../components/atoms/Label.jsx';
@@ -143,19 +143,22 @@ const RegisterDetailsPage = () => {
 
         // 3. Name/Entity validation based on Role
         if (role === ROLES.INSTITUTE) {
-            if (!formData.instituteName.trim()) {
-                newErrors.instituteName = "Institute Name is required.";
+            const instValid = validateName(formData.instituteName, "Institute Name");
+            if (!instValid.isValid) {
+                newErrors.instituteName = instValid.message;
             }
             if (!formData.address.trim()) {
                 newErrors.address = "Address is required.";
             }
         } else {
             // Tutors and Students
-            if (!formData.firstName.trim()) {
-                newErrors.firstName = "First Name is required.";
+            const fNameValid = validateName(formData.firstName, "First Name");
+            if (!fNameValid.isValid) {
+                newErrors.firstName = fNameValid.message;
             }
-            if (!formData.lastName.trim()) {
-                newErrors.lastName = "Last Name is required.";
+            const lNameValid = validateName(formData.lastName, "Last Name");
+            if (!lNameValid.isValid) {
+                newErrors.lastName = lNameValid.message;
             }
         }
 

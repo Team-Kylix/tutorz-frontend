@@ -16,6 +16,14 @@ export const validateEmail = (email) => {
   return { isValid: true, message: '' };
 };
 
+export const validateName = (name, fieldName = 'Name') => {
+  if (!name || name.trim() === '') return { isValid: false, message: `${fieldName} is required.` };
+  if (!REGEX.NAME.test(name)) {
+    return { isValid: false, message: `${fieldName} can only contain letters and spaces.` };
+  }
+  return { isValid: true, message: '' };
+};
+
 export const validateRequired = (value, fieldName = 'Field') => {
   if (!value || value.trim() === '') {
     return { isValid: false, message: `${fieldName} is required.` };

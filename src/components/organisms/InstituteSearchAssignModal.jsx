@@ -13,7 +13,7 @@ import OtpVerificationModal from './OtpVerificationModal';
 import { checkUserStatus, sendOtp, verifyOtp } from '../../services/auth/authService';
 import { searchStudents, searchTutors, assignStudent, sendTutorRequest, getInstituteProfile } from '../../services/api/instituteService';
 import { getJoinedInstitutes, searchStudentsGlobalForTutor } from '../../services/api/tutorService';
-import { validatePhoneNumber, validateEmail } from '../../utils/validators';
+import { validatePhoneNumber, validateEmail, validateName } from '../../utils/validators';
 
 const GRADE_GROUPS = [
     { label: "Primary Education", options: ['Preschool', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'] },
@@ -421,8 +421,11 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             }
         }
 
-        if (!formData.firstName.trim()) newErrors.firstName = "First Name is required.";
-        if (!formData.lastName.trim()) newErrors.lastName = "Last Name is required.";
+        const fNameValid = validateName(formData.firstName, "First Name");
+        if (!fNameValid.isValid) newErrors.firstName = fNameValid.message;
+
+        const lNameValid = validateName(formData.lastName, "Last Name");
+        if (!lNameValid.isValid) newErrors.lastName = lNameValid.message;
         if (selectedRole === 'Student' && !formData.grade) newErrors.grade = "Please select a Grade.";
 
         if (Object.keys(newErrors).length > 0) {
