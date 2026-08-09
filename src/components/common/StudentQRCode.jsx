@@ -4,14 +4,17 @@ import { useThemeContext } from '../../context/ThemeContext';
 import { downloadMyQrPdf } from '../../services/auth/authService';
 import systemService from '../../services/api/systemService';
 import { Loader2 } from 'lucide-react';
+import ConfirmationModal from '../molecules/ConfirmationModal';
 
 const StudentQRCode = ({ value, studentName, userId = null, variant = 'default' }) => {
     const qrRef = useRef();
     const { theme } = useThemeContext();
     const isDark = theme === 'dark';
     const [isDownloading, setIsDownloading] = useState(false);
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
     const downloadQRCode = async () => {
+        setIsConfirmOpen(false);
         setIsDownloading(true);
         try {
             let blob;
@@ -43,7 +46,7 @@ const StudentQRCode = ({ value, studentName, userId = null, variant = 'default' 
                 <div 
                     ref={qrRef} 
                     className="p-1.5 bg-white dark:bg-gray-800 border-none shadow-xl transition-all cursor-pointer group-hover:scale-105" 
-                    onClick={downloadQRCode}
+                    onClick={() => setIsConfirmOpen(true)}
                 >
                     <div className="bg-blue-50 dark:bg-gray-900 transition-colors">
                         <QRCodeSVG
@@ -86,7 +89,7 @@ const StudentQRCode = ({ value, studentName, userId = null, variant = 'default' 
             </p>
 
             <button
-                onClick={downloadQRCode}
+                onClick={() => setIsConfirmOpen(true)}
                 disabled={isDownloading}
                 className="mt-6 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -104,6 +107,15 @@ const StudentQRCode = ({ value, studentName, userId = null, variant = 'default' 
                     </>
                 )}
             </button>
+
+            <ConfirmationModal
+                isOpen={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                onConfirm={downloadQRCode}
+                title="Download QR Code"
+                message={`Are you sure you want to download ${studentName}_QR_ID.pdf?`}
+                confirmLabel="Download"
+            />
         </div>
     );
 };

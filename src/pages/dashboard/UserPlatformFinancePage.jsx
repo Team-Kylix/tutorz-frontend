@@ -7,6 +7,7 @@ import { getMyBills, downloadBillPdf } from '../../services/api/billingService';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import RowActions from '../../components/molecules/RowActions';
+import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 import BillPaymentModal from '../../components/organisms/BillPaymentModal';
 
 const UserPlatformFinancePage = ({ setActivePage }) => {
@@ -19,15 +20,32 @@ const UserPlatformFinancePage = ({ setActivePage }) => {
     // Payment Modal State
     const [isPayModalOpen, setIsPayModalOpen] = useState(false);
     const [selectedBill, setSelectedBill] = useState(null);
+    const [downloadingId, setDownloadingId] = useState(null);
+    const [downloadConfirmRow, setDownloadConfirmRow] = useState(null);
 
     const fetchBills = async () => {
         setIsLoading(true);
-        const response = await getMyBills(page, 10);
-        if (response.success) {
-            setBills(response.data.items);
-            setTotalCount(response.data.totalCount);
+        try {
+            const response = await getMyBills(page, 10);
+            if (response.success) {
+                setBills(response.data.items);
+                setTotalCount(response.data.totalCount);
+            }
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
+    };
+
+    const handleConfirmDownload = async () => {
+        if (!downloadConfirmRow || downloadingId) return;
+        const { billId, billReference } = downloadConfirmRow;
+        setDownloadingId(billId);
+        setDownloadConfirmRow(null);
+        try {
+            await downloadBillPdf(billId, billReference);
+        } finally {
+            setDownloadingId(null);
+        }
     };
 
     useEffect(() => {
@@ -130,7 +148,12 @@ const UserPlatformFinancePage = ({ setActivePage }) => {
                                         </td>
                                         <td className="px-1 py-3 md:py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
                                             <RowActions actions={[
-                                                { label: 'Download PDF', icon: Download, onClick: () => downloadBillPdf(bill.billId, bill.billReference) },
+                                                { 
+                                                    label: downloadingId === bill.billId ? 'Downloading...' : 'Download PDF', 
+                                                    icon: downloadingId === bill.billId ? Loader2 : Download, 
+                                                    disabled: downloadingId === bill.billId,
+                                                    onClick: () => setDownloadConfirmRow(bill) 
+                                                },
                                                 ...(bill.status !== 'Paid' ? [{
                                                     label: 'Pay Bill', 
                                                     icon: CreditCard, 
@@ -179,6 +202,15 @@ const UserPlatformFinancePage = ({ setActivePage }) => {
                 bill={selectedBill}
                 onPaymentSuccess={fetchBills}
                 setActivePage={setActivePage}
+            />
+
+            <ConfirmationModal
+                isOpen={!!downloadConfirmRow}
+                onClose={() => setDownloadConfirmRow(null)}
+                onConfirm={handleConfirmDownload}
+                title="Download Platform Bill"
+                message={`Are you sure you want to download the bill for ${downloadConfirmRow?.monthYear}?`}
+                confirmLabel="Download"
             />
         </div>
     );

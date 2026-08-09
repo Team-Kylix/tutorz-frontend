@@ -54,7 +54,7 @@ const AccountViewModal = ({ isOpen, onClose, account }) => {
                                 <StudentQRCode
                                     variant="compact"
                                     value={account.registrationNumber}
-                                    userId={account.userId || account.studentId || account.tutorId}
+                                    userId={isStudent ? (account.studentId || account.userId) : (account.userId || account.tutorId)}
                                     studentName={account.name}
                                 />
                             </div>

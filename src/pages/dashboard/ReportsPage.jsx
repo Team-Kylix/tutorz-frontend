@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Loader2, FileBarChart2, RefreshCw } from 'lucide-react';
 import Select from '../../components/atoms/Select';
 import ReportsTable from '../../components/organisms/ReportsTable';
+import ConfirmationModal from '../../components/molecules/ConfirmationModal';
 import {
     getClasses,
     getJoinedInstitutes,
@@ -27,6 +28,7 @@ const ReportsPage = () => {
 
     // ─── Download tracking ────────────────────────────────────────
     const [downloadingRef, setDownloadingRef] = useState(null);
+    const [downloadConfirmRow, setDownloadConfirmRow] = useState(null);
 
     // ─── Fetch Dropdown Data on mount ────────────────────────────
     useEffect(() => {
@@ -93,9 +95,11 @@ const ReportsPage = () => {
     }, [fetchReport]);
 
     // ─── Download Handler ─────────────────────────────────────────
-    const handleDownload = async (row) => {
-        if (downloadingRef) return;
+    const handleConfirmDownload = async () => {
+        if (!downloadConfirmRow || downloadingRef) return;
+        const row = downloadConfirmRow;
         setDownloadingRef(row.reference);
+        setDownloadConfirmRow(null);
         try {
             const filename = `Tutorz_Report_${(row.monthYear || '').replace(/\s+/g, '_')}.pdf`;
             await downloadTutorMonthlyReportPdf(
@@ -208,12 +212,20 @@ const ReportsPage = () => {
                 ) : (
                     <ReportsTable
                         rows={reportRows}
-                        onDownload={handleDownload}
+                        onDownload={(row) => setDownloadConfirmRow(row)}
                         downloadingRef={downloadingRef}
                     />
                 )}
             </div>
 
+            <ConfirmationModal
+                isOpen={!!downloadConfirmRow}
+                onClose={() => setDownloadConfirmRow(null)}
+                onConfirm={handleConfirmDownload}
+                title="Download Monthly Report"
+                message={`Are you sure you want to download the monthly report for ${downloadConfirmRow?.monthYear}?`}
+                confirmLabel="Download"
+            />
         </div>
     );
 };

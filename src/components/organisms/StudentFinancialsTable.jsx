@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FileText, Download, CreditCard, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { cleanClassName } from '../../utils/helpers';
 import RowActions from '../molecules/RowActions';
+import ConfirmationModal from '../molecules/ConfirmationModal';
 import { downloadClassPaymentPdf } from '../../services/api/studentService';
 
 /**
@@ -12,10 +13,13 @@ import { downloadClassPaymentPdf } from '../../services/api/studentService';
  */
 const StudentFinancialsTable = ({ payments = [], onPay }) => {
     const [downloadingId, setDownloadingId] = useState(null);
+    const [downloadConfirmRow, setDownloadConfirmRow] = useState(null);
 
-    const handleDownload = async (payment) => {
-        if (downloadingId) return;
+    const handleConfirmDownload = async () => {
+        if (!downloadConfirmRow || downloadingId) return;
+        const payment = downloadConfirmRow;
         setDownloadingId(payment.paymentId);
+        setDownloadConfirmRow(null);
         try {
             const ref = `${cleanClassName(payment.className) || payment.subject}_${payment.monthYear}`.replace(/\s+/g, '_');
             await downloadClassPaymentPdf(payment.paymentId, ref);
@@ -120,7 +124,7 @@ const StudentFinancialsTable = ({ payments = [], onPay }) => {
                                     label: downloadingId === payment.paymentId ? 'Downloading…' : 'Download PDF',
                                     icon: Download,
                                     disabled: downloadingId === payment.paymentId,
-                                    onClick: () => handleDownload(payment),
+                                    onClick: () => setDownloadConfirmRow(payment),
                                 });
                             }
                             if (isDue && onPay) {
@@ -213,6 +217,15 @@ const StudentFinancialsTable = ({ payments = [], onPay }) => {
                     </tbody>
                 </table>
             </div>
+            
+            <ConfirmationModal
+                isOpen={!!downloadConfirmRow}
+                onClose={() => setDownloadConfirmRow(null)}
+                onConfirm={handleConfirmDownload}
+                title="Download Receipt PDF"
+                message={`Are you sure you want to download the payment receipt for ${downloadConfirmRow?.monthYear}?`}
+                confirmLabel="Download"
+            />
         </div>
     );
 };

@@ -49,6 +49,7 @@ const InstituteClassesPage = () => {
     // Status Change States
     const [statusCandidate, setStatusCandidate] = useState(null);
     const [isStatusConfirmOpen, setStatusConfirmOpen] = useState(false);
+    const [downloadConfirmRow, setDownloadConfirmRow] = useState(null);
 
     // Student Hub Modal
     const [isStudentHubOpen, setIsStudentHubOpen] = useState(false);
@@ -316,7 +317,10 @@ const InstituteClassesPage = () => {
         }
     };
 
-    const handleDownloadClassQrCodes = async (cls) => {
+    const handleConfirmDownloadQr = async () => {
+        if (!downloadConfirmRow) return;
+        const cls = downloadConfirmRow;
+        setDownloadConfirmRow(null);
         try {
             setBatchProgress({ isProcessing: true, percentage: 50 }); // Show some progress indicator
             const blob = await instituteService.downloadClassQrCodes(cls.classId);
@@ -469,7 +473,7 @@ const InstituteClassesPage = () => {
                                         <td className="px-1 py-3 md:py-4 sticky right-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/20 transition-colors" onClick={(e) => e.stopPropagation()}>
                                             <RowActions actions={[
                                                 { label: 'Edit Class', icon: Edit2, onClick: () => handleEditClick(cls) },
-                                                { label: 'Generate QR code for class', icon: QrCode, onClick: () => handleDownloadClassQrCodes(cls) },
+                                                { label: 'Generate QR code for class', icon: QrCode, onClick: () => setDownloadConfirmRow(cls) },
                                                 { label: cls.isActive ? 'Deactivate' : 'Activate', icon: Eye, onClick: () => handleStatusChangeRequest(cls) },
                                                 { label: 'Delete', icon: Trash2, onClick: () => handleDeleteClick(cls.classId), variant: 'danger' },
                                                 { label: 'Reassign Students', icon: Users, onClick: () => handleReassignClick(cls) },

@@ -23,6 +23,7 @@ const ClassesPage = () => {
 
   // State
   const [isClassModalOpen, setClassModalOpen] = useState(false);
+  const [downloadConfirmRow, setDownloadConfirmRow] = useState(null);
   const [editingClass, setEditingClass] = useState(null);
   const [selectedClass, setSelectedClass] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -327,7 +328,10 @@ const ClassesPage = () => {
     }
   };
 
-    const handleDownloadClassQrCodes = async (cls) => {
+    const handleConfirmDownloadQr = async () => {
+        if (!downloadConfirmRow) return;
+        const cls = downloadConfirmRow;
+        setDownloadConfirmRow(null);
         try {
             setBatchProgress({ isProcessing: true, percentage: 50 }); // Show some progress indicator
             const blob = await tutorService.downloadClassQrCodes(cls.classId);
@@ -474,7 +478,7 @@ const ClassesPage = () => {
                                         {!isTemp ? (
                                             <RowActions actions={[
                                                 { label: 'Edit Class', icon: Edit2, onClick: () => handleEditClick(cls) },
-                                                { label: 'Generate QR code for class', icon: QrCode, onClick: () => handleDownloadClassQrCodes(cls) },
+                                                { label: 'Generate QR code for class', icon: QrCode, onClick: () => setDownloadConfirmRow(cls) },
                                                 { label: 'Reassign Students to Another Class', icon: Users, onClick: () => handleReassignClick(cls) },
                                                 { label: 'Remove All Students From This Class', icon: UserMinus, onClick: () => handleRemoveAllStudentsClick(cls) },
                                             ]} />
@@ -574,12 +578,21 @@ const ClassesPage = () => {
         variant="danger"
       />
 
-      <ClassReassignModal
+      <ClassReassignModal 
         isOpen={isReassignModalOpen}
         onClose={() => setIsReassignModalOpen(false)}
-        selectedClass={selectedClassForAction}
-        userRole="Tutor"
-        onSuccess={handleReassignSuccess}
+        onReassign={handleReassignSuccess}
+        currentClassId={selectedClassForAction?.classId}
+        tutorClasses={classes}
+      />
+
+      <ConfirmationModal
+          isOpen={!!downloadConfirmRow}
+          onClose={() => setDownloadConfirmRow(null)}
+          onConfirm={handleConfirmDownloadQr}
+          title="Download Class QR Codes"
+          message={`Are you sure you want to download QR codes for ${downloadConfirmRow?.className}?`}
+          confirmLabel="Download"
       />
 
       {/* NEW: Status Confirmation Modal */}
