@@ -615,6 +615,15 @@ const InstituteClassesPage = () => {
                 variant="success"
             />
 
+            <ConfirmationModal
+                isOpen={!!downloadConfirmRow}
+                onClose={() => setDownloadConfirmRow(null)}
+                onConfirm={handleConfirmDownloadQr}
+                title="Download Class QR Codes"
+                message={`Are you sure you want to download QR codes for ${downloadConfirmRow?.className}?`}
+                confirmLabel="Download"
+            />
+
             {/* Student Hub Modal — Attendance · Fees · Enroll */}
             <MarkAttendanceModal
                 isOpen={isStudentHubOpen}

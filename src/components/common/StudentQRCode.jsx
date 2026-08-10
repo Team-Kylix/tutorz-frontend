@@ -42,30 +42,44 @@ const StudentQRCode = ({ value, studentName, userId = null, variant = 'default' 
 
     if (variant === 'compact') {
         return (
-            <div className="group relative">
-                <div 
-                    ref={qrRef} 
-                    className="p-1.5 bg-white dark:bg-gray-800 border-none shadow-xl transition-all cursor-pointer group-hover:scale-105" 
-                    onClick={() => setIsConfirmOpen(true)}
-                >
-                    <div className="bg-blue-50 dark:bg-gray-900 transition-colors">
-                        <QRCodeSVG
-                            value={value}
-                            size={140}
-                            bgColor={isDark ? "#111827" : "#eff6ff"}
-                            fgColor={isDark ? "#ffffff" : "#1e40af"}
-                            level={"H"}
-                            includeMargin={false}
-                        />
-                    </div>
-                    {/* Compact download indicator */}
-                    <div className="absolute top-2 right-2 p-1.5 bg-blue-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
+            <>
+                <div className="group relative">
+                    <div 
+                        ref={qrRef} 
+                        className={`p-1.5 bg-white dark:bg-gray-800 border-none shadow-xl transition-all cursor-pointer ${isDownloading ? 'opacity-75 pointer-events-none' : 'group-hover:scale-105'}`} 
+                        onClick={() => !isDownloading && setIsConfirmOpen(true)}
+                    >
+                        <div className="bg-blue-50 dark:bg-gray-900 transition-colors">
+                            <QRCodeSVG
+                                value={value}
+                                size={140}
+                                bgColor={isDark ? "#111827" : "#eff6ff"}
+                                fgColor={isDark ? "#ffffff" : "#1e40af"}
+                                level={"H"}
+                                includeMargin={false}
+                            />
+                        </div>
+                        {/* Compact download indicator */}
+                        <div className={`absolute top-2 right-2 p-1.5 bg-blue-600 text-white rounded-full transition-opacity shadow-lg ${isDownloading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                            {isDownloading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
+                <ConfirmationModal
+                    isOpen={isConfirmOpen}
+                    onClose={() => setIsConfirmOpen(false)}
+                    onConfirm={downloadQRCode}
+                    title="Download QR Code"
+                    message={`Are you sure you want to download ${studentName}_QR_ID.pdf?`}
+                    confirmLabel="Download"
+                />
+            </>
         );
     }
 
