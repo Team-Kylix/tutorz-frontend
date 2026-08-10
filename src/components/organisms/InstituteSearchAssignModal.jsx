@@ -10,7 +10,7 @@ import QuickActionCard from '../molecules/QuickActionCard';
 import ConfirmationModal from '../molecules/ConfirmationModal';
 import OtpVerificationModal from './OtpVerificationModal';
 
-import { checkUserStatus, sendOtp, verifyOtp } from '../../services/auth/authService';
+import { checkUserStatus, sendOtp, verifyOtp, bindPreAllocatedStudent } from '../../services/auth/authService';
 import { searchStudents, searchTutors, assignStudent, sendTutorRequest, getInstituteProfile } from '../../services/api/instituteService';
 import { getJoinedInstitutes, searchStudentsGlobalForTutor } from '../../services/api/tutorService';
 import { validatePhoneNumber, validateEmail, validateName } from '../../utils/validators';
@@ -59,6 +59,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
     const [isSiblingRegistration, setIsSiblingRegistration] = useState(false);
     const [registrationMode, setRegistrationMode] = useState(null); // 'sibling' or 'new'
     const [siblingVerificationToken, setSiblingVerificationToken] = useState(null);
+    const [preAllocatedData, setPreAllocatedData] = useState(null);
 
     const [formData, setFormData] = useState({
         mobile: '',
@@ -110,6 +111,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
             setSiblingVerificationToken(null);
             setIsRegistering(false);
             setSelectedTutorInstituteId('');
+            setPreAllocatedData(null);
 
             // Fetch profile if needed (only for Institutes)
             if (user?.role === 'Institute' && !instituteProfile) {
@@ -227,6 +229,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
         setGlobalError(null);
         setIsSiblingRegistration(false);
         setSiblingVerificationToken(null);
+        setPreAllocatedData(null);
         setStep(type ? 'check' : 'role-picker');
     };
 
@@ -311,9 +314,21 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                 setErrors({});
                 setGlobalError(null);
                 
-                if (selectedRole === 'Student') setStep('register-student');
-                else if (selectedRole === 'Tutor') setStep('register-tutor');
-                else if (selectedRole === 'Admin') setStep('register-admin');
+                if (selectedRole === 'Student') {
+                    if (mobileStr) {
+                        try {
+                            const bindResponse = await bindPreAllocatedStudent(mobileStr);
+                            setPreAllocatedData(bindResponse);
+                        } catch (err) {
+                            console.error("Bind PreAllocated Error:", err);
+                        }
+                    }
+                    setStep('register-student');
+                } else if (selectedRole === 'Tutor') {
+                    setStep('register-tutor');
+                } else if (selectedRole === 'Admin') {
+                    setStep('register-admin');
+                }
             }
         } catch {
             setCheckError("Failed to verify user. Please try again.");
@@ -526,7 +541,10 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                     cityId: selectedCityId,
                     instituteId: instId,
                     otpCode: otpCode,
-                    tutorId: user?.role === 'Tutor' ? (user.userId || user.id) : null
+                    tutorId: user?.role === 'Tutor' ? (user.userId || user.id) : null,
+                    preAllocatedRegNo: preAllocatedData?.preAllocatedRegNo || null,
+                    preAllocatedUserId: preAllocatedData?.preAllocatedUserId || null,
+                    preAllocatedStudentId: preAllocatedData?.preAllocatedStudentId || null
                 });
                 setSuccessMessage({ 
                     title: "Registration Successful!", 
@@ -754,7 +772,7 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                             </Select>
                         </div>
                     )}
-                    {(checkData.email || isTutor || isAdmin) && (
+                    {(checkData.email || isTutor || isAdmin || preAllocatedData) && (
                         <div className={`bg-${color}-50 dark:bg-${color}-900/20 p-3 rounded-lg border border-${color}-100 dark:border-${color}-800 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4`}>
                             {checkData.email && (
                                 <div><p className={`text-[10px] text-${color}-600 dark:text-${color}-400 font-semibold uppercase`}>Email</p><p className={`font-mono text-sm font-bold text-${color}-800 dark:text-${color}-300 truncate`}>{checkData.email}</p></div>
@@ -765,6 +783,12 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                                     <p className={`truncate text-sm font-bold text-${color}-800 dark:text-${color}-300`}>
                                         {isAdmin ? "Full System Access" : (instituteProfile?.instituteName ? `Linked to ${instituteProfile.instituteName}` : "Institute Primary Location")}
                                     </p>
+                                </div>
+                            )}
+                            {preAllocatedData && (
+                                <div>
+                                    <p className={`text-[10px] text-${color}-600 dark:text-${color}-400 font-semibold uppercase`}>Reg. No.</p>
+                                    <p className={`font-mono text-sm font-bold text-${color}-800 dark:text-${color}-300 truncate`}>{preAllocatedData.preAllocatedRegNo}</p>
                                 </div>
                             )}
                         </div>
@@ -835,11 +859,11 @@ const InstituteSearchAssignModal = ({ isOpen, onClose, type = null, onAssigned, 
                         disabled={user?.role === 'Tutor' && !selectedTutorInstituteId}
                         onClick={() => {
                             const tempStudent = {
-                                roleSpecificId: formData.mobile.trim() || checkData.email || checkData.mobile,
+                                roleSpecificId: preAllocatedData?.preAllocatedStudentId || formData.mobile.trim() || checkData.email || checkData.mobile,
                                 isSiblingRegistration: isSiblingRegistration,
                                 name: [formData.firstName, formData.lastName].filter(Boolean).join(' ').trim(),
                                 phoneNumber: formData.mobile.trim() || checkData.mobile,
-                                registrationNumber: 'Pending Sync',
+                                registrationNumber: preAllocatedData?.preAllocatedRegNo || 'Pending Sync',
                                 selectedInstituteId: user?.role === 'Tutor' ? selectedTutorInstituteId : null,
                                 closeOnAction: true
                             };

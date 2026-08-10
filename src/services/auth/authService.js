@@ -89,6 +89,15 @@ export const checkUserStatus = async (data) => {
     }
 };
 
+export const bindPreAllocatedStudent = async (mobileNumber) => {
+    try {
+        const response = await apiClient.post(`/auth/bind-pre-allocated-student?mobileNumber=${encodeURIComponent(mobileNumber)}`);
+        return response.data;
+    } catch (err) {
+        throw new Error(err.response?.data?.message || 'Failed to bind pre-allocated student.');
+    }
+};
+
 export const sendRegistrationOtp = async (phoneNumber) => {
     try {
         const response = await apiClient.post('/auth/send-registration-otp', { phoneNumber });
