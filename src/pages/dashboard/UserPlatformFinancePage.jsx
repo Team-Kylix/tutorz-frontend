@@ -154,11 +154,20 @@ const UserPlatformFinancePage = ({ setActivePage }) => {
                                                     disabled: downloadingId === bill.billId,
                                                     onClick: () => setDownloadConfirmRow(bill) 
                                                 },
-                                                ...(bill.status !== 'Paid' ? [{
-                                                    label: 'Pay Bill', 
-                                                    icon: CreditCard, 
-                                                    onClick: () => { setSelectedBill(bill); setIsPayModalOpen(true); }
-                                                }] : [])
+                                                ...(bill.status !== 'Paid' ? (
+                                                    bill.monthYear === (new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0')) 
+                                                    ? [{
+                                                        label: 'Not payable yet', 
+                                                        icon: Info, 
+                                                        disabled: true,
+                                                        onClick: () => {}
+                                                    }] 
+                                                    : [{
+                                                        label: 'Pay Bill', 
+                                                        icon: CreditCard, 
+                                                        onClick: () => { setSelectedBill(bill); setIsPayModalOpen(true); }
+                                                    }]
+                                                ) : [])
                                             ]} />
                                         </td>
                                     </tr>
