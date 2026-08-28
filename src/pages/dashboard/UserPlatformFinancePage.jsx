@@ -40,11 +40,11 @@ const UserPlatformFinancePage = ({ setActivePage }) => {
         if (!downloadConfirmRow || downloadingId) return;
         const { billId, billReference } = downloadConfirmRow;
         setDownloadingId(billId);
-        setDownloadConfirmRow(null);
         try {
             await downloadBillPdf(billId, billReference);
         } finally {
             setDownloadingId(null);
+            setDownloadConfirmRow(null);
         }
     };
 
@@ -215,11 +215,12 @@ const UserPlatformFinancePage = ({ setActivePage }) => {
 
             <ConfirmationModal
                 isOpen={!!downloadConfirmRow}
-                onClose={() => setDownloadConfirmRow(null)}
+                onClose={() => !downloadingId && setDownloadConfirmRow(null)}
                 onConfirm={handleConfirmDownload}
+                isSubmitting={!!downloadingId}
                 title="Download Platform Bill"
-                message={`Are you sure you want to download the bill for ${downloadConfirmRow?.monthYear}?`}
-                confirmLabel="Download"
+                message={downloadingId ? "Calculating your usage and generating PDF... Please wait." : `Are you sure you want to download the bill for ${downloadConfirmRow?.monthYear}?`}
+                confirmLabel={downloadingId ? "Downloading..." : "Download"}
             />
         </div>
     );
