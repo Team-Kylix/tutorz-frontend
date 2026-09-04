@@ -42,7 +42,7 @@ import AboutUsContent from '../../components/organisms/AboutUsContent';
 import DisputesPage from './DisputesPage';
 import ReportsPage from './ReportsPage';
 import WithdrawalsPage from './WithdrawalsPage';
-import InstituteWithdrawalsPage from './InstituteWithdrawalsPage';
+
 import FeesReportPage from './FeesReportPage';
 import InstituteFeesReportPage from './InstituteFeesReportPage';
 
@@ -69,9 +69,6 @@ const DashboardHome = ({ activePage, setActivePage }) => {
   }
 
   if (activePage === 'withdrawals') {
-    if (user?.role === ROLES.INSTITUTE) {
-      return <InstituteWithdrawalsPage />;
-    }
     return <WithdrawalsPage />;
   }
 

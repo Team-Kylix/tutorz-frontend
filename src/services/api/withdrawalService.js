@@ -201,3 +201,54 @@ export const downloadInstituteMonthlyFeesPdf = async (year, month, tutorId = nul
   link.remove();
   window.URL.revokeObjectURL(url);
 };
+
+// ============================================================
+// EARNINGS SUMMARIES & WALLETS
+// ============================================================
+
+/**
+ * Tutor: Calculate earnings for a specific month/year.
+ * @param {{ month: number, year: number }} dto
+ */
+export const calculateEarnings = async (dto) => {
+  const response = await apiClient.post('/withdrawal/calculate', dto);
+  return response.data;
+};
+
+/**
+ * Institute: Calculate earnings for all tutors + institute for a specific month/year.
+ * @param {{ month: number, year: number }} dto
+ */
+export const calculateInstituteEarnings = async (dto) => {
+  const response = await apiClient.post('/withdrawal/calculate-institute', dto);
+  return response.data;
+};
+
+/**
+ * Get earnings summaries (filter by tutorId or instituteId).
+ * @param {{ tutorId?: string, instituteId?: string }} params
+ */
+export const getEarningsSummaries = async ({ tutorId, instituteId } = {}) => {
+  const params = {};
+  if (tutorId) params.tutorId = tutorId;
+  if (instituteId) params.instituteId = instituteId;
+  const response = await apiClient.get('/withdrawal/earnings', { params });
+  return response.data;
+};
+
+/**
+ * Get wallet balances for the currently logged-in user.
+ */
+export const getWalletBalances = async () => {
+  const response = await apiClient.get('/withdrawal/wallet-balances');
+  return response.data;
+};
+
+/**
+ * Withdraw from a specific wallet.
+ * @param {{ walletId: string, amount: number, type: string, description: string }} dto
+ */
+export const withdrawFromWallet = async (dto) => {
+  const response = await apiClient.post('/withdrawal/withdraw', dto);
+  return response.data;
+};
