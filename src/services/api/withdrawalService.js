@@ -201,37 +201,7 @@ export const downloadInstituteMonthlyFeesPdf = async (year, month, tutorId = nul
   link.remove();
   window.URL.revokeObjectURL(url);
 };
-
-// ============================================================
-// EARNINGS SUMMARIES & WALLETS
-// ============================================================
-
-/**
- * Tutor: Calculate earnings for a specific month/year.
- * @param {{ month: number, year: number }} dto
- */
-export const calculateEarnings = async (dto) => {
-  const response = await apiClient.post('/withdrawal/calculate', dto);
-  return response.data;
-};
-
-/**
- * Institute: Calculate earnings for all tutors + institute for a specific month/year.
- * @param {{ month: number, year: number }} dto
- */
-export const calculateInstituteEarnings = async (dto) => {
-  const response = await apiClient.post('/withdrawal/calculate-institute', dto);
-  return response.data;
-};
-
-/**
- * Get earnings summaries (filter by tutorId or instituteId).
- * @param {{ tutorId?: string, instituteId?: string }} params
- */
-export const getEarningsSummaries = async ({ tutorId, instituteId } = {}) => {
-  const params = {};
-  if (tutorId) params.tutorId = tutorId;
-  if (instituteId) params.instituteId = instituteId;
+export const getEarningsSummaries = async (params = {}) => {
   const response = await apiClient.get('/withdrawal/earnings', { params });
   return response.data;
 };
@@ -251,4 +221,38 @@ export const getWalletBalances = async () => {
 export const withdrawFromWallet = async (dto) => {
   const response = await apiClient.post('/withdrawal/withdraw', dto);
   return response.data;
+};
+
+/**
+ * Tutor: Calculate earnings for all uncalculated history up to current month.
+ */
+export const calculateEarnings = async () => {
+  const response = await apiClient.post('/withdrawal/calculate', {});
+  return response.data;
+};
+
+/**
+ * Institute: Calculate earnings for all history up to current month.
+ */
+export const calculateInstituteEarnings = async () => {
+  const response = await apiClient.post('/withdrawal/calculate-institute', {});
+  return response.data;
+};
+
+/**
+ * Download detailed earnings PDF for a specific EarningsSummary row.
+ * @param {string} id - The EarningsSummary Id
+ */
+export const downloadEarningsPdf = async (id) => {
+  const response = await apiClient.get(`/withdrawal/earnings/${id}/pdf`, {
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `Earnings_Summary_${id}.pdf`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
 };

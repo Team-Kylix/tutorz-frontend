@@ -1,6 +1,7 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, Wallet, Download, BellRing, FileBarChart2, RefreshCw, Calculator, Search, CheckCircle } from 'lucide-react';
 import Select from '../../components/atoms/Select';
+import RowActions from '../../components/molecules/RowActions';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLES } from '../../utils/constants';
 
@@ -9,13 +10,14 @@ import {
     getWalletBalances,
     calculateEarnings,
     calculateInstituteEarnings,
-    withdrawFromWallet
+    withdrawFromWallet,
+    downloadEarningsPdf
 } from '../../services/api/withdrawalService';
 import { getJoinedInstitutes } from '../../services/api/tutorService';
 import { searchTutors } from '../../services/api/instituteService';
 
 const formatCurrency = (val) =>
-    val != null ? `Rs ${Number(val).toLocaleString('en-LK', { minimumFractionDigits: 2 })}` : '—';
+    val != null ? `Rs ${Number(val).toLocaleString('en-LK', { minimumFractionDigits: 2 })}` : 'â€”';
 
 const WithdrawalsPage = () => {
     const { user } = useAuth();
@@ -81,8 +83,8 @@ const WithdrawalsPage = () => {
     const [error, setError] = useState(null);
 
     // Calculation State
-    const [calcMonth, setCalcMonth] = useState(new Date().getMonth() + 1);
-    const [calcYear, setCalcYear] = useState(new Date().getFullYear());
+    
+    
 
     // Withdrawal Modal
     const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
@@ -90,6 +92,7 @@ const WithdrawalsPage = () => {
     const [withdrawType, setWithdrawType] = useState('OnHand');
     const [selectedWalletId, setSelectedWalletId] = useState('');
     const [isWithdrawing, setIsWithdrawing] = useState(false);
+    const [downloadingId, setDownloadingId] = useState(null);
 
     useEffect(() => {
         if (isTutor) {
@@ -135,13 +138,25 @@ const WithdrawalsPage = () => {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
+        const handleDownloadPdf = async (id) => {
+        setDownloadingId(id);
+        try {
+            await downloadEarningsPdf(id);
+        } catch (err) {
+            console.error('PDF error:', err);
+            alert('Failed to download PDF.');
+        } finally {
+            setDownloadingId(null);
+        }
+    };
+
     const handleCalculate = async () => {
         setIsCalculating(true);
         try {
             if (isTutor) {
-                await calculateEarnings({ month: calcMonth, year: calcYear });
+                await calculateEarnings();
             } else if (isInstitute) {
-                await calculateInstituteEarnings({ month: calcMonth, year: calcYear });
+                await calculateInstituteEarnings();
             }
             fetchData();
             alert('Earnings calculated successfully!');
@@ -157,7 +172,8 @@ const WithdrawalsPage = () => {
         if (!selectedWalletId || !withdrawAmount || Number(withdrawAmount) <= 0) return;
         setIsWithdrawing(true);
         try {
-            await withdrawFromWallet({
+            await withdrawFromWallet,
+    downloadEarningsPdf({
                 walletId: selectedWalletId,
                 amount: parseFloat(withdrawAmount),
                 type: withdrawType,
@@ -195,28 +211,13 @@ const WithdrawalsPage = () => {
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2 items-center bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <select
-                        value={calcMonth}
-                        onChange={(e) => setCalcMonth(parseInt(e.target.value))}
-                        className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white outline-none"
-                    >
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                            <option key={m} value={m}>{new Date(0, m - 1).toLocaleString('default', { month: 'short' })}</option>
-                        ))}
-                    </select>
-                    <input
-                        type="number"
-                        value={calcYear}
-                        onChange={(e) => setCalcYear(parseInt(e.target.value))}
-                        className="w-20 px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white outline-none"
-                    />
                     <button
                         onClick={handleCalculate}
                         disabled={isCalculating}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
+                        className="flex items-center gap-2 px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
                     >
                         {isCalculating ? <Loader2 size={16} className="animate-spin" /> : <Calculator size={16} />}
-                        Calculate
+                        Calculate Pending Earnings
                     </button>
                 </div>
             </div>
@@ -322,6 +323,7 @@ const WithdrawalsPage = () => {
                                 <th className="px-4 py-3 font-medium text-right">SMS Deduct</th>
                                 <th className="px-4 py-3 font-medium text-right">Server Deduct</th>
                                 <th className="px-4 py-3 font-medium text-right">Net Amount</th>
+                                <th scope="col" className="px-1 py-3 font-medium sticky right-0 z-20 bg-gray-50 dark:bg-gray-800/50 backdrop-blur-sm"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -337,6 +339,16 @@ const WithdrawalsPage = () => {
                                     <td className="px-4 py-3 text-right text-red-500">-{formatCurrency(row.smsDeduction)}</td>
                                     <td className="px-4 py-3 text-right text-red-500">-{formatCurrency(row.serverDeduction)}</td>
                                     <td className="px-4 py-3 text-right font-bold text-green-600">{formatCurrency(row.netAmount)}</td>
+                                    <td className="px-1 py-3 sticky right-0 z-10 bg-white dark:bg-gray-800 transition-colors">
+                                        <RowActions actions={[
+                                            {
+                                                label: downloadingId === row.id ? 'Downloading...' : 'Download PDF',
+                                                icon: downloadingId === row.id ? Loader2 : Download,
+                                                disabled: downloadingId === row.id,
+                                                onClick: () => handleDownloadPdf(row.id)
+                                            }
+                                        ]} />
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
