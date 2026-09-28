@@ -256,3 +256,12 @@ export const downloadEarningsPdf = async (id) => {
   link.remove();
   window.URL.revokeObjectURL(url);
 };
+
+/**
+ * Get available years and months with data.
+ * @param {object} params - { tutorId, instituteId }
+ */
+export const getAvailablePeriods = async (params = {}) => {
+  const response = await apiClient.get('/withdrawal/available-periods', { params });
+  return response.data;
+};
